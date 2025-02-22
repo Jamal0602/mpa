@@ -1,6 +1,7 @@
 
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AuthForm from "@/components/auth/AuthForm";
 
 const Index = () => {
   return (
@@ -10,16 +11,10 @@ const Index = () => {
           <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-6xl">
             Welcome to Your Site
           </h1>
-          <p className="mb-8 text-lg text-muted-foreground sm:text-xl">
+          <p className="mb-12 text-lg text-muted-foreground sm:text-xl">
             A beautiful foundation for your next project. Start adding features and watch it grow.
           </p>
-          <Button 
-            className="group"
-            size="lg"
-          >
-            Get Started
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
+          <AuthForm />
         </div>
       </main>
     </div>
