@@ -2,60 +2,85 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, ThumbsUp, MessageCircle } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
+import { supabase } from "@/lib/supabase";
 
 interface Post {
   id: number;
   title: string;
   content: string;
   author: string;
-  date: string;
+  created_at: string;
   likes: number;
   comments: number;
 }
 
-const samplePosts: Post[] = [
-  {
-    id: 1,
-    title: "Getting Started with Modern Web Development",
-    content: "Learn the essential tools and practices for building modern web applications. We'll cover the latest frameworks, best practices, and development workflows that will help you create better applications.",
-    author: "Sarah Johnson",
-    date: "2024-03-15",
-    likes: 45,
-    comments: 12
-  },
-  {
-    id: 2,
-    title: "Understanding State Management",
-    content: "Dive deep into different state management approaches and learn when to use each one. From local state to global solutions, we'll explore the best practices for managing application state.",
-    author: "Michael Chen",
-    date: "2024-03-14",
-    likes: 38,
-    comments: 8
-  },
-  {
-    id: 3,
-    title: "Performance Optimization Techniques",
-    content: "Discover practical techniques to improve your application's performance. From code splitting to caching strategies, learn how to make your app faster and more efficient.",
-    author: "Alex Rivera",
-    date: "2024-03-13",
-    likes: 52,
-    comments: 15
-  }
-];
+const fetchPosts = async () => {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data;
+};
 
-const popularTags = [
-  { name: "React", count: 125 },
-  { name: "TypeScript", count: 98 },
-  { name: "Web Development", count: 84 },
-  { name: "UI/UX", count: 76 },
-  { name: "Performance", count: 65 }
-];
+const fetchStats = async () => {
+  const { data: posts, error: postsError } = await supabase
+    .from('posts')
+    .select('count');
+  
+  const { data: users, error: usersError } = await supabase
+    .from('profiles')
+    .select('count');
+  
+  const { data: comments, error: commentsError } = await supabase
+    .from('comments')
+    .select('count');
+    
+  if (postsError || usersError || commentsError) 
+    throw new Error('Failed to fetch statistics');
+    
+  return {
+    posts: posts?.[0]?.count || 0,
+    users: users?.[0]?.count || 0,
+    comments: comments?.[0]?.count || 0,
+  };
+};
+
+const fetchTopContributors = async () => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('username, post_count')
+    .order('post_count', { ascending: false })
+    .limit(3);
+  
+  if (error) throw error;
+  return data;
+};
 
 const Index = () => {
-  const { data: posts, isLoading } = useQuery({
+  const { data: posts, isLoading: isLoadingPosts } = useQuery({
     queryKey: ["posts"],
-    queryFn: () => Promise.resolve(samplePosts),
+    queryFn: fetchPosts,
   });
+
+  const { data: stats } = useQuery({
+    queryKey: ["stats"],
+    queryFn: fetchStats,
+  });
+
+  const { data: contributors } = useQuery({
+    queryKey: ["contributors"],
+    queryFn: fetchTopContributors,
+  });
+
+  const popularTags = [
+    { name: "React", count: 125 },
+    { name: "TypeScript", count: 98 },
+    { name: "Web Development", count: 84 },
+    { name: "UI/UX", count: 76 },
+    { name: "Performance", count: 65 }
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,7 +91,7 @@ const Index = () => {
           <div className="md:col-span-8 space-y-6">
             <div className="rounded-lg border bg-card p-6">
               <h2 className="text-2xl font-semibold mb-6">Latest Posts</h2>
-              {isLoading ? (
+              {isLoadingPosts ? (
                 <div className="space-y-4">
                   <div className="h-24 bg-muted animate-pulse rounded-md" />
                   <div className="h-24 bg-muted animate-pulse rounded-md" />
@@ -86,7 +111,7 @@ const Index = () => {
                           <span>{post.author}</span>
                           <div className="flex items-center gap-1">
                             <CalendarDays className="h-4 w-4" />
-                            {new Date(post.date).toLocaleDateString()}
+                            {new Date(post.created_at).toLocaleDateString()}
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
@@ -128,15 +153,15 @@ const Index = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Total Posts</span>
-                  <span className="font-medium">1,234</span>
+                  <span className="font-medium">{stats?.posts || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Active Users</span>
-                  <span className="font-medium">5,678</span>
+                  <span className="font-medium">{stats?.users || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Total Comments</span>
-                  <span className="font-medium">9,012</span>
+                  <span className="font-medium">{stats?.comments || 0}</span>
                 </div>
               </div>
             </div>
@@ -144,18 +169,12 @@ const Index = () => {
             <div className="rounded-lg border bg-card p-6">
               <h3 className="font-medium mb-4">Top Contributors</h3>
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Sarah Johnson</span>
-                  <span className="text-xs text-muted-foreground">142 posts</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Michael Chen</span>
-                  <span className="text-xs text-muted-foreground">98 posts</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Alex Rivera</span>
-                  <span className="text-xs text-muted-foreground">76 posts</span>
-                </div>
+                {contributors?.map((contributor) => (
+                  <div key={contributor.username} className="flex justify-between items-center">
+                    <span className="text-sm">{contributor.username}</span>
+                    <span className="text-xs text-muted-foreground">{contributor.post_count} posts</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
