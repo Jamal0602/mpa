@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, ThumbsUp, MessageCircle, PenSquare } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
@@ -28,7 +27,7 @@ interface Contributor {
   avatar_url: string | null;
 }
 
-const fetchPosts = async () => {
+const fetchPosts = async (): Promise<Post[]> => {
   const { data, error } = await supabase
     .from('posts')
     .select(`
@@ -38,7 +37,7 @@ const fetchPosts = async () => {
       created_at,
       likes,
       comments,
-      user_id (
+      user_id:profiles(
         username,
         avatar_url
       )
@@ -46,7 +45,10 @@ const fetchPosts = async () => {
     .order('created_at', { ascending: false });
   
   if (error) throw error;
-  return data as Post[];
+  return data.map(post => ({
+    ...post,
+    user_id: post.user_id[0] || { username: 'Anonymous', avatar_url: null }
+  })) as Post[];
 };
 
 const fetchStats = async () => {
