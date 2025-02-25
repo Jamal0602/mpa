@@ -7,17 +7,25 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
+interface Profile {
+  username: string;
+  avatar_url: string | null;
+}
+
 interface Post {
   id: number;
   title: string;
   content: string;
-  author: {
-    username: string;
-    avatar_url: string | null;
-  };
+  user_id: Profile;
   created_at: string;
   likes: number;
   comments: number;
+}
+
+interface Contributor {
+  username: string;
+  post_count: number;
+  avatar_url: string | null;
 }
 
 const fetchPosts = async () => {
@@ -30,7 +38,7 @@ const fetchPosts = async () => {
       created_at,
       likes,
       comments,
-      author: user_id (
+      user_id (
         username,
         avatar_url
       )
@@ -38,7 +46,7 @@ const fetchPosts = async () => {
     .order('created_at', { ascending: false });
   
   if (error) throw error;
-  return data;
+  return data as Post[];
 };
 
 const fetchStats = async () => {
@@ -72,7 +80,7 @@ const fetchTopContributors = async () => {
     .limit(3);
   
   if (error) throw error;
-  return data;
+  return data as Contributor[];
 };
 
 const Index = () => {
@@ -142,7 +150,7 @@ const Index = () => {
                       </p>
                       <div className="flex items-center justify-between text-sm text-muted-foreground">
                         <div className="flex items-center gap-4">
-                          <span>{post.author?.username || "Anonymous"}</span>
+                          <span>{post.user_id?.username || "Anonymous"}</span>
                           <div className="flex items-center gap-1">
                             <CalendarDays className="h-4 w-4" />
                             {new Date(post.created_at).toLocaleDateString()}
