@@ -1,14 +1,20 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, ThumbsUp, MessageCircle } from "lucide-react";
+import { CalendarDays, ThumbsUp, MessageCircle, PenSquare } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface Post {
   id: number;
   title: string;
   content: string;
-  author: string;
+  author: {
+    username: string;
+    avatar_url: string | null;
+  };
   created_at: string;
   likes: number;
   comments: number;
@@ -17,7 +23,18 @@ interface Post {
 const fetchPosts = async () => {
   const { data, error } = await supabase
     .from('posts')
-    .select('*')
+    .select(`
+      id,
+      title,
+      content,
+      created_at,
+      likes,
+      comments,
+      author: user_id (
+        username,
+        avatar_url
+      )
+    `)
     .order('created_at', { ascending: false });
   
   if (error) throw error;
@@ -50,7 +67,7 @@ const fetchStats = async () => {
 const fetchTopContributors = async () => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('username, post_count')
+    .select('username, post_count, avatar_url')
     .order('post_count', { ascending: false })
     .limit(3);
   
@@ -59,6 +76,8 @@ const fetchTopContributors = async () => {
 };
 
 const Index = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: posts, isLoading: isLoadingPosts } = useQuery({
     queryKey: ["posts"],
     queryFn: fetchPosts,
@@ -90,7 +109,18 @@ const Index = () => {
           {/* Main content area - Posts */}
           <div className="md:col-span-8 space-y-6">
             <div className="rounded-lg border bg-card p-6">
-              <h2 className="text-2xl font-semibold mb-6">Latest Posts</h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold">Latest Posts</h2>
+                {user && (
+                  <Button 
+                    onClick={() => navigate('/create-post')}
+                    className="gap-2"
+                  >
+                    <PenSquare className="h-4 w-4" />
+                    Create Post
+                  </Button>
+                )}
+              </div>
               {isLoadingPosts ? (
                 <div className="space-y-4">
                   <div className="h-24 bg-muted animate-pulse rounded-md" />
@@ -99,8 +129,12 @@ const Index = () => {
               ) : (
                 <div className="space-y-6">
                   {posts?.map((post) => (
-                    <article key={post.id} className="p-4 rounded-md border bg-background/50 space-y-4">
-                      <h3 className="text-lg font-medium hover:text-primary cursor-pointer transition-colors">
+                    <article 
+                      key={post.id} 
+                      className="p-4 rounded-md border bg-background/50 space-y-4 hover:border-primary/50 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/post/${post.id}`)}
+                    >
+                      <h3 className="text-lg font-medium hover:text-primary transition-colors">
                         {post.title}
                       </h3>
                       <p className="text-muted-foreground text-sm line-clamp-2">
@@ -108,7 +142,7 @@ const Index = () => {
                       </p>
                       <div className="flex items-center justify-between text-sm text-muted-foreground">
                         <div className="flex items-center gap-4">
-                          <span>{post.author}</span>
+                          <span>{post.author?.username || "Anonymous"}</span>
                           <div className="flex items-center gap-1">
                             <CalendarDays className="h-4 w-4" />
                             {new Date(post.created_at).toLocaleDateString()}
@@ -140,7 +174,7 @@ const Index = () => {
                 {popularTags.map((tag) => (
                   <div
                     key={tag.name}
-                    className="px-2 py-1 bg-primary/10 rounded-full text-xs"
+                    className="px-2 py-1 bg-primary/10 rounded-full text-xs cursor-pointer hover:bg-primary/20 transition-colors"
                   >
                     {tag.name} ({tag.count})
                   </div>
@@ -171,8 +205,19 @@ const Index = () => {
               <div className="space-y-3">
                 {contributors?.map((contributor) => (
                   <div key={contributor.username} className="flex justify-between items-center">
-                    <span className="text-sm">{contributor.username}</span>
-                    <span className="text-xs text-muted-foreground">{contributor.post_count} posts</span>
+                    <div className="flex items-center gap-2">
+                      {contributor.avatar_url && (
+                        <img
+                          src={contributor.avatar_url}
+                          alt={contributor.username}
+                          className="w-6 h-6 rounded-full"
+                        />
+                      )}
+                      <span className="text-sm">{contributor.username}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {contributor.post_count} posts
+                    </span>
                   </div>
                 ))}
               </div>
