@@ -1,16 +1,29 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, LogIn, UserPlus } from "lucide-react";
+import { Moon, Sun, Menu, LogIn, UserPlus, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Successfully signed out!");
+    }
+  };
 
   const NavItems = () => (
     <>
@@ -26,6 +39,32 @@ const Navbar = () => {
       <Link to="/contact" className="text-foreground hover:text-primary transition-colors">
         Contact
       </Link>
+    </>
+  );
+
+  const AuthButtons = () => (
+    <>
+      {user ? (
+        <Button variant="ghost" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Sign out
+        </Button>
+      ) : (
+        <>
+          <Link to="/auth">
+            <Button variant="ghost">
+              <LogIn className="mr-2 h-4 w-4" />
+              Sign in
+            </Button>
+          </Link>
+          <Link to="/auth">
+            <Button>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Sign up
+            </Button>
+          </Link>
+        </>
+      )}
     </>
   );
 
@@ -64,23 +103,13 @@ const Navbar = () => {
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
               <nav className="flex flex-col space-y-4 mt-4">
                 <NavItems />
+                <AuthButtons />
               </nav>
             </SheetContent>
           </Sheet>
 
           <div className="hidden md:flex items-center gap-4">
-            <Link to="/auth">
-              <Button variant="ghost">
-                <LogIn className="mr-2 h-4 w-4" />
-                Sign in
-              </Button>
-            </Link>
-            <Link to="/auth">
-              <Button>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Sign up
-              </Button>
-            </Link>
+            <AuthButtons />
           </div>
         </div>
       </div>

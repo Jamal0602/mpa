@@ -26,7 +26,7 @@ const AuthForm = () => {
         });
         if (error) throw error;
         toast.success("Successfully signed in!");
-        navigate("/dashboard");
+        navigate("/");
       } else {
         const { error } = await supabase.auth.signUp({
           email,
