@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu } from "lucide-react";
+import { Moon, Sun, Menu, LogIn, UserPlus } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
@@ -69,11 +69,17 @@ const Navbar = () => {
           </Sheet>
 
           <div className="hidden md:flex items-center gap-4">
-            <Link to="/dashboard">
-              <Button variant="ghost">Sign in</Button>
+            <Link to="/auth">
+              <Button variant="ghost">
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign in
+              </Button>
             </Link>
-            <Link to="/dashboard">
-              <Button>Get Started</Button>
+            <Link to="/auth">
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Sign up
+              </Button>
             </Link>
           </div>
         </div>
