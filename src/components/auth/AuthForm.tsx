@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Github } from "lucide-react";
+import { Github, Apple } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const AuthForm = () => {
@@ -14,10 +14,32 @@ const AuthForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
   const navigate = useNavigate();
+
+  const validatePassword = (pass: string) => {
+    if (pass.length < 8) return "Password must be at least 8 characters long";
+    if (!/[A-Z]/.test(pass)) return "Password must contain at least one uppercase letter";
+    if (!/[a-z]/.test(pass)) return "Password must contain at least one lowercase letter";
+    if (!/[0-9]/.test(pass)) return "Password must contain at least one number";
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pass)) return "Password must contain at least one symbol";
+    return "";
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    if (!isLogin) {
+      setPasswordError(validatePassword(newPassword));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLogin && passwordError) {
+      toast.error("Please fix password requirements");
+      return;
+    }
     setLoading(true);
     
     try {
@@ -33,6 +55,9 @@ const AuthForm = () => {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
         });
         if (error) throw error;
         toast.success("Check your email to confirm your account!");
@@ -49,7 +74,11 @@ const AuthForm = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       if (error) throw error;
@@ -62,6 +91,20 @@ const AuthForm = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`
         }
@@ -124,6 +167,16 @@ const AuthForm = () => {
             Continue with GitHub
           </Button>
 
+          <Button 
+            variant="outline" 
+            type="button" 
+            className="w-full" 
+            onClick={handleAppleSignIn}
+          >
+            <Apple className="mr-2 h-4 w-4" />
+            Continue with Apple
+          </Button>
+
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <Separator className="w-full" />
@@ -154,11 +207,26 @@ const AuthForm = () => {
                 type="password"
                 placeholder="Enter your password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
                 required
               />
+              {!isLogin && passwordError && (
+                <p className="text-sm text-destructive">{passwordError}</p>
+              )}
+              {!isLogin && (
+                <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                  <p>Password must contain:</p>
+                  <ul className="list-disc pl-4">
+                    <li>At least 8 characters</li>
+                    <li>One uppercase letter</li>
+                    <li>One lowercase letter</li>
+                    <li>One number</li>
+                    <li>One special character</li>
+                  </ul>
+                </div>
+              )}
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || (!isLogin && !!passwordError)}>
               {isLogin ? "Sign In" : "Sign Up"}
             </Button>
           </form>
