@@ -170,6 +170,7 @@ export type Database = {
           district: string | null
           full_name: string | null
           id: string
+          mpa_id: string | null
           place: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           state: string | null
@@ -183,6 +184,7 @@ export type Database = {
           district?: string | null
           full_name?: string | null
           id: string
+          mpa_id?: string | null
           place?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           state?: string | null
@@ -196,6 +198,7 @@ export type Database = {
           district?: string | null
           full_name?: string | null
           id?: string
+          mpa_id?: string | null
           place?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           state?: string | null
@@ -285,9 +288,12 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string
+          description: string | null
           id: string
+          position: Json | null
           project_id: string
           settings: Json | null
+          status: string | null
           title: string
           type: string
           updated_at: string | null
@@ -295,9 +301,12 @@ export type Database = {
         Insert: {
           created_at?: string | null
           created_by: string
+          description?: string | null
           id?: string
+          position?: Json | null
           project_id: string
           settings?: Json | null
+          status?: string | null
           title: string
           type: string
           updated_at?: string | null
@@ -305,9 +314,12 @@ export type Database = {
         Update: {
           created_at?: string | null
           created_by?: string
+          description?: string | null
           id?: string
+          position?: Json | null
           project_id?: string
           settings?: Json | null
+          status?: string | null
           title?: string
           type?: string
           updated_at?: string | null
@@ -338,6 +350,7 @@ export type Database = {
     }
     Enums: {
       user_role: "admin" | "user"
+      widget_type: "chart" | "stats" | "list" | "calendar"
     }
     CompositeTypes: {
       [_ in never]: never
