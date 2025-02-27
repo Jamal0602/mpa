@@ -165,28 +165,40 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          country: string | null
           created_at: string | null
+          district: string | null
           full_name: string | null
           id: string
+          place: string | null
           role: Database["public"]["Enums"]["user_role"] | null
+          state: string | null
           updated_at: string | null
           username: string
         }
         Insert: {
           avatar_url?: string | null
+          country?: string | null
           created_at?: string | null
+          district?: string | null
           full_name?: string | null
           id: string
+          place?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          state?: string | null
           updated_at?: string | null
           username: string
         }
         Update: {
           avatar_url?: string | null
+          country?: string | null
           created_at?: string | null
+          district?: string | null
           full_name?: string | null
           id?: string
+          place?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
+          state?: string | null
           updated_at?: string | null
           username?: string
         }
