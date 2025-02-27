@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2 } from "lucide-react";
+import { Loader2, Save, Edit } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 interface LocationData {
   country: string;
@@ -19,8 +21,10 @@ interface LocationData {
 
 const AccountSettings = () => {
   const { user } = useAuth();
+  const { data: isAdmin } = useIsAdmin();
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
   const [locationData, setLocationData] = useState<LocationData>({
     country: "",
@@ -28,16 +32,17 @@ const AccountSettings = () => {
     district: "",
     place: "",
   });
+  const [displayName, setDisplayName] = useState("");
+  const [customEmail, setCustomEmail] = useState("");
 
   useEffect(() => {
     if (!user) return;
 
-    // Initial fetch of profile data
     const fetchProfileData = async () => {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("country, state, district, place")
+          .select("country, state, district, place, display_name, custom_email")
           .eq("id", user.id)
           .single();
 
@@ -49,6 +54,8 @@ const AccountSettings = () => {
             district: data.district || "",
             place: data.place || "",
           });
+          setDisplayName(data.display_name || "");
+          setCustomEmail(data.custom_email || "");
         }
       } catch (error: any) {
         toast.error("Error loading profile data");
@@ -59,7 +66,6 @@ const AccountSettings = () => {
 
     fetchProfileData();
 
-    // Set up real-time subscription
     const channel = supabase
       .channel("profile-changes")
       .on(
@@ -78,6 +84,8 @@ const AccountSettings = () => {
               district: payload.new.district || "",
               place: payload.new.place || "",
             });
+            setDisplayName(payload.new.display_name || "");
+            setCustomEmail(payload.new.custom_email || "");
           }
         }
       )
@@ -87,6 +95,27 @@ const AccountSettings = () => {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  const handleSaveChanges = async () => {
+    try {
+      const updates = {
+        ...locationData,
+        display_name: displayName,
+        custom_email: customEmail,
+      };
+
+      const { error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", user?.id);
+
+      if (error) throw error;
+      toast.success("Profile updated successfully!");
+      setEditing(false);
+    } catch (error: any) {
+      toast.error("Error updating profile");
+    }
+  };
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -121,53 +150,6 @@ const AccountSettings = () => {
     }
   };
 
-  const handleLocationChange = async (field: keyof LocationData, value: string) => {
-    try {
-      const updates = { [field]: value };
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", user?.id);
-
-      if (error) throw error;
-      setLocationData(prev => ({ ...prev, [field]: value }));
-    } catch (error: any) {
-      toast.error("Error updating location");
-    }
-  };
-
-  const detectLocation = async () => {
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject);
-      });
-
-      const { latitude, longitude } = position.coords;
-      const response = await fetch(
-        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-      );
-      const data = await response.json();
-
-      const updates = {
-        country: data.countryName,
-        state: data.principalSubdivision,
-        district: data.localityInfo.administrative[2]?.name || "",
-        place: data.locality || "",
-      };
-
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", user?.id);
-
-      if (error) throw error;
-      setLocationData(updates);
-      toast.success("Location updated successfully!");
-    } catch (error: any) {
-      toast.error("Error detecting location");
-    }
-  };
-
   if (!user) {
     navigate("/auth");
     return null;
@@ -176,14 +158,39 @@ const AccountSettings = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="relative">
+          <Loader2 className="h-12 w-12 animate-[spin_2s_linear_infinite]" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="h-4 w-4 bg-primary rounded-full animate-[ping_1s_ease-in-out_infinite]" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="container max-w-2xl py-8">
-      <h1 className="text-2xl font-bold mb-8">Account Settings</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold">Account Settings</h1>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Badge variant="secondary" className="animate-fade-in">
+              Admin
+            </Badge>
+          )}
+          {editing ? (
+            <Button onClick={handleSaveChanges} className="gap-2">
+              <Save className="h-4 w-4" />
+              Save Changes
+            </Button>
+          ) : (
+            <Button onClick={() => setEditing(true)} className="gap-2">
+              <Edit className="h-4 w-4" />
+              Edit Profile
+            </Button>
+          )}
+        </div>
+      </div>
       
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -198,39 +205,46 @@ const AccountSettings = () => {
               type="file"
               accept="image/*"
               onChange={handleAvatarChange}
-              disabled={uploading}
+              disabled={uploading || !editing}
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label>Email</Label>
-          <Input value={user.email} disabled />
+          <Label>Display Name</Label>
+          <Input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            disabled={!editing}
+            placeholder="Enter your display name"
+          />
         </div>
 
         <div className="space-y-2">
-          <Label>Full Name</Label>
-          <Input value={user.user_metadata.full_name || ""} disabled />
+          <Label>Email</Label>
+          <Input
+            value={customEmail || user.email}
+            onChange={(e) => setCustomEmail(e.target.value)}
+            disabled={!editing}
+          />
         </div>
 
         <div className="space-y-2">
           <Label>MPA ID</Label>
-          <Input value={user.id} disabled />
+          <Input value={`${user.user_metadata.username}@mpa`} disabled />
         </div>
 
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold">Location Details</h2>
-            <Button onClick={detectLocation} variant="outline">
-              Auto-detect Location
-            </Button>
           </div>
 
           <div className="space-y-2">
             <Label>Country</Label>
             <Input
               value={locationData.country}
-              onChange={(e) => handleLocationChange("country", e.target.value)}
+              onChange={(e) => setLocationData({ ...locationData, country: e.target.value })}
+              disabled={!editing}
             />
           </div>
 
@@ -238,7 +252,8 @@ const AccountSettings = () => {
             <Label>State</Label>
             <Input
               value={locationData.state}
-              onChange={(e) => handleLocationChange("state", e.target.value)}
+              onChange={(e) => setLocationData({ ...locationData, state: e.target.value })}
+              disabled={!editing}
             />
           </div>
 
@@ -246,7 +261,8 @@ const AccountSettings = () => {
             <Label>District</Label>
             <Input
               value={locationData.district}
-              onChange={(e) => handleLocationChange("district", e.target.value)}
+              onChange={(e) => setLocationData({ ...locationData, district: e.target.value })}
+              disabled={!editing}
             />
           </div>
 
@@ -254,7 +270,8 @@ const AccountSettings = () => {
             <Label>Place</Label>
             <Input
               value={locationData.place}
-              onChange={(e) => handleLocationChange("place", e.target.value)}
+              onChange={(e) => setLocationData({ ...locationData, place: e.target.value })}
+              disabled={!editing}
             />
           </div>
         </div>
