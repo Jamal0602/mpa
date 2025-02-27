@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, ThumbsUp, MessageCircle, PenSquare } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
@@ -5,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { LoadingSpinner } from "@/components/ui/loading";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 interface Profile {
   username: string;
@@ -87,18 +90,20 @@ const fetchTopContributors = async () => {
 
 const Index = () => {
   const { user } = useAuth();
+  const { data: isAdmin } = useIsAdmin();
   const navigate = useNavigate();
+
   const { data: posts, isLoading: isLoadingPosts } = useQuery({
     queryKey: ["posts"],
     queryFn: fetchPosts,
   });
 
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading: isLoadingStats } = useQuery({
     queryKey: ["stats"],
     queryFn: fetchStats,
   });
 
-  const { data: contributors } = useQuery({
+  const { data: contributors, isLoading: isLoadingContributors } = useQuery({
     queryKey: ["contributors"],
     queryFn: fetchTopContributors,
   });
@@ -121,7 +126,7 @@ const Index = () => {
             <div className="rounded-lg border bg-card p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold">Latest Posts</h2>
-                {user && (
+                {(user && isAdmin) && (
                   <Button 
                     onClick={() => navigate('/create-post')}
                     className="gap-2"
@@ -132,16 +137,13 @@ const Index = () => {
                 )}
               </div>
               {isLoadingPosts ? (
-                <div className="space-y-4">
-                  <div className="h-24 bg-muted animate-pulse rounded-md" />
-                  <div className="h-24 bg-muted animate-pulse rounded-md" />
-                </div>
+                <LoadingSpinner />
               ) : (
                 <div className="space-y-6">
                   {posts?.map((post) => (
                     <article 
                       key={post.id} 
-                      className="p-4 rounded-md border bg-background/50 space-y-4 hover:border-primary/50 transition-colors cursor-pointer"
+                      className="p-4 rounded-md border bg-background/50 space-y-4 hover:border-primary/50 transition-colors cursor-pointer animate-fade-in"
                       onClick={() => navigate(`/post/${post.id}`)}
                     >
                       <h3 className="text-lg font-medium hover:text-primary transition-colors">
@@ -194,43 +196,51 @@ const Index = () => {
 
             <div className="rounded-lg border bg-card p-6">
               <h3 className="font-medium mb-4">Site Statistics</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Total Posts</span>
-                  <span className="font-medium">{stats?.posts || 0}</span>
+              {isLoadingStats ? (
+                <LoadingSpinner />
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Total Posts</span>
+                    <span className="font-medium animate-fade-in">{stats?.posts || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Active Users</span>
+                    <span className="font-medium animate-fade-in">{stats?.users || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Total Comments</span>
+                    <span className="font-medium animate-fade-in">{stats?.comments || 0}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Active Users</span>
-                  <span className="font-medium">{stats?.users || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Total Comments</span>
-                  <span className="font-medium">{stats?.comments || 0}</span>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="rounded-lg border bg-card p-6">
               <h3 className="font-medium mb-4">Top Contributors</h3>
-              <div className="space-y-3">
-                {contributors?.map((contributor) => (
-                  <div key={contributor.username} className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      {contributor.avatar_url && (
-                        <img
-                          src={contributor.avatar_url}
-                          alt={contributor.username}
-                          className="w-6 h-6 rounded-full"
-                        />
-                      )}
-                      <span className="text-sm">{contributor.username}</span>
+              {isLoadingContributors ? (
+                <LoadingSpinner />
+              ) : (
+                <div className="space-y-3">
+                  {contributors?.map((contributor) => (
+                    <div key={contributor.username} className="flex justify-between items-center animate-fade-in">
+                      <div className="flex items-center gap-2">
+                        {contributor.avatar_url && (
+                          <img
+                            src={contributor.avatar_url}
+                            alt={contributor.username}
+                            className="w-6 h-6 rounded-full"
+                          />
+                        )}
+                        <span className="text-sm">{contributor.username}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {contributor.post_count} posts
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {contributor.post_count} posts
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
