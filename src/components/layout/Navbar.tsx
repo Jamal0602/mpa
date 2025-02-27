@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, LogIn, UserPlus, LogOut } from "lucide-react";
+import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
@@ -11,10 +11,21 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
+  const { data: isAdmin } = useIsAdmin();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -39,16 +50,54 @@ const Navbar = () => {
       <Link to="/contact" className="text-foreground hover:text-primary transition-colors">
         Contact
       </Link>
+      {isAdmin && (
+        <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">
+          Analysis
+        </Link>
+      )}
     </>
   );
+
+  const UserMenu = () => {
+    if (!user) return null;
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+            <Avatar>
+              <AvatarImage src={user.user_metadata.avatar_url} />
+              <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{user.user_metadata.full_name}</p>
+              <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link to="/account">
+              <Settings className="mr-2 h-4 w-4" />
+              Account settings
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   const AuthButtons = () => (
     <>
       {user ? (
-        <Button variant="ghost" onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign out
-        </Button>
+        <UserMenu />
       ) : (
         <>
           <Link to="/auth">

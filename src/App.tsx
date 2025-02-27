@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import AuthForm from "./components/auth/AuthForm";
 import AuthCallback from "./components/auth/AuthCallback";
+import AccountSettings from "./pages/AccountSettings";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/account" element={<AccountSettings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
