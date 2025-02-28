@@ -63,6 +63,33 @@ export type Database = {
           },
         ]
       }
+      key_points_transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string
+          id: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description: string
+          id?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string
+          id?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       posts: {
         Row: {
           comments_count: number | null
@@ -170,10 +197,13 @@ export type Database = {
           district: string | null
           full_name: string | null
           id: string
+          key_points: number | null
+          last_login: string | null
           mpa_id: string | null
           place: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           state: string | null
+          theme_preference: string | null
           updated_at: string | null
           username: string
         }
@@ -184,10 +214,13 @@ export type Database = {
           district?: string | null
           full_name?: string | null
           id: string
+          key_points?: number | null
+          last_login?: string | null
           mpa_id?: string | null
           place?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           state?: string | null
+          theme_preference?: string | null
           updated_at?: string | null
           username: string
         }
@@ -198,10 +231,13 @@ export type Database = {
           district?: string | null
           full_name?: string | null
           id?: string
+          key_points?: number | null
+          last_login?: string | null
           mpa_id?: string | null
           place?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           state?: string | null
+          theme_preference?: string | null
           updated_at?: string | null
           username?: string
         }
