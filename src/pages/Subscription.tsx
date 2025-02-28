@@ -12,7 +12,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Check, CreditCard, Sparkles, TrendingUp, Shield } from "lucide-react";
+import { Check, CreditCard, Sparkles, TrendingUp, Shield, AlertCircle, Copy, ArrowRight } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface SubscriptionPlan {
   id: string;
@@ -67,12 +76,17 @@ const subscriptionPlans: SubscriptionPlan[] = [
   }
 ];
 
+const UPI_ID = "9087387987@fam";
+
 const Subscription = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [customAmount, setCustomAmount] = useState<number | "">("");
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [transactionId, setTransactionId] = useState("");
+  const [verificationError, setVerificationError] = useState("");
   
   // Fetch user's key points
   const { data: profile, isLoading, refetch: refetchProfile } = useQuery({
@@ -106,17 +120,41 @@ const Subscription = () => {
     else return amount;  // No bonus for smaller amounts
   };
   
-  const handlePurchase = async () => {
+  const handleStartPayment = () => {
     if (!selectedPlan && (!customAmount || customAmount < 1)) {
       toast.error("Please select a plan or enter a custom amount");
+      return;
+    }
+    
+    setVerificationError("");
+    setShowPaymentDialog(true);
+  };
+  
+  const handleCopyUpiId = () => {
+    navigator.clipboard.writeText(UPI_ID);
+    toast.success("UPI ID copied to clipboard");
+  };
+  
+  const handleVerifyPayment = async () => {
+    if (!transactionId.trim()) {
+      setVerificationError("Please enter a transaction ID");
       return;
     }
     
     setIsPaymentProcessing(true);
     
     try {
-      // Simulate payment processing
+      // In a real app, this would call an API to verify the payment
+      // For demonstration, we'll simulate a verification check
       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // For demo purposes, we'll consider transactions with "FAIL" to be invalid
+      const isPaymentVerified = !transactionId.toUpperCase().includes("FAIL");
+      
+      if (!isPaymentVerified) {
+        setVerificationError("Payment verification failed. Please enter a valid transaction ID.");
+        throw new Error("Payment could not be verified");
+      }
       
       const amount = selectedPlan ? selectedPlan.points + selectedPlan.bonus : calculateCustomPoints(Number(customAmount));
       const price = selectedPlan ? selectedPlan.price : Number(customAmount);
@@ -138,7 +176,7 @@ const Subscription = () => {
         .insert({
           user_id: user.id,
           amount: amount,
-          description: `Purchased ${planName} plan (₹${price})`,
+          description: `Purchased ${planName} plan (₹${price}) - Transaction ID: ${transactionId}`,
           transaction_type: 'earn'
         });
       
@@ -146,9 +184,13 @@ const Subscription = () => {
       refetchProfile();
       setSelectedPlan(null);
       setCustomAmount("");
+      setTransactionId("");
+      setShowPaymentDialog(false);
       
     } catch (error: any) {
-      toast.error(`Purchase failed: ${error.message}`);
+      if (!error.message.includes("verified")) {
+        toast.error(`Purchase failed: ${error.message}`);
+      }
     } finally {
       setIsPaymentProcessing(false);
     }
@@ -270,7 +312,7 @@ const Subscription = () => {
           <div className="flex justify-center">
             <Button 
               size="lg" 
-              onClick={handlePurchase}
+              onClick={handleStartPayment}
               disabled={isPaymentProcessing || (!selectedPlan && (!customAmount || Number(customAmount) < 1))}
               className="min-w-[200px]"
             >
@@ -279,7 +321,7 @@ const Subscription = () => {
               ) : (
                 <>
                   <CreditCard className="mr-2 h-4 w-4" />
-                  Complete Purchase
+                  Proceed to Payment
                 </>
               )}
             </Button>
@@ -291,6 +333,86 @@ const Subscription = () => {
           </div>
         </div>
       </div>
+      
+      {/* Payment Verification Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Your Payment</DialogTitle>
+            <DialogDescription>
+              Follow these steps to complete your purchase
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <Alert className="bg-muted">
+              <AlertTitle className="flex items-center gap-2">
+                <span>UPI Payment Details</span>
+                <Badge variant="outline">Preferred</Badge>
+              </AlertTitle>
+              <AlertDescription className="mt-2">
+                <div className="space-y-3">
+                  <div className="bg-primary/5 p-3 rounded-md flex items-center justify-between">
+                    <code className="font-mono font-semibold">{UPI_ID}</code>
+                    <Button variant="ghost" size="sm" onClick={handleCopyUpiId}>
+                      <Copy className="h-4 w-4" />
+                      <span className="sr-only">Copy UPI ID</span>
+                    </Button>
+                  </div>
+                  <ol className="space-y-2 text-sm list-decimal pl-4">
+                    <li>Open your UPI app (Google Pay, PhonePe, Paytm, etc.)</li>
+                    <li>Send payment to the UPI ID above</li>
+                    <li>Use amount: ₹{selectedPlan ? selectedPlan.price : customAmount}</li>
+                    <li>Copy the UPI Transaction ID after payment</li>
+                  </ol>
+                </div>
+              </AlertDescription>
+            </Alert>
+            
+            <div className="space-y-2">
+              <Label htmlFor="transaction-id">UPI Transaction ID</Label>
+              <Input
+                id="transaction-id"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                placeholder="Enter your transaction ID"
+                className={verificationError ? "border-destructive" : ""}
+              />
+              {verificationError && (
+                <p className="text-destructive text-sm flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {verificationError}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                For demo purposes: Any transaction ID without "FAIL" will be verified successfully.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex-col sm:flex-row sm:justify-between">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPaymentDialog(false)}
+              disabled={isPaymentProcessing}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleVerifyPayment} 
+              disabled={isPaymentProcessing || !transactionId.trim()}
+              className="sm:ml-3"
+            >
+              {isPaymentProcessing ? "Verifying..." : (
+                <>
+                  Verify Payment
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

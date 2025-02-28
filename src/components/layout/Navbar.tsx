@@ -96,9 +96,6 @@ const Navbar = () => {
       <Link to="/features" className="text-foreground hover:text-primary transition-colors">
         Features
       </Link>
-      <Link to="/pricing" className="text-foreground hover:text-primary transition-colors">
-        Pricing
-      </Link>
       <Link to="/subscription" className="text-foreground hover:text-primary transition-colors">
         Spark Points
       </Link>
