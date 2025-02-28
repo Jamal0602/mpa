@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 const UploadPage = () => {
   const { user } = useAuth();
@@ -119,7 +120,7 @@ const UploadPage = () => {
           file_path: fileName,
           file_type: file.type,
           file_size: file.size,
-          user_id: user.id
+          owner_id: user.id // Changed from user_id to owner_id to match the schema
         });
         
       if (projectError) throw projectError;

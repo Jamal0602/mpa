@@ -24,7 +24,7 @@ interface Project {
   file_size: number;
   created_at: string;
   updated_at: string;
-  user_id: string;
+  owner_id: string; // Changed from user_id to owner_id
   owner: {
     username: string;
     avatar_url: string | null;
@@ -283,7 +283,7 @@ const ProjectPage = () => {
                         <Avatar className="h-6 w-6">
                           <AvatarImage src={comment.user[0]?.avatar_url || ""} />
                           <AvatarFallback>
-                            {comment.user[0]?.username[0]?.toUpperCase() || "U"}
+                            {comment.user[0]?.username?.[0]?.toUpperCase() || "U"}
                           </AvatarFallback>
                         </Avatar>
                         <span className="font-medium text-sm">

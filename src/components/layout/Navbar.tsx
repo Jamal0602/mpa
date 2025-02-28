@@ -47,8 +47,9 @@ const Navbar = () => {
       }
 
       if (data) {
-        setKeyPoints(data.key_points || 0);
-        setIsMasterMind(data.username === "mastermind");
+        // Use optional chaining to safely access key_points
+        setKeyPoints(data?.key_points ?? 0);
+        setIsMasterMind(data?.username === "mastermind");
       }
     };
 
@@ -64,9 +65,10 @@ const Navbar = () => {
           table: "profiles",
           filter: `id=eq.${user.id}`,
         },
-        (payload) => {
-          if (payload.new && payload.new.key_points !== undefined) {
-            setKeyPoints(payload.new.key_points || 0);
+        (payload: any) => {
+          if (payload.new) {
+            // Use optional chaining and nullish coalescing here too
+            setKeyPoints(payload.new?.key_points ?? 0);
           }
         }
       )
