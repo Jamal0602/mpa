@@ -65,7 +65,7 @@ const Navbar = () => {
           filter: `id=eq.${user.id}`,
         },
         (payload) => {
-          if (payload.new) {
+          if (payload.new && payload.new.key_points !== undefined) {
             setKeyPoints(payload.new.key_points || 0);
           }
         }
@@ -97,8 +97,8 @@ const Navbar = () => {
       <Link to="/pricing" className="text-foreground hover:text-primary transition-colors">
         Pricing
       </Link>
-      <Link to="/contact" className="text-foreground hover:text-primary transition-colors">
-        Contact
+      <Link to="/subscription" className="text-foreground hover:text-primary transition-colors">
+        Spark Points
       </Link>
       <Link to="/upload" className="text-foreground hover:text-primary transition-colors">
         Upload
@@ -134,7 +134,7 @@ const Navbar = () => {
               <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               <div className="flex items-center gap-1 mt-1 text-xs text-primary">
                 <CreditCard className="h-3 w-3" />
-                <span>{keyPoints} Key Points</span>
+                <span>{keyPoints} Spark Points</span>
               </div>
             </div>
           </DropdownMenuLabel>
@@ -200,7 +200,7 @@ const Navbar = () => {
           {user && (
             <div className="hidden md:flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-full">
               <CreditCard className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">{keyPoints} Points</span>
+              <span className="text-sm font-medium">{keyPoints} Spark Points</span>
             </div>
           )}
         

@@ -22,7 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 // Import Recharts components
 import { 
   AreaChart, Area, BarChart, Bar, PieChart as RechartsP, Pie, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell 
 } from 'recharts';
 
 // Types for the user profile including key points
@@ -174,13 +174,13 @@ const Dashboard = () => {
       
       if (transactionError) throw transactionError;
       
-      toast.success(`${Math.abs(transactionAmount)} Key Points ${transactionAmount > 0 ? 'added to' : 'deducted from'} account`);
+      toast.success(`${Math.abs(transactionAmount)} Spark Points ${transactionAmount > 0 ? 'added to' : 'deducted from'} account`);
       setIsTransactionModalOpen(false);
       setTransactionAmount(0);
       setTransactionDescription("");
       refetchTransactions();
     } catch (error: any) {
-      toast.error(`Failed to update Key Points: ${error.message}`);
+      toast.error(`Failed to update Spark Points: ${error.message}`);
     }
   };
 
@@ -254,7 +254,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle>Key Points</CardTitle>
+                  <CardTitle>Spark Points</CardTitle>
                   <CardDescription>Your virtual currency</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -381,13 +381,13 @@ const Dashboard = () => {
               </Card>
             </div>
             
-            {/* Key Points Transactions */}
+            {/* Spark Points Transactions */}
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>Key Points Transactions</CardTitle>
-                    <CardDescription>History of your Key Points activity</CardDescription>
+                    <CardTitle>Spark Points Transactions</CardTitle>
+                    <CardDescription>History of your Spark Points activity</CardDescription>
                   </div>
                   
                   {isAdmin && (
@@ -397,7 +397,7 @@ const Dashboard = () => {
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Add or Remove Key Points</DialogTitle>
+                          <DialogTitle>Add or Remove Spark Points</DialogTitle>
                           <DialogDescription>
                             Enter an amount (positive to add, negative to remove) and a description.
                           </DialogDescription>
@@ -456,7 +456,7 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="py-8 text-center text-muted-foreground">
-                    No transactions found. Key Points activity will appear here.
+                    No transactions found. Spark Points activity will appear here.
                   </div>
                 )}
               </CardContent>

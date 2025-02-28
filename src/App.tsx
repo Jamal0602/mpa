@@ -20,6 +20,8 @@ import CreatePost from "./pages/CreatePost";
 import PostDetail from "./pages/PostDetail";
 import WorkWithUs from "./pages/WorkWithUs";
 import WeUse from "./pages/WeUse";
+import Subscription from "./pages/Subscription";
+import ProjectPage from "./pages/ProjectPage";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +47,8 @@ const App = () => (
               <Route path="/post/:id" element={<PostDetail />} />
               <Route path="/work-with-us" element={<WorkWithUs />} />
               <Route path="/we-use" element={<WeUse />} />
+              <Route path="/subscription" element={<Subscription />} />
+              <Route path="/project/:id" element={<ProjectPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
