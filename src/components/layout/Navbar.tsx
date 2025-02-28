@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings } from "lucide-react";
+import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
@@ -21,11 +21,61 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useState, useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const { data: isAdmin } = useIsAdmin();
+  const [keyPoints, setKeyPoints] = useState(0);
+  const [isMasterMind, setIsMasterMind] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("key_points, username")
+        .eq("id", user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return;
+      }
+
+      if (data) {
+        setKeyPoints(data.key_points || 0);
+        setIsMasterMind(data.username === "mastermind");
+      }
+    };
+
+    fetchProfile();
+
+    const channel = supabase
+      .channel("navbar-points")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            setKeyPoints(payload.new.key_points || 0);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -50,9 +100,15 @@ const Navbar = () => {
       <Link to="/contact" className="text-foreground hover:text-primary transition-colors">
         Contact
       </Link>
-      {isAdmin && (
-        <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors">
-          Analysis
+      <Link to="/upload" className="text-foreground hover:text-primary transition-colors">
+        Upload
+      </Link>
+      {(isAdmin && isMasterMind) && (
+        <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors group relative">
+          Admin
+          <Badge variant="outline" className="absolute -top-3 -right-3 group-hover:bg-primary group-hover:text-primary-foreground animate-pulse">
+            MasterMind
+          </Badge>
         </Link>
       )}
     </>
@@ -76,9 +132,19 @@ const Navbar = () => {
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{user.user_metadata.full_name}</p>
               <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+              <div className="flex items-center gap-1 mt-1 text-xs text-primary">
+                <CreditCard className="h-3 w-3" />
+                <span>{keyPoints} Key Points</span>
+              </div>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link to="/dashboard">
+              <BarChart2 className="mr-2 h-4 w-4" />
+              Dashboard
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link to="/account">
               <Settings className="mr-2 h-4 w-4" />
@@ -131,6 +197,13 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-4">
+          {user && (
+            <div className="hidden md:flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-full">
+              <CreditCard className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{keyPoints} Points</span>
+            </div>
+          )}
+        
           <Button
             variant="ghost"
             size="icon"

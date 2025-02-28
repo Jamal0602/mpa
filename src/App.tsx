@@ -15,6 +15,11 @@ import NotFound from "./pages/NotFound";
 import AuthForm from "./components/auth/AuthForm";
 import AuthCallback from "./components/auth/AuthCallback";
 import AccountSettings from "./pages/AccountSettings";
+import UploadPage from "./pages/UploadPage";
+import CreatePost from "./pages/CreatePost";
+import PostDetail from "./pages/PostDetail";
+import WorkWithUs from "./pages/WorkWithUs";
+import WeUse from "./pages/WeUse";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +40,11 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/account" element={<AccountSettings />} />
+              <Route path="/upload" element={<UploadPage />} />
+              <Route path="/create-post" element={<CreatePost />} />
+              <Route path="/post/:id" element={<PostDetail />} />
+              <Route path="/work-with-us" element={<WorkWithUs />} />
+              <Route path="/we-use" element={<WeUse />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
