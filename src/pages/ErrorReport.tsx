@@ -26,7 +26,7 @@ import { AlertTriangle, CheckCircle } from "lucide-react";
 
 function ErrorReport() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
   const [email, setEmail] = useState("");
   const [transactionId, setTransactionId] = useState("");
   const [errorType, setErrorType] = useState("");
@@ -57,66 +57,60 @@ function ErrorReport() {
     checkSession();
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!errorType) {
-      toast({
-        title: "Error Type Required",
-        description: "Please select the type of error you're reporting.",
-        variant: "destructive",
-      });
+      toast.error("Please select the type of error you're reporting.");
       return;
     }
     
     if (!email) {
-      toast({
-        title: "Email Required",
-        description: "Please provide your email address so we can contact you.",
-        variant: "destructive",
-      });
+      toast.error("Please provide your email address so we can contact you.");
       return;
     }
     
     if (!description) {
-      toast({
-        title: "Description Required",
-        description: "Please describe the issue you're experiencing.",
-        variant: "destructive",
-      });
+      toast.error("Please describe the issue you're experiencing.");
       return;
     }
     
     setIsSubmitting(true);
     
     try {
-      const { data, error } = await supabase
-        .from('error_reports')
-        .insert([
-          {
-            user_id: user?.id || null,
-            error_type: errorType,
-            transaction_id: transactionId || null,
-            description,
-            contact_email: email,
-            status: 'pending'
-          }
-        ]);
-        
-      if (error) throw error;
+      // Using custom fetch instead of direct supabase call since the table might not be in the types
+      const apiUrl = `https://yblcuyelcpgqlaxqlwnl.supabase.co/rest/v1/error_reports`;
       
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibGN1eWVsY3BncWxheHFsd25sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MDI3MjcsImV4cCI6MjA1NTk3ODcyN30.wH54y3saOsBNldjg4xTmFsmtW6s7WN1q4CmoBgAb0I0',
+          'Authorization': `Bearer ${supabase.auth.getSession().then(({ data }) => data.session?.access_token)}`
+        },
+        body: JSON.stringify({
+          user_id: user?.id || null,
+          error_type: errorType,
+          transaction_id: transactionId || null,
+          description,
+          contact_email: email,
+          status: 'pending'
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit report');
+      }
+        
       setSubmitted(true);
-      toast({
-        title: "Report Submitted Successfully",
-        description: "We'll review your report and get back to you soon.",
+      toast.success("Report Submitted Successfully", {
+        description: "We'll review your report and get back to you soon."
       });
       
     } catch (error) {
       console.error("Error submitting report:", error);
-      toast({
-        title: "Submission Failed",
-        description: "There was an error submitting your report. Please try again.",
-        variant: "destructive",
+      toast.error("Submission Failed", {
+        description: "There was an error submitting your report. Please try again."
       });
     } finally {
       setIsSubmitting(false);
@@ -174,7 +168,6 @@ function ErrorReport() {
                 <Select 
                   value={errorType} 
                   onValueChange={setErrorType}
-                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select error type" />
