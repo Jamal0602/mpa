@@ -8,9 +8,21 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Save, Edit } from "lucide-react";
+import { Loader2, Save, Edit, AlertTriangle, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 interface LocationData {
   country: string;
@@ -25,6 +37,7 @@ const AccountSettings = () => {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const navigate = useNavigate();
   const [locationData, setLocationData] = useState<LocationData>({
     country: "",
@@ -150,6 +163,39 @@ const AccountSettings = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      // First create a notification about account deletion
+      const { error: notificationError } = await supabase
+        .from("notifications")
+        .insert([
+          {
+            user_id: user?.id,
+            title: "Account Deletion Initiated",
+            message: "Your account deletion has been requested. All data including Spark Points will be permanently removed.",
+            type: "warning"
+          }
+        ]);
+
+      if (notificationError) throw notificationError;
+
+      // Delete the user account
+      const { error } = await supabase.auth.admin.deleteUser(user?.id as string);
+      
+      if (error) throw error;
+      
+      // Sign out the user
+      await supabase.auth.signOut();
+      
+      toast.success("Your account has been deleted successfully");
+      navigate("/");
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+      toast.error("Failed to delete your account. Please try again or contact support.");
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (!user) {
     navigate("/auth");
     return null;
@@ -192,89 +238,125 @@ const AccountSettings = () => {
         </div>
       </div>
       
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Avatar className="w-20 h-20">
-            <AvatarImage src={user.user_metadata.avatar_url} />
-            <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <div className="space-y-2">
-            <Label htmlFor="avatar">Profile Picture</Label>
-            <Input
-              id="avatar"
-              type="file"
-              accept="image/*"
-              onChange={handleAvatarChange}
-              disabled={uploading || !editing}
-            />
-          </div>
-        </div>
+      <div className="grid gap-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Personal Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center gap-4">
+              <Avatar className="w-20 h-20">
+                <AvatarImage src={user.user_metadata.avatar_url} />
+                <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="space-y-2">
+                <Label htmlFor="avatar">Profile Picture</Label>
+                <Input
+                  id="avatar"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  disabled={uploading || !editing}
+                />
+              </div>
+            </div>
 
-        <div className="space-y-2">
-          <Label>Display Name</Label>
-          <Input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            disabled={!editing}
-            placeholder="Enter your display name"
-          />
-        </div>
+            <div className="space-y-2">
+              <Label>Display Name</Label>
+              <Input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                disabled={!editing}
+                placeholder="Enter your display name"
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label>Email</Label>
-          <Input
-            value={customEmail || user.email}
-            onChange={(e) => setCustomEmail(e.target.value)}
-            disabled={!editing}
-          />
-        </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                value={customEmail || user.email}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                disabled={!editing}
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label>MPA ID</Label>
-          <Input value={`${user.user_metadata.username}@mpa`} disabled />
-        </div>
+            <div className="space-y-2">
+              <Label>MPA ID</Label>
+              <Input value={`${user.user_metadata.username}@mpa`} disabled />
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Location Details</h2>
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Location Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Input
+                value={locationData.country}
+                onChange={(e) => setLocationData({ ...locationData, country: e.target.value })}
+                disabled={!editing}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label>Country</Label>
-            <Input
-              value={locationData.country}
-              onChange={(e) => setLocationData({ ...locationData, country: e.target.value })}
-              disabled={!editing}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label>State</Label>
+              <Input
+                value={locationData.state}
+                onChange={(e) => setLocationData({ ...locationData, state: e.target.value })}
+                disabled={!editing}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label>State</Label>
-            <Input
-              value={locationData.state}
-              onChange={(e) => setLocationData({ ...locationData, state: e.target.value })}
-              disabled={!editing}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label>District</Label>
+              <Input
+                value={locationData.district}
+                onChange={(e) => setLocationData({ ...locationData, district: e.target.value })}
+                disabled={!editing}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label>District</Label>
-            <Input
-              value={locationData.district}
-              onChange={(e) => setLocationData({ ...locationData, district: e.target.value })}
-              disabled={!editing}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label>Place</Label>
+              <Input
+                value={locationData.place}
+                onChange={(e) => setLocationData({ ...locationData, place: e.target.value })}
+                disabled={!editing}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <Label>Place</Label>
-            <Input
-              value={locationData.place}
-              onChange={(e) => setLocationData({ ...locationData, place: e.target.value })}
-              disabled={!editing}
-            />
-          </div>
-        </div>
+        <Card className="border-red-200 dark:border-red-900">
+          <CardHeader>
+            <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border border-red-200 p-4 dark:border-red-900">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="mt-1 h-5 w-5 text-red-600 dark:text-red-400" />
+                <div className="space-y-2">
+                  <h3 className="font-medium text-red-600 dark:text-red-400">Delete Account</h3>
+                  <p className="text-sm text-muted-foreground">
+                    This action is irreversible. All your data, including Spark Points, will be permanently deleted.
+                    If you sign up again with the same email, your account will be treated as new.
+                  </p>
+                  <Button 
+                    variant="destructive" 
+                    className="gap-2 mt-2" 
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Account
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {uploading && (
           <div className="flex items-center gap-2">
@@ -283,6 +365,28 @@ const AccountSettings = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your account and remove all associated data, including your Spark Points.
+              <br /><br />
+              <span className="font-semibold text-red-600">Warning:</span> All your Spark Points will be lost and cannot be recovered. If you sign up again with the same email, you will start with a fresh account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
