@@ -14,6 +14,7 @@ import Subscription from "@/pages/Subscription";
 import Help from "@/pages/Help";
 import WorkWithUs from "@/pages/WorkWithUs";
 import Referral from "@/pages/Referral";
+import ErrorReport from "@/pages/ErrorReport";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
       <Route path="/help" element={<Help />} />
       <Route path="/work-with-us" element={<WorkWithUs />} />
       <Route path="/referral" element={<Referral />} />
+      <Route path="/report-error" element={<ErrorReport />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
