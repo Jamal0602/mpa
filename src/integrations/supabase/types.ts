@@ -201,8 +201,6 @@ export type Database = {
           last_login: string | null
           mpa_id: string | null
           place: string | null
-          referral_code: string | null
-          referred_by: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           state: string | null
           theme_preference: string | null
@@ -220,8 +218,6 @@ export type Database = {
           last_login?: string | null
           mpa_id?: string | null
           place?: string | null
-          referral_code?: string | null
-          referred_by?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           state?: string | null
           theme_preference?: string | null
@@ -239,8 +235,6 @@ export type Database = {
           last_login?: string | null
           mpa_id?: string | null
           place?: string | null
-          referral_code?: string | null
-          referred_by?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           state?: string | null
           theme_preference?: string | null
@@ -326,57 +320,6 @@ export type Database = {
           },
         ]
       }
-      referral_codes: {
-        Row: {
-          code: string
-          created_at: string | null
-          id: string
-          user_id: string
-        }
-        Insert: {
-          code: string
-          created_at?: string | null
-          id?: string
-          user_id: string
-        }
-        Update: {
-          code?: string
-          created_at?: string | null
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      referrals: {
-        Row: {
-          bonus_earned: number | null
-          completed_at: string | null
-          created_at: string | null
-          id: string
-          referred_id: string
-          referrer_id: string
-          status: string
-        }
-        Insert: {
-          bonus_earned?: number | null
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          referred_id: string
-          referrer_id: string
-          status?: string
-        }
-        Update: {
-          bonus_earned?: number | null
-          completed_at?: string | null
-          created_at?: string | null
-          id?: string
-          referred_id?: string
-          referrer_id?: string
-          status?: string
-        }
-        Relationships: []
-      }
       widgets: {
         Row: {
           created_at: string | null
@@ -439,13 +382,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      process_referral_bonus: {
-        Args: {
-          referred_user_id: string
-          referrer_code: string
-        }
-        Returns: undefined
-      }
+      [_ in never]: never
     }
     Enums: {
       user_role: "admin" | "user"

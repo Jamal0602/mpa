@@ -12,9 +12,6 @@ import AccountSettings from "@/pages/AccountSettings";
 import UploadPage from "@/pages/UploadPage";
 import Subscription from "@/pages/Subscription";
 import Help from "@/pages/Help";
-import WorkWithUs from "@/pages/WorkWithUs";
-import Referral from "@/pages/Referral";
-import ErrorReport from "@/pages/ErrorReport";
 
 function App() {
   return (
@@ -28,9 +25,6 @@ function App() {
       <Route path="/upload" element={<UploadPage />} />
       <Route path="/subscription" element={<Subscription />} />
       <Route path="/help" element={<Help />} />
-      <Route path="/work-with-us" element={<WorkWithUs />} />
-      <Route path="/referral" element={<Referral />} />
-      <Route path="/report-error" element={<ErrorReport />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
