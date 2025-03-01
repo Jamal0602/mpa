@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard } from "lucide-react";
+import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard, HelpCircle } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
@@ -101,6 +101,9 @@ const Navbar = () => {
       </Link>
       <Link to="/upload" className="text-foreground hover:text-primary transition-colors">
         Upload
+      </Link>
+      <Link to="/help" className="text-foreground hover:text-primary transition-colors">
+        Help
       </Link>
       {(isAdmin && isMasterMind) && (
         <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors group relative">

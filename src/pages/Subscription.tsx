@@ -1,7 +1,6 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/layout/Navbar";
@@ -12,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Check, CreditCard, Sparkles, TrendingUp, Shield, AlertCircle, Copy, ArrowRight } from "lucide-react";
+import { Check, CreditCard, Sparkles, TrendingUp, Shield, AlertCircle, Copy, ArrowRight, HelpCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -88,7 +87,6 @@ const Subscription = () => {
   const [transactionId, setTransactionId] = useState("");
   const [verificationError, setVerificationError] = useState("");
   
-  // Fetch user's key points
   const { data: profile, isLoading, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-subscription", user?.id],
     queryFn: async () => {
@@ -144,15 +142,12 @@ const Subscription = () => {
     setIsPaymentProcessing(true);
     
     try {
-      // In a real app, this would call an API to verify the payment
-      // For demonstration, we'll simulate a verification check
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // For demo purposes, we'll consider transactions with "FAIL" to be invalid
       const isPaymentVerified = !transactionId.toUpperCase().includes("FAIL");
       
       if (!isPaymentVerified) {
-        setVerificationError("Payment verification failed. Please enter a valid transaction ID.");
+        setVerificationError("Payment verification failed. Please enter a valid transaction ID or report this issue.");
         throw new Error("Payment could not be verified");
       }
       
@@ -160,7 +155,6 @@ const Subscription = () => {
       const price = selectedPlan ? selectedPlan.price : Number(customAmount);
       const planName = selectedPlan ? selectedPlan.name : "Custom";
       
-      // Update user's key points
       const { error: pointsError } = await supabase
         .from("profiles")
         .update({ 
@@ -170,7 +164,6 @@ const Subscription = () => {
       
       if (pointsError) throw pointsError;
       
-      // Record transaction
       await supabase
         .from("key_points_transactions")
         .insert({
@@ -334,7 +327,6 @@ const Subscription = () => {
         </div>
       </div>
       
-      {/* Payment Verification Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -379,10 +371,17 @@ const Subscription = () => {
                 className={verificationError ? "border-destructive" : ""}
               />
               {verificationError && (
-                <p className="text-destructive text-sm flex items-center gap-1 mt-1">
+                <div className="text-destructive text-sm flex items-center gap-1 mt-1">
                   <AlertCircle className="h-3 w-3" />
-                  {verificationError}
-                </p>
+                  <span>{verificationError}</span>
+                  <Button 
+                    variant="link" 
+                    className="text-sm h-auto p-0 ml-1" 
+                    onClick={() => navigate("/help")}
+                  >
+                    Get help
+                  </Button>
+                </div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
                 For demo purposes: Any transaction ID without "FAIL" will be verified successfully.
@@ -398,18 +397,25 @@ const Subscription = () => {
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleVerifyPayment} 
-              disabled={isPaymentProcessing || !transactionId.trim()}
-              className="sm:ml-3"
-            >
-              {isPaymentProcessing ? "Verifying..." : (
-                <>
-                  Verify Payment
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Link to="/help">
+                <Button variant="ghost" size="sm" className="text-xs h-8">
+                  <HelpCircle className="h-3 w-3 mr-1" />
+                  Need help?
+                </Button>
+              </Link>
+              <Button 
+                onClick={handleVerifyPayment} 
+                disabled={isPaymentProcessing || !transactionId.trim()}
+              >
+                {isPaymentProcessing ? "Verifying..." : (
+                  <>
+                    Verify Payment
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
