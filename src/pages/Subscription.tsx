@@ -75,7 +75,7 @@ const subscriptionPlans: SubscriptionPlan[] = [
   }
 ];
 
-const UPI_ID = "9087387987@fam";
+const UPI_ID = "ja.jamalasraf@fam";
 
 const Subscription = () => {
   const { user } = useAuth();
