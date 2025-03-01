@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 interface Notification {
@@ -44,16 +44,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) return;
 
+      // Using any to work around the type issue until the database types are updated
       const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false }) as { data: Notification[] | null, error: any };
 
       if (error) throw error;
 
       if (data) {
-        setNotifications(data as Notification[]);
-        setUnreadCount(data.filter((n: Notification) => !n.is_read).length);
+        setNotifications(data);
+        setUnreadCount(data.filter((n) => !n.is_read).length);
       }
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -64,10 +65,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const markAsRead = async (id: string) => {
     try {
+      // Using any to work around the type issue until the database types are updated
       const { error } = await supabase
-        .from("notifications")
+        .from('notifications')
         .update({ is_read: true })
-        .eq("id", id);
+        .eq('id', id) as { error: any };
 
       if (error) throw error;
 
@@ -84,10 +86,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const markAllAsRead = async () => {
     try {
+      // Using any to work around the type issue until the database types are updated
       const { error } = await supabase
-        .from("notifications")
+        .from('notifications')
         .update({ is_read: true })
-        .eq("is_read", false);
+        .eq('is_read', false) as { error: any };
 
       if (error) throw error;
 
@@ -104,10 +107,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const deleteNotification = async (id: string) => {
     try {
+      // Using any to work around the type issue until the database types are updated
       const { error } = await supabase
-        .from("notifications")
+        .from('notifications')
         .delete()
-        .eq("id", id);
+        .eq('id', id) as { error: any };
 
       if (error) throw error;
 
@@ -128,7 +132,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const deleteAllNotifications = async () => {
     try {
-      const { error } = await supabase.from("notifications").delete().not("id", "is", null);
+      // Using any to work around the type issue until the database types are updated
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .not('id', 'is', null) as { error: any };
 
       if (error) throw error;
 
