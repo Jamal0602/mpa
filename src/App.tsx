@@ -1,47 +1,61 @@
 
-import { Routes, Route } from "react-router-dom";
-import "./App.css";
-import Index from "@/pages/Index";
-import Features from "@/pages/Features";
-import Dashboard from "@/pages/Dashboard";
-import AuthCallback from "@/components/auth/AuthCallback";
-import AuthForm from "@/components/auth/AuthForm";
-import NotFound from "@/pages/NotFound";
-import AccountSettings from "@/pages/AccountSettings";
-import UploadPage from "@/pages/UploadPage";
-import Subscription from "@/pages/Subscription";
-import Help from "@/pages/Help";
-import WorkWithUs from "@/pages/WorkWithUs";
-import Referral from "@/pages/Referral";
-import ErrorReport from "@/pages/ErrorReport";
-import { NotificationProvider } from "@/contexts/NotificationContext";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
+import { AuthProvider } from "@/contexts/AuthContext";
+import Index from "./pages/Index";
+import Features from "./pages/Features";
+import Pricing from "./pages/Pricing";
+import Contact from "./pages/Contact";
+import Dashboard from "./pages/Dashboard";
+import NotFound from "./pages/NotFound";
+import AuthForm from "./components/auth/AuthForm";
+import AuthCallback from "./components/auth/AuthCallback";
+import AccountSettings from "./pages/AccountSettings";
+import UploadPage from "./pages/UploadPage";
+import CreatePost from "./pages/CreatePost";
+import PostDetail from "./pages/PostDetail";
+import WorkWithUs from "./pages/WorkWithUs";
+import WeUse from "./pages/WeUse";
+import Subscription from "./pages/Subscription";
+import ProjectPage from "./pages/ProjectPage";
 
-// Create a client
 const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <NotificationProvider>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/features" element={<Features />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/auth" element={<AuthForm />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/account" element={<AccountSettings />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/subscription" element={<Subscription />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/work-with-us" element={<WorkWithUs />} />
-          <Route path="/referral" element={<Referral />} />
-          <Route path="/report-error" element={<ErrorReport />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </NotificationProvider>
-    </QueryClientProvider>
-  );
-}
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<AuthForm />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/features" element={<Features />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/account" element={<AccountSettings />} />
+              <Route path="/upload" element={<UploadPage />} />
+              <Route path="/create-post" element={<CreatePost />} />
+              <Route path="/post/:id" element={<PostDetail />} />
+              <Route path="/work-with-us" element={<WorkWithUs />} />
+              <Route path="/we-use" element={<WeUse />} />
+              <Route path="/subscription" element={<Subscription />} />
+              <Route path="/project/:id" element={<ProjectPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
+);
 
 export default App;

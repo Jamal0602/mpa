@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard, HelpCircle } from "lucide-react";
+import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { NotificationCenter } from "@/components/ui/notification-center";
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
@@ -97,20 +96,14 @@ const Navbar = () => {
       <Link to="/features" className="text-foreground hover:text-primary transition-colors">
         Features
       </Link>
+      <Link to="/pricing" className="text-foreground hover:text-primary transition-colors">
+        Pricing
+      </Link>
       <Link to="/subscription" className="text-foreground hover:text-primary transition-colors">
         Spark Points
       </Link>
       <Link to="/upload" className="text-foreground hover:text-primary transition-colors">
         Upload
-      </Link>
-      <Link to="/help" className="text-foreground hover:text-primary transition-colors">
-        Help
-      </Link>
-      <Link to="/work-with-us" className="text-foreground hover:text-primary transition-colors">
-        Work With Us
-      </Link>
-      <Link to="/referral" className="text-foreground hover:text-primary transition-colors">
-        Referrals
       </Link>
       {(isAdmin && isMasterMind) && (
         <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors group relative">
@@ -212,8 +205,6 @@ const Navbar = () => {
               <span className="text-sm font-medium">{keyPoints} Spark Points</span>
             </div>
           )}
-
-          {user && <NotificationCenter />}
         
           <Button
             variant="ghost"

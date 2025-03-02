@@ -1,401 +1,198 @@
 
-import React, { useState, useEffect } from "react";
+import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { supabase } from "@/lib/supabase";
-import { Separator } from "@/components/ui/separator";
-
-const formSchema = z.object({
-  fullName: z.string().min(2, {
-    message: "Full name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  age: z.string().refine((val) => !Number.isNaN(parseInt(val, 10)) && parseInt(val, 10) >= 18, {
-    message: "You must be at least 18 years old.",
-  }),
-  location: z.string().min(2, {
-    message: "Location must be at least 2 characters.",
-  }),
-  position: z.string({
-    required_error: "Please select a position.",
-  }),
-  experience: z.string().min(10, {
-    message: "Experience details must be at least 10 characters.",
-  }),
-  portfolio: z.string().url({
-    message: "Please enter a valid URL for your portfolio.",
-  }).optional().or(z.literal('')),
-  message: z.string().min(20, {
-    message: "Your message must be at least 20 characters.",
-  }),
-});
-
-const positions = [
-  { value: "document_processor", label: "Document Processor" },
-  { value: "graphic_designer", label: "Graphic Designer" },
-  { value: "video_editor", label: "Video Editor" },
-  { value: "3d_modeler", label: "3D Modeler" },
-  { value: "autocad_designer", label: "AutoCAD Designer" },
-  { value: "web_designer", label: "Web Designer (HTML & CSS)" },
-  { value: "javascript_developer", label: "JavaScript Developer" },
-  { value: "backend_developer", label: "Backend Developer" },
-  { value: "bot_developer", label: "Bot Developer" },
-];
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Check, Users, Building, Briefcase, Mail, Send } from "lucide-react";
 
 const WorkWithUs = () => {
-  const [loading, setLoading] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [company, setCompany] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      fullName: "",
-      email: "",
-      age: "",
-      location: "",
-      position: "",
-      experience: "",
-      portfolio: "",
-      message: "",
-    },
-  });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
-  // Fetch user profile for auto-filling location data
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (session.session) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.session.user.id)
-          .single();
-
-        if (!error && data) {
-          setUserProfile(data);
-          
-          // Auto-fill location based on profile data
-          let location = "";
-          if (data.place) location += data.place;
-          if (data.district) {
-            if (location) location += ", ";
-            location += data.district;
-          }
-          if (data.state) {
-            if (location) location += ", ";
-            location += data.state;
-          }
-          if (data.country) {
-            if (location) location += ", ";
-            location += data.country;
-          }
-          
-          form.setValue("location", location);
-          form.setValue("fullName", data.full_name || "");
-          form.setValue("email", session.session.user.email || "");
-        }
-      }
-    };
-
-    fetchUserProfile();
-  }, [form]);
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setLoading(true);
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (!session.session) {
-        toast.error("You must be logged in to apply");
-        return;
-      }
-      
-      // Store application in database (you'll need to create this table)
-      const { error } = await supabase.from("job_applications").insert({
-        user_id: session.session.user.id,
-        full_name: values.fullName,
-        email: values.email,
-        age: parseInt(values.age),
-        location: values.location,
-        position: values.position,
-        experience: values.experience,
-        portfolio: values.portfolio,
-        message: values.message,
-        status: "pending",
+    // Simulate form submission
+    setTimeout(() => {
+      toast({
+        title: "Application Submitted",
+        description: "We'll get back to you within 48 hours.",
       });
-      
-      if (error) throw error;
-      
-      // Create a notification for the user about their application
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: session.session.user.id,
-          title: "Application Received",
-          message: `Thank you for applying to work with us as a ${positions.find(p => p.value === values.position)?.label}. We'll review your application and get back to you soon.`,
-          type: "success",
-        });
-      
-      toast.success("Application submitted successfully!");
-      form.reset();
-      
-    } catch (error) {
-      console.error("Error submitting application:", error);
-      toast.error("Failed to submit application. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+      setName("");
+      setEmail("");
+      setMessage("");
+      setCompany("");
+      setIsSubmitting(false);
+    }, 1500);
   };
 
   return (
-    <div className="container max-w-5xl py-8">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Work With Us</h1>
-          <p className="text-muted-foreground mt-2">
-            Join our team of skilled professionals and work on exciting projects
-          </p>
-        </div>
-
-        <Separator />
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h2 className="text-2xl font-semibold mb-4">Available Positions</h2>
-            
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-xl font-medium">Content & Media Specialists</h3>
-                <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-                  <li>Document Processor – Handles Word, Excel, and PowerPoint tasks</li>
-                  <li>Graphic Designer – Edits photos and creates design elements</li>
-                  <li>Video Editor – Edits short and long-form videos</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="text-xl font-medium">3D & CAD Designers</h3>
-                <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-                  <li>3D Modeler – Creates 3D objects and circuits</li>
-                  <li>AutoCAD Designer – Works on 2D and 3D AutoCAD projects</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="text-xl font-medium">Web Development Team</h3>
-                <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-                  <li>Web Designer (HTML & CSS) – Designs websites with front-end technologies</li>
-                  <li>JavaScript Developer – Develops website interactivity and widgets</li>
-                  <li>Backend Developer – Manages website hosting, databases, and automation</li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="text-xl font-medium">Automation & Bot Developers</h3>
-                <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-                  <li>Bot Developer – Builds WhatsApp, Instagram, and Discord bots</li>
-                </ul>
-              </div>
-            </div>
-            
-            <div className="mt-6 p-4 bg-muted rounded-md">
-              <h3 className="text-lg font-medium">Payment Terms</h3>
-              <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-                <li>Payment released after completion of 3 projects</li>
-                <li>For larger projects, payment after 1 project</li>
-                <li>Payment tied to project completion, not monthly</li>
-                <li>UPI ID for payments: ja.jamalasraf@fam</li>
-              </ul>
-            </div>
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="container py-8 px-4">
+        <div className="max-w-3xl mx-auto space-y-10">
+          <div className="text-center space-y-4">
+            <h1 className="text-4xl font-bold">Work With Us</h1>
+            <p className="text-xl text-muted-foreground">
+              Join our talented team to build the next generation of projects
+            </p>
           </div>
-          
-          <div>
+
+          <div className="grid md:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Apply Now</CardTitle>
-                <CardDescription>
-                  Fill out the form below to apply for a position
-                </CardDescription>
+                <CardTitle className="flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-primary" />
+                  Partnership
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="fullName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your full name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="Your email address" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="age"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Age</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="18" placeholder="Your age" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="location"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Location</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Your location" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <FormField
-                      control={form.control}
-                      name="position"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Position</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a position" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {positions.map((position) => (
-                                <SelectItem key={position.value} value={position.value}>
-                                  {position.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="experience"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Experience</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Describe your relevant experience" 
-                              className="min-h-[100px]" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="portfolio"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Portfolio URL (Optional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Link to your portfolio" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            Share a link to your portfolio or previous work
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="message"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Additional Information</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Any additional information you'd like to share" 
-                              className="min-h-[100px]" 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? "Submitting..." : "Submit Application"}
-                    </Button>
-                  </form>
-                </Form>
+                <p className="text-sm text-muted-foreground">
+                  Partner with MPA to expand your reach and connect with our community.
+                </p>
               </CardContent>
+              <CardFooter>
+                <ul className="text-sm space-y-2">
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    Co-branded initiatives
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    Resource sharing
+                  </li>
+                </ul>
+              </CardFooter>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Building className="h-5 w-5 mr-2 text-primary" />
+                  Sponsorship
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Support MPA's mission through sponsorship opportunities.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <ul className="text-sm space-y-2">
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    Event sponsorship
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    Project funding
+                  </li>
+                </ul>
+              </CardFooter>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Briefcase className="h-5 w-5 mr-2 text-primary" />
+                  Careers
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Join our team and work on exciting projects in a collaborative environment.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <ul className="text-sm space-y-2">
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    Flexible work options
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-4 w-4 mr-2 text-green-500" />
+                    Competitive benefits
+                  </li>
+                </ul>
+              </CardFooter>
+            </Card>
+          </div>
+
+          <div className="bg-muted/50 p-8 rounded-lg">
+            <h2 className="text-2xl font-bold mb-6">Get in Touch</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Your Name</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="John Doe"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="john@example.com"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company">Company (Optional)</Label>
+                <Input
+                  id="company"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="Your company name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="message">Message</Label>
+                <Textarea
+                  id="message"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Tell us how you'd like to work with us"
+                  rows={5}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  "Submitting..."
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Submit Application
+                  </>
+                )}
+              </Button>
+            </form>
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground">
+            <p>
+              For urgent inquiries, please contact us directly at{" "}
+              <a href="mailto:info@mpassociation.org" className="text-primary underline">
+                info@mpassociation.org
+              </a>
+            </p>
           </div>
         </div>
       </div>
