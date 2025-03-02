@@ -1,7 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Upload, FileType, CreditCard, AlertTriangle } from "lucide-react";
+import { Upload, FileType, CreditCard, AlertTriangle, HelpCircle, Info } from "lucide-react";
 import { LoadingPage } from "@/components/ui/loading";
 import Navbar from "@/components/layout/Navbar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const UploadPage = () => {
   const { user } = useAuth();
@@ -28,7 +35,6 @@ const UploadPage = () => {
   const [projectType, setProjectType] = useState("idea");
   const [file, setFile] = useState<File | null>(null);
   
-  // Fetch user's key points
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile-points", user?.id],
     queryFn: async () => {
@@ -46,14 +52,30 @@ const UploadPage = () => {
     enabled: !!user,
   });
   
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://forms.app/static/embed.js";
+    script.async = true;
+    document.body.appendChild(script);
+    
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+  
+  useEffect(() => {
+    // Check authentication and redirect if not logged in
+    if (!user && !isLoading) {
+      navigate("/auth");
+    }
+  }, [user, isLoading, navigate]);
+  
   if (isLoading) return <LoadingPage />;
   
-  if (!user) {
-    navigate("/auth");
-    return null;
-  }
+  // Don't render content if not authenticated
+  if (!user) return <LoadingPage />;
   
-  const UPLOAD_COST = 5; // Cost in Key Points for an upload
+  const UPLOAD_COST = 5;
   const hasEnoughPoints = (profile?.key_points || 0) >= UPLOAD_COST;
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,7 +122,6 @@ const UploadPage = () => {
       setUploading(true);
       const cleanStop = simulateProgress();
       
-      // Upload file to storage
       const fileExt = file.name.split(".").pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       
@@ -110,7 +131,6 @@ const UploadPage = () => {
         
       if (uploadError) throw uploadError;
       
-      // Create project record
       const { error: projectError } = await supabase
         .from("projects")
         .insert({
@@ -120,12 +140,11 @@ const UploadPage = () => {
           file_path: fileName,
           file_type: file.type,
           file_size: file.size,
-          owner_id: user.id // Changed from user_id to owner_id to match the schema
+          owner_id: user.id
         });
         
       if (projectError) throw projectError;
       
-      // Deduct key points
       const { error: pointsError } = await supabase
         .from("profiles")
         .update({ key_points: (profile?.key_points || 0) - UPLOAD_COST })
@@ -133,7 +152,6 @@ const UploadPage = () => {
         
       if (pointsError) throw pointsError;
       
-      // Record transaction
       await supabase
         .from("key_points_transactions")
         .insert({
@@ -170,162 +188,348 @@ const UploadPage = () => {
       <div className="container py-8 px-4 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Upload Your Project</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Project Details</CardTitle>
-              <CardDescription>
-                Share your ideas, files, or projects with the MPA community
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Project Title</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter a title for your project"
-                  disabled={uploading}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe your project"
-                  disabled={uploading}
-                  rows={4}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="type">Project Type</Label>
-                <Select
-                  value={projectType}
-                  onValueChange={setProjectType}
-                  disabled={uploading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="idea">Idea</SelectItem>
-                    <SelectItem value="prototype">Prototype</SelectItem>
-                    <SelectItem value="documentation">Documentation</SelectItem>
-                    <SelectItem value="resource">Resource</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="file">File</Label>
-                <div className="border rounded-md p-4 bg-background">
-                  {file ? (
-                    <div className="flex items-center gap-3">
-                      <FileType className="h-10 w-10 text-primary" />
-                      <div className="flex-1">
-                        <p className="font-medium">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {(file.size / (1024 * 1024)).toFixed(2)} MB • {getFileTypeIcon(file.type)}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setFile(null)}
-                        disabled={uploading}
-                      >
-                        Change
-                      </Button>
-                    </div>
-                  ) : (
-                    <Input
-                      id="file"
-                      type="file"
-                      onChange={handleFileChange}
-                      disabled={uploading}
-                    />
-                  )}
-                </div>
-              </div>
-              
-              {uploading && (
-                <div className="space-y-2">
-                  <Label>Upload Progress</Label>
-                  <Progress value={progress} className="h-2" />
-                  <p className="text-xs text-center text-muted-foreground">
-                    {progress < 100 ? "Uploading..." : "Upload Complete!"}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter>
-              <Button 
-                onClick={handleUpload} 
-                disabled={uploading || !hasEnoughPoints || !title || !file}
-                className="w-full"
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {uploading ? "Uploading..." : "Upload Project"}
-              </Button>
-            </CardFooter>
-          </Card>
+        <Tabs defaultValue="upload" className="w-full">
+          <TabsList className="grid grid-cols-3 w-full mb-6">
+            <TabsTrigger value="upload">Direct Upload</TabsTrigger>
+            <TabsTrigger value="form">Form Submission</TabsTrigger>
+            <TabsTrigger value="services">Service Pricing</TabsTrigger>
+          </TabsList>
           
-          <div className="space-y-4">
+          <TabsContent value="upload">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Project Details</CardTitle>
+                  <CardDescription>
+                    Share your ideas, files, or projects with the MPA community
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Project Title</Label>
+                    <Input
+                      id="title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Enter a title for your project"
+                      disabled={uploading}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe your project"
+                      disabled={uploading}
+                      rows={4}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Project Type</Label>
+                    <Select
+                      value={projectType}
+                      onValueChange={setProjectType}
+                      disabled={uploading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="idea">Idea</SelectItem>
+                        <SelectItem value="prototype">Prototype</SelectItem>
+                        <SelectItem value="documentation">Documentation</SelectItem>
+                        <SelectItem value="resource">Resource</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="file">File</Label>
+                    <div className="border rounded-md p-4 bg-background">
+                      {file ? (
+                        <div className="flex items-center gap-3">
+                          <FileType className="h-10 w-10 text-primary" />
+                          <div className="flex-1">
+                            <p className="font-medium">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(file.size / (1024 * 1024)).toFixed(2)} MB • {getFileTypeIcon(file.type)}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFile(null)}
+                            disabled={uploading}
+                          >
+                            Change
+                          </Button>
+                        </div>
+                      ) : (
+                        <Input
+                          id="file"
+                          type="file"
+                          onChange={handleFileChange}
+                          disabled={uploading}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  
+                  {uploading && (
+                    <div className="space-y-2">
+                      <Label>Upload Progress</Label>
+                      <Progress value={progress} className="h-2" />
+                      <p className="text-xs text-center text-muted-foreground">
+                        {progress < 100 ? "Uploading..." : "Upload Complete!"}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    onClick={handleUpload} 
+                    disabled={uploading || !hasEnoughPoints || !title || !file}
+                    className="w-full"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {uploading ? "Uploading..." : "Upload Project"}
+                  </Button>
+                </CardFooter>
+              </Card>
+              
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Upload Cost</CardTitle>
+                    <CardDescription>
+                      Key Points required for this upload
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-5 w-5 text-primary" />
+                        <span className="font-medium">{UPLOAD_COST} Key Points</span>
+                      </div>
+                      <Badge variant={hasEnoughPoints ? "default" : "destructive"}>
+                        {hasEnoughPoints ? "Available" : "Insufficient"}
+                      </Badge>
+                    </div>
+                    
+                    <div className="mt-4 text-sm">
+                      Your balance: <span className="font-medium">{profile?.key_points || 0} Points</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                {!hasEnoughPoints && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Insufficient Key Points</AlertTitle>
+                    <AlertDescription>
+                      You need at least {UPLOAD_COST} Key Points to upload. Earn more by engaging with the platform.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Upload Guidelines</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm space-y-2">
+                    <p>• Maximum file size: 100MB</p>
+                    <p>• Supported formats: PDF, images, documents, videos</p>
+                    <p>• All uploads are reviewed by moderators</p>
+                    <p>• Inappropriate content will be removed</p>
+                    <p>• You must own the rights to uploaded content</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="form">
             <Card>
               <CardHeader>
-                <CardTitle>Upload Cost</CardTitle>
+                <CardTitle>Project Submission Form</CardTitle>
                 <CardDescription>
-                  Key Points required for this upload
+                  Use this embedded form to submit your project details
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-primary" />
-                    <span className="font-medium">{UPLOAD_COST} Key Points</span>
-                  </div>
-                  <Badge variant={hasEnoughPoints ? "default" : "destructive"}>
-                    {hasEnoughPoints ? "Available" : "Insufficient"}
-                  </Badge>
-                </div>
-                
-                <div className="mt-4 text-sm">
-                  Your balance: <span className="font-medium">{profile?.key_points || 0} Points</span>
+                <div
+                  className="formsappWrapper rounded-lg overflow-hidden bg-card"
+                  style={{ height: "800px" }}
+                >
+                  <div
+                    data-formapp-id="64fc5aa6b02x8ea4cc983520"
+                    className="formsappIframe"
+                  ></div>
                 </div>
               </CardContent>
             </Card>
-            
-            {!hasEnoughPoints && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Insufficient Key Points</AlertTitle>
-                <AlertDescription>
-                  You need at least {UPLOAD_COST} Key Points to upload. Earn more by engaging with the platform.
-                </AlertDescription>
-              </Alert>
-            )}
-            
+          </TabsContent>
+          
+          <TabsContent value="services">
             <Card>
               <CardHeader>
-                <CardTitle>Upload Guidelines</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Info className="h-5 w-5 text-primary" />
+                  Service Pricing
+                </CardTitle>
+                <CardDescription>
+                  Our services are priced in Spark Points (SP). Submit requests via the form tab.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="text-sm space-y-2">
-                <p>• Maximum file size: 100MB</p>
-                <p>• Supported formats: PDF, images, documents, videos</p>
-                <p>• All uploads are reviewed by moderators</p>
-                <p>• Inappropriate content will be removed</p>
-                <p>• You must own the rights to uploaded content</p>
+              <CardContent>
+                <Accordion type="multiple" className="w-full">
+                  <AccordionItem value="document-media">
+                    <AccordionTrigger>Document & Media Services</AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="space-y-2">
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>Word Processing</span>
+                          <Badge variant="secondary">10 SP per page</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>Excel Work</span>
+                          <Badge variant="secondary">15 SP per 10×10 sheet</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>Presentation Slides</span>
+                          <Badge variant="secondary">10 SP per slide</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>Photo Editing</span>
+                          <Badge variant="secondary">35 SP per image</Badge>
+                        </li>
+                        <li className="py-1 border-b">
+                          <div className="flex justify-between items-center">
+                            <span>Video Editing</span>
+                          </div>
+                          <ul className="pl-6 mt-2 space-y-1">
+                            <li className="flex justify-between items-center">
+                              <span className="text-sm">Up to 10 min</span>
+                              <Badge variant="secondary">80 SP</Badge>
+                            </li>
+                            <li className="flex justify-between items-center">
+                              <span className="text-sm">YouTube Shorts</span>
+                              <Badge variant="secondary">8 SP</Badge>
+                            </li>
+                            <li className="flex justify-between items-center">
+                              <span className="text-sm">Long Video (30 min)</span>
+                              <Badge variant="secondary">200 SP</Badge>
+                            </li>
+                          </ul>
+                        </li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                  
+                  <AccordionItem value="3d-cad">
+                    <AccordionTrigger>3D & CAD Services</AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="space-y-2">
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>3D Object Modeling</span>
+                          <Badge variant="secondary">50 SP per object</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>3D Circuit Design</span>
+                          <Badge variant="secondary">100 SP per circuit</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>AutoCAD 2D Design</span>
+                          <Badge variant="secondary">100 to 350 SP</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>AutoCAD 3D Design</span>
+                          <Badge variant="secondary">200 to 800 SP</Badge>
+                        </li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                  
+                  <AccordionItem value="web-dev">
+                    <AccordionTrigger>Web Development & Hosting</AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="space-y-2">
+                        <li className="py-1 border-b">
+                          <div className="flex justify-between items-center">
+                            <span>Website Hosting on Blog</span>
+                          </div>
+                          <ul className="pl-6 mt-2 space-y-1">
+                            <li className="flex justify-between items-center">
+                              <span className="text-sm">Advanced Setup</span>
+                              <Badge variant="secondary">100 SP</Badge>
+                            </li>
+                            <li className="flex justify-between items-center">
+                              <span className="text-sm">Monthly Maintenance</span>
+                              <Badge variant="secondary">50 SP</Badge>
+                            </li>
+                          </ul>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>Web Design (HTML & CSS only)</span>
+                          <Badge variant="secondary">70 SP</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>Website Widget Development</span>
+                          <Badge variant="secondary">35 SP</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>HTML Coding</span>
+                          <Badge variant="secondary">35 SP per 100 lines</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>CSS Coding</span>
+                          <Badge variant="secondary">35 SP per 400 lines</Badge>
+                        </li>
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>JavaScript Functions</span>
+                          <Badge variant="secondary">4 SP per function</Badge>
+                        </li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                  
+                  <AccordionItem value="automation">
+                    <AccordionTrigger>Automation & Bots</AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="space-y-2">
+                        <li className="flex justify-between items-center py-1 border-b">
+                          <span>WhatsApp, Instagram, Discord Bots</span>
+                          <Badge variant="secondary">200 SP</Badge>
+                        </li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                
+                <div className="mt-6">
+                  <Link to="/subscription">
+                    <Button className="w-full">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Buy Spark Points
+                    </Button>
+                  </Link>
+                </div>
               </CardContent>
+              <CardFooter className="flex justify-center">
+                <p className="text-sm text-muted-foreground flex items-center">
+                  <HelpCircle className="h-4 w-4 mr-1" />
+                  Have questions? <Link to="/help" className="ml-1 text-primary hover:underline">Get help</Link>
+                </p>
+              </CardFooter>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

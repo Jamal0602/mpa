@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,18 @@ const AuthForm = () => {
   const [loading, setLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const navigate = useNavigate();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        navigate("/");
+      }
+    };
+    
+    checkSession();
+  }, [navigate]);
 
   const validatePassword = (pass: string) => {
     if (pass.length < 8) return "Password must be at least 8 characters long";
@@ -40,6 +52,12 @@ const AuthForm = () => {
       toast.error("Please fix password requirements");
       return;
     }
+    
+    if (!email.trim() || !password.trim()) {
+      toast.error("Please enter both email and password");
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -48,22 +66,45 @@ const AuthForm = () => {
           email,
           password,
         });
+        
         if (error) throw error;
+        
         toast.success("Successfully signed in!");
         navigate("/");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`
           }
         });
+        
         if (error) throw error;
-        toast.success("Check your email to confirm your account!");
+        
+        if (data?.user?.identities?.length === 0) {
+          toast.error("This email is already registered. Please sign in instead.");
+          setIsLogin(true);
+        } else {
+          toast.success("Registration successful! Please check your email to confirm your account.");
+        }
       }
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Auth error:", error);
+      
+      const errorMessage = error.message || "An error occurred during authentication";
+      
+      // Handle common auth errors with more user-friendly messages
+      if (errorMessage.includes("Invalid login credentials")) {
+        toast.error("Invalid email or password. Please try again.");
+      } else if (errorMessage.includes("Email not confirmed")) {
+        toast.error("Please confirm your email before signing in.");
+      } else if (errorMessage.includes("already registered")) {
+        toast.error("This email is already registered. Please sign in instead.");
+        setIsLogin(true);
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -71,6 +112,7 @@ const AuthForm = () => {
 
   const handleGoogleSignIn = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -84,11 +126,13 @@ const AuthForm = () => {
       if (error) throw error;
     } catch (error: any) {
       toast.error(error.message);
+      setLoading(false);
     }
   };
 
   const handleGithubSignIn = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
@@ -98,11 +142,13 @@ const AuthForm = () => {
       if (error) throw error;
     } catch (error: any) {
       toast.error(error.message);
+      setLoading(false);
     }
   };
 
   const handleAppleSignIn = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
@@ -112,6 +158,7 @@ const AuthForm = () => {
       if (error) throw error;
     } catch (error: any) {
       toast.error(error.message);
+      setLoading(false);
     }
   };
 
@@ -135,6 +182,7 @@ const AuthForm = () => {
             type="button" 
             className="w-full" 
             onClick={handleGoogleSignIn}
+            disabled={loading}
           >
             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -162,6 +210,7 @@ const AuthForm = () => {
             type="button" 
             className="w-full" 
             onClick={handleGithubSignIn}
+            disabled={loading}
           >
             <Github className="mr-2 h-4 w-4" />
             Continue with GitHub
@@ -172,6 +221,7 @@ const AuthForm = () => {
             type="button" 
             className="w-full" 
             onClick={handleAppleSignIn}
+            disabled={loading}
           >
             <Apple className="mr-2 h-4 w-4" />
             Continue with Apple
@@ -197,6 +247,7 @@ const AuthForm = () => {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
                 required
               />
             </div>
@@ -208,6 +259,7 @@ const AuthForm = () => {
                 placeholder="Enter your password"
                 value={password}
                 onChange={handlePasswordChange}
+                disabled={loading}
                 required
               />
               {!isLogin && passwordError && (
@@ -227,7 +279,7 @@ const AuthForm = () => {
               )}
             </div>
             <Button type="submit" className="w-full" disabled={loading || (!isLogin && !!passwordError)}>
-              {isLogin ? "Sign In" : "Sign Up"}
+              {loading ? "Processing..." : (isLogin ? "Sign In" : "Sign Up")}
             </Button>
           </form>
         </div>
@@ -237,7 +289,11 @@ const AuthForm = () => {
           <button
             type="button"
             className="text-primary hover:underline"
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setPasswordError("");
+            }}
+            disabled={loading}
           >
             {isLogin ? "Sign Up" : "Sign In"}
           </button>
