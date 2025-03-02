@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -105,6 +106,53 @@ const TableCaption = React.forwardRef<
 ))
 TableCaption.displayName = "TableCaption"
 
+// New components for subscription-specific tables
+const PricingTable = React.forwardRef<
+  HTMLTableElement,
+  React.HTMLAttributes<HTMLTableElement>
+>(({ className, ...props }, ref) => (
+  <div className="relative w-full overflow-auto rounded-lg border shadow-sm">
+    <table
+      ref={ref}
+      className={cn("w-full caption-bottom text-sm", className)}
+      {...props}
+    />
+  </div>
+))
+PricingTable.displayName = "PricingTable"
+
+const PricingRow = React.forwardRef<
+  HTMLTableRowElement,
+  React.HTMLAttributes<HTMLTableRowElement> & { featured?: boolean }
+>(({ className, featured = false, ...props }, ref) => (
+  <tr
+    ref={ref}
+    className={cn(
+      "border-b transition-colors",
+      featured ? "bg-primary/10 hover:bg-primary/20" : "hover:bg-muted/50",
+      className
+    )}
+    {...props}
+  />
+))
+PricingRow.displayName = "PricingRow"
+
+const PricingCell = React.forwardRef<
+  HTMLTableCellElement,
+  React.TdHTMLAttributes<HTMLTableCellElement> & { highlight?: boolean }
+>(({ className, highlight = false, ...props }, ref) => (
+  <td
+    ref={ref}
+    className={cn(
+      "p-4 align-middle",
+      highlight ? "font-medium text-primary" : "",
+      className
+    )}
+    {...props}
+  />
+))
+PricingCell.displayName = "PricingCell"
+
 export {
   Table,
   TableHeader,
@@ -114,4 +162,7 @@ export {
   TableRow,
   TableCell,
   TableCaption,
+  PricingTable,
+  PricingRow,
+  PricingCell
 }
