@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
@@ -62,12 +63,17 @@ const UploadPage = () => {
     };
   }, []);
   
+  useEffect(() => {
+    // Check authentication and redirect if not logged in
+    if (!user && !isLoading) {
+      navigate("/auth");
+    }
+  }, [user, isLoading, navigate]);
+  
   if (isLoading) return <LoadingPage />;
   
-  if (!user) {
-    navigate("/auth");
-    return null;
-  }
+  // Don't render content if not authenticated
+  if (!user) return <LoadingPage />;
   
   const UPLOAD_COST = 5;
   const hasEnoughPoints = (profile?.key_points || 0) >= UPLOAD_COST;
