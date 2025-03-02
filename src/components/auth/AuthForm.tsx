@@ -52,18 +52,26 @@ const AuthForm = () => {
         toast.success("Successfully signed in!");
         navigate("/");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`
           }
         });
+        
         if (error) throw error;
-        toast.success("Check your email to confirm your account!");
+        
+        if (data?.user?.identities?.length === 0) {
+          toast.error("This email is already registered. Please sign in instead.");
+          setIsLogin(true);
+        } else {
+          toast.success("Please check your email to confirm your account!");
+        }
       }
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Auth error:", error);
+      toast.error(error.message || "An error occurred during authentication");
     } finally {
       setLoading(false);
     }
@@ -227,7 +235,7 @@ const AuthForm = () => {
               )}
             </div>
             <Button type="submit" className="w-full" disabled={loading || (!isLogin && !!passwordError)}>
-              {isLogin ? "Sign In" : "Sign Up"}
+              {loading ? "Processing..." : (isLogin ? "Sign In" : "Sign Up")}
             </Button>
           </form>
         </div>
@@ -237,7 +245,10 @@ const AuthForm = () => {
           <button
             type="button"
             className="text-primary hover:underline"
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setPasswordError("");
+            }}
           >
             {isLogin ? "Sign Up" : "Sign In"}
           </button>
