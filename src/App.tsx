@@ -16,31 +16,122 @@ import Referral from "@/pages/Referral";
 import ErrorReport from "@/pages/ErrorReport";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "@/contexts/AuthContext";
+import Navbar from "@/components/layout/Navbar";
+import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "next-themes";
 
 // Create a client
 const queryClient = new QueryClient();
 
+// Layout component that wraps our pages with common elements
+const MainLayout = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="container py-8 px-4">
+        {children}
+      </main>
+    </div>
+  );
+};
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <NotificationProvider>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/features" element={<Features />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/auth" element={<AuthForm />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/account" element={<AccountSettings />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/subscription" element={<Subscription />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/work-with-us" element={<WorkWithUs />} />
-          <Route path="/referral" element={<Referral />} />
-          <Route path="/report-error" element={<ErrorReport />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </NotificationProvider>
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="system" enableSystem>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <NotificationProvider>
+            <Routes>
+              <Route 
+                path="/" 
+                element={
+                  <MainLayout>
+                    <Index />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/features" 
+                element={
+                  <MainLayout>
+                    <Features />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/dashboard" 
+                element={
+                  <MainLayout>
+                    <Dashboard />
+                  </MainLayout>
+                } 
+              />
+              <Route path="/auth" element={<AuthForm />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route 
+                path="/account" 
+                element={
+                  <MainLayout>
+                    <AccountSettings />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/upload" 
+                element={
+                  <MainLayout>
+                    <UploadPage />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/subscription" 
+                element={
+                  <MainLayout>
+                    <Subscription />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/help" 
+                element={
+                  <MainLayout>
+                    <Help />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/work-with-us" 
+                element={
+                  <MainLayout>
+                    <WorkWithUs />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/referral" 
+                element={
+                  <MainLayout>
+                    <Referral />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/report-error" 
+                element={
+                  <MainLayout>
+                    <ErrorReport />
+                  </MainLayout>
+                } 
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster />
+          </NotificationProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

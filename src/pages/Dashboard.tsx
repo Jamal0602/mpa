@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Moon, Sun, User, BarChart2, PieChart, Activity, CreditCard, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -18,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 
 // Import Recharts components
 import { 
@@ -72,6 +72,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 const Dashboard = () => {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,13 @@ const Dashboard = () => {
   const [transactionDescription, setTransactionDescription] = useState("");
   const [isMasterMind, setIsMasterMind] = useState(false);
   
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user && !loading) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
   // Query for key points transactions
   const { data: transactions, isLoading: isTransactionsLoading, refetch: refetchTransactions } = useQuery({
     queryKey: ["keypoints-transactions", user?.id],
@@ -210,7 +218,7 @@ const Dashboard = () => {
   const showAdminPanel = isAdmin && (isMasterMind || process.env.NODE_ENV === 'development');
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="space-y-8 animate-fade-in">
       <header className="border-b">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center space-x-4">
