@@ -35,4 +35,6 @@ To generate these files, you need to:
 
 6. Build from the native IDEs (Android Studio, Xcode)
 
-See the [Capacitor documentation](https://capacitorjs.com/docs) for more details.
+See the [Capacitor documentation](https://capacitorjs.com/docs) 
+
+Download Apk...
