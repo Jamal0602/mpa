@@ -1,8 +1,11 @@
+
 # Welcome to your Lovable project
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/be1a3615-a05c-42e2-8459-1a9667623af5
+
+**GitHub Repository**: https://github.com/Jamal0602/MPA.git
 
 ## How can I edit this code?
 
@@ -35,6 +38,45 @@ npm i
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
+
+## Mobile App Development
+
+To build mobile apps for Android (.apk) and iOS (.ipa):
+
+1. Install Capacitor:
+   ```
+   npm install @capacitor/core @capacitor/cli
+   npm install @capacitor/android @capacitor/ios
+   ```
+
+2. Initialize Capacitor:
+   ```
+   npx cap init "Multi Project Association" "app.lovable.be1a3615a05c42e284591a9667623af5"
+   ```
+
+3. Add platforms:
+   ```
+   npx cap add android
+   npx cap add ios
+   ```
+
+4. Build your web app:
+   ```
+   npm run build
+   ```
+
+5. Sync with Capacitor:
+   ```
+   npx cap sync
+   ```
+
+6. Open in native IDEs:
+   ```
+   npx cap open android
+   npx cap open ios
+   ```
+
+7. Build from the native IDEs (Android Studio, Xcode)
 
 **Edit a file directly in GitHub**
 

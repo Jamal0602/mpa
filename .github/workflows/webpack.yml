@@ -1,3 +1,4 @@
+
 name: NodeJS with Webpack
 
 on:
@@ -26,3 +27,13 @@ jobs:
       run: |
         npm install
         npx webpack
+
+# Note: To build mobile apps (.apk and .ipa), you would need to set up a more complex
+# workflow with Android SDK and iOS build environments.
+# This would typically involve:
+# 1. Setting up Capacitor
+# 2. Building the web app
+# 3. Syncing with Capacitor
+# 4. Building for Android (requires Android SDK)
+# 5. Building for iOS (requires macOS runner with Xcode)
+
