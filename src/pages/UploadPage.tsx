@@ -10,9 +10,11 @@ import { UploadForm } from "@/components/upload/UploadForm";
 import { UploadSidebar } from "@/components/upload/UploadSidebar";
 import { ServicePricing } from "@/components/upload/ServicePricing";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 
 const UploadPage = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const UPLOAD_COST = 5;
   
   const { data: profile, isLoading, refetch: refetchProfile } = useQuery({
@@ -26,10 +28,19 @@ const UploadPage = () => {
         .eq("id", user.id)
         .single();
         
-      if (error) throw error;
+      if (error) {
+        toast({
+          title: "Error fetching profile",
+          description: error.message,
+          variant: "destructive"
+        });
+        throw error;
+      }
       return data;
     },
     enabled: !!user,
+    refetchOnWindowFocus: false,
+    staleTime: 60000, // Consider data fresh for 1 minute
   });
   
   useEffect(() => {
@@ -39,7 +50,9 @@ const UploadPage = () => {
     document.body.appendChild(script);
     
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
   }, []);
   
@@ -48,6 +61,7 @@ const UploadPage = () => {
   return (
     <PageLayout 
       title="Upload Your Project"
+      description="Share your ideas and projects with the community"
       requireAuth={true}
       className="max-w-4xl"
     >

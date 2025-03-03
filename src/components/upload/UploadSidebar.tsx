@@ -2,7 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CreditCard, AlertTriangle } from "lucide-react";
+import { CreditCard, AlertTriangle, FileCheck, Shield } from "lucide-react";
 
 interface UploadSidebarProps {
   userPoints: number;
@@ -50,7 +50,10 @@ export const UploadSidebar = ({ userPoints, uploadCost }: UploadSidebarProps) =>
       
       <Card>
         <CardHeader>
-          <CardTitle>Upload Guidelines</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5" />
+            Upload Guidelines
+          </CardTitle>
         </CardHeader>
         <CardContent className="text-sm space-y-2">
           <p>• Maximum file size: 100MB</p>
@@ -58,6 +61,21 @@ export const UploadSidebar = ({ userPoints, uploadCost }: UploadSidebarProps) =>
           <p>• All uploads are reviewed by moderators</p>
           <p>• Inappropriate content will be removed</p>
           <p>• You must own the rights to uploaded content</p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            What Happens Next?
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm space-y-2">
+          <p>• Your project will be reviewed within 24-48 hours</p>
+          <p>• You'll receive a notification once approved</p>
+          <p>• Approved projects will appear on the platform</p>
+          <p>• You may earn additional Key Points if your project is featured</p>
         </CardContent>
       </Card>
     </div>

@@ -32,7 +32,13 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      // Check file size (limit to 100MB)
+      if (selectedFile.size > 100 * 1024 * 1024) {
+        toast.error("File size exceeds 100MB limit. Please select a smaller file.");
+        return;
+      }
+      setFile(selectedFile);
     }
   };
   
@@ -77,11 +83,24 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
       const fileExt = file.name.split(".").pop();
       const fileName = `${userId}-${Date.now()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data: storageData } = await supabase.storage
         .from("projects")
         .upload(fileName, file);
         
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        cleanStop();
+        setUploading(false);
+        setProgress(0);
+        toast.error(`Upload failed: ${uploadError.message}`);
+        return;
+      }
+      
+      // Generate public URL for the file
+      const { data: publicUrlData } = supabase.storage
+        .from("projects")
+        .getPublicUrl(fileName);
+      
+      const fileUrl = publicUrlData?.publicUrl || '';
       
       const { error: projectError } = await supabase
         .from("projects")
@@ -92,7 +111,9 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
           file_path: fileName,
           file_type: file.type,
           file_size: file.size,
-          owner_id: userId
+          file_url: fileUrl,
+          owner_id: userId,
+          status: 'pending'
         });
         
       if (projectError) throw projectError;
@@ -111,6 +132,16 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
           amount: -UPLOAD_COST,
           description: `Project upload: ${title}`,
           transaction_type: 'spend'
+        });
+        
+      // Create notification for the user
+      await supabase
+        .from("notifications")
+        .insert({
+          user_id: userId,
+          title: "Project Uploaded",
+          message: `Your project "${title}" has been uploaded successfully and is pending review.`,
+          type: "success"
         });
         
       cleanStop();

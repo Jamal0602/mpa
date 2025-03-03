@@ -3,6 +3,7 @@ import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { LoadingPage } from "@/components/ui/loading";
+import { useToast } from "@/components/ui/use-toast";
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -19,17 +20,29 @@ export const PageLayout = ({
   requireAuth = false,
   className = "",
 }: PageLayoutProps) => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  // Handle loading state
+  if (isLoading) {
+    return <LoadingPage />;
+  }
   
   // Handle authentication requirement
   if (requireAuth && !user) {
+    toast({
+      title: "Authentication Required",
+      description: "You need to be logged in to access this page.",
+      variant: "destructive",
+    });
+    
     navigate("/auth");
     return <LoadingPage />;
   }
   
   return (
-    <div className={className}>
+    <div className={`animate-in fade-in-50 duration-300 ${className}`}>
       {(title || description) && (
         <div className="mb-8">
           {title && <h1 className="text-3xl font-bold">{title}</h1>}
