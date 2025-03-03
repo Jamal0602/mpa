@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { Github } from "lucide-react";
 
 interface LimitReachedDisplayProps {
   timeUntilReset: string;
@@ -8,6 +9,10 @@ interface LimitReachedDisplayProps {
 
 export const LimitReachedDisplay = ({ timeUntilReset }: LimitReachedDisplayProps) => {
   const navigate = useNavigate();
+  
+  const openGitHubIssues = () => {
+    window.open("https://github.com/Jamal0602/MPA/issues", "_blank");
+  };
   
   return (
     <div className="bg-card border rounded-lg p-6 text-center">
@@ -18,12 +23,22 @@ export const LimitReachedDisplay = ({ timeUntilReset }: LimitReachedDisplayProps
       <p className="text-lg mb-6">
         Time until reset: <span className="font-bold">{timeUntilReset}</span>
       </p>
-      <Button 
-        variant="outline" 
-        onClick={() => navigate("/")}
-      >
-        Return to Home
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <Button 
+          variant="outline" 
+          onClick={() => navigate("/")}
+        >
+          Return to Home
+        </Button>
+        <Button 
+          variant="default" 
+          onClick={openGitHubIssues}
+          className="gap-2"
+        >
+          <Github className="h-4 w-4" />
+          View GitHub Issues
+        </Button>
+      </div>
     </div>
   );
 };

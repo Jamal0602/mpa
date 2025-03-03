@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { positions } from "./PositionsList";
+import { useNavigate } from "react-router-dom";
 
 const formSchema = z.object({
   fullName: z.string().min(2, {
@@ -43,6 +43,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export const JobApplicationForm = ({ userId }: { userId: string }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
 
@@ -60,7 +61,6 @@ export const JobApplicationForm = ({ userId }: { userId: string }) => {
     },
   });
 
-  // Fetch user profile for auto-filling location data
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!userId) return;
@@ -74,7 +74,6 @@ export const JobApplicationForm = ({ userId }: { userId: string }) => {
       if (!error && data) {
         setUserProfile(data);
         
-        // Auto-fill location based on profile data
         let location = "";
         if (data.place) location += data.place;
         if (data.district) {
@@ -94,7 +93,6 @@ export const JobApplicationForm = ({ userId }: { userId: string }) => {
         form.setValue("fullName", data.full_name || "");
       }
       
-      // Get user email
       const { data: session } = await supabase.auth.getSession();
       if (session.session) {
         form.setValue("email", session.session.user.email || "");
@@ -112,7 +110,6 @@ export const JobApplicationForm = ({ userId }: { userId: string }) => {
         return;
       }
       
-      // Store application in database
       const { error } = await supabase.from("job_applications").insert({
         user_id: userId,
         full_name: values.fullName,
@@ -128,7 +125,6 @@ export const JobApplicationForm = ({ userId }: { userId: string }) => {
       
       if (error) throw error;
       
-      // Create a notification for the user about their application
       await supabase
         .from('notifications')
         .insert({
@@ -140,7 +136,7 @@ export const JobApplicationForm = ({ userId }: { userId: string }) => {
       
       toast.success("Application submitted successfully!");
       form.reset();
-      
+      navigate("/");
     } catch (error) {
       console.error("Error submitting application:", error);
       toast.error("Failed to submit application. Please try again.");

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, FileType } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { useNavigate } from "react-router-dom";
 
 interface UploadFormProps {
   userId: string;
@@ -18,6 +19,7 @@ interface UploadFormProps {
 }
 
 export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) => {
+  const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [title, setTitle] = useState("");
@@ -124,6 +126,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         setProgress(0);
         setUploading(false);
         onSuccess();
+        navigate("/"); // Redirect to home page after upload
       }, 1500);
       
     } catch (error: any) {

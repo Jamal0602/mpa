@@ -73,6 +73,27 @@ export const ErrorReportForm = ({ userId, userEmail }: ErrorReportFormProps) => 
     }
   };
 
+  const openGitHubIssue = () => {
+    const issueTitle = `[${formData.errorType}] Issue Report`;
+    const issueBody = `
+## Error Details
+- **Type**: ${formData.errorType}
+- **Transaction ID**: ${formData.transactionId || 'N/A'}
+- **Contact Email**: ${formData.contactEmail}
+
+## Description
+${formData.description}
+
+---
+*This issue was submitted via the MPA Error Report System*
+    `;
+    
+    const encodedTitle = encodeURIComponent(issueTitle);
+    const encodedBody = encodeURIComponent(issueBody);
+    
+    window.open(`https://github.com/Jamal0602/MPA/issues/new?title=${encodedTitle}&body=${encodedBody}`, '_blank');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -98,8 +119,11 @@ export const ErrorReportForm = ({ userId, userEmail }: ErrorReportFormProps) => 
       
       if (error) throw error;
       
+      // Open GitHub issue page
+      openGitHubIssue();
+      
       toast.success("Error report submitted successfully");
-      navigate("/");
+      navigate("/"); // Redirect to home page after submission
     } catch (error: any) {
       console.error("Error submitting report:", error);
       toast.error(error.message || "Failed to submit error report");
@@ -180,7 +204,7 @@ export const ErrorReportForm = ({ userId, userEmail }: ErrorReportFormProps) => 
         <Button 
           variant="outline" 
           type="button" 
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/")}
         >
           Cancel
         </Button>

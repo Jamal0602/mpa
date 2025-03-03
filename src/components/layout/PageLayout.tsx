@@ -29,7 +29,7 @@ export const PageLayout = ({
   }
   
   return (
-    <div className={`max-w-5xl mx-auto py-8 px-4 ${className}`}>
+    <div className={className}>
       {(title || description) && (
         <div className="mb-8">
           {title && <h1 className="text-3xl font-bold">{title}</h1>}
