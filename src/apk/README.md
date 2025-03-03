@@ -38,3 +38,4 @@ To generate these files, you need to:
 See the [Capacitor documentation](https://capacitorjs.com/docs) 
 
 Download Apk...
+https://github.com/CUBIZ-G/multiprojectassociation/blob/main/src/apk/MPA.v.1.apk
