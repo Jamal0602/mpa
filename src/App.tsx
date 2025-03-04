@@ -14,24 +14,47 @@ import Help from "@/pages/Help";
 import WorkWithUs from "@/pages/WorkWithUs";
 import Referral from "@/pages/Referral";
 import ErrorReport from "@/pages/ErrorReport";
+import Analytics from "@/pages/Analytics";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
+import { useEffect } from "react";
 
 // Create a client
 const queryClient = new QueryClient();
 
 // Layout component that wraps our pages with common elements
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
+  // Google Tag Manager script setup
+  useEffect(() => {
+    // Initialize dataLayer for GTM
+    window.dataLayer = window.dataLayer || [];
+    
+    // AdSense setup
+    const adsenseScript = document.createElement('script');
+    adsenseScript.async = true;
+    adsenseScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7483780622360467';
+    adsenseScript.crossOrigin = 'anonymous';
+    document.head.appendChild(adsenseScript);
+
+    return () => {
+      if (document.head.contains(adsenseScript)) {
+        document.head.removeChild(adsenseScript);
+      }
+    };
+  }, []);
+  
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 flex-grow">
         {children}
       </main>
+      <Footer />
     </div>
   );
 };
@@ -125,6 +148,14 @@ function App() {
                   </MainLayout>
                 } 
               />
+              <Route 
+                path="/analytics" 
+                element={
+                  <MainLayout>
+                    <Analytics />
+                  </MainLayout>
+                } 
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />
@@ -133,6 +164,13 @@ function App() {
       </QueryClientProvider>
     </ThemeProvider>
   );
+}
+
+// Add type definitions for global dataLayer
+declare global {
+  interface Window {
+    dataLayer: any[];
+  }
 }
 
 export default App;

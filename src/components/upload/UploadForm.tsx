@@ -7,10 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileType } from "lucide-react";
+import { Upload, FileType, Calendar, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { addDays, format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 interface UploadFormProps {
   userId: string;
@@ -26,10 +35,23 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
   const [description, setDescription] = useState("");
   const [projectType, setProjectType] = useState("idea");
   const [file, setFile] = useState<File | null>(null);
+  const [deadline, setDeadline] = useState<Date | undefined>(addDays(new Date(), 3));
+  const [expeditedService, setExpeditedService] = useState(false);
+  const [expeditedDays, setExpeditedDays] = useState(0);
   
   // Upload is now free
   const UPLOAD_COST = 0;
-  const hasEnoughPoints = true;
+  
+  // Calculate expedited service pricing
+  const BASE_PRICE = 20; // Example base price
+  const EXPEDITED_DISCOUNT_PERCENT = 25; // 25% extra per day reduced
+  
+  const calculatePrice = () => {
+    if (!expeditedService) return BASE_PRICE;
+    
+    const expeditedPrice = BASE_PRICE * (1 + (expeditedDays * EXPEDITED_DISCOUNT_PERCENT / 100));
+    return expeditedPrice;
+  };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -98,6 +120,9 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
       
       const fileUrl = publicUrlData?.publicUrl || '';
       
+      // Calculate final price based on expedited service
+      const price = calculatePrice();
+      
       const { error: projectError } = await supabase
         .from("projects")
         .insert({
@@ -109,7 +134,11 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
           file_size: file.size,
           file_url: fileUrl,
           owner_id: userId,
-          status: 'pending'
+          status: 'pending',
+          deadline: deadline?.toISOString(),
+          expedited: expeditedService,
+          expedited_days: expeditedDays,
+          price
         });
         
       if (projectError) throw projectError;
@@ -120,7 +149,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         .insert({
           user_id: userId,
           title: "Project Uploaded",
-          message: `Your project "${title}" has been uploaded successfully and is pending review.`,
+          message: `Your project "${title}" has been uploaded successfully and is pending review. ${expeditedService ? 'Expedited processing requested.' : ''}`,
           type: "success"
         });
         
@@ -134,6 +163,9 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         setDescription("");
         setProjectType("idea");
         setFile(null);
+        setDeadline(addDays(new Date(), 3));
+        setExpeditedService(false);
+        setExpeditedDays(0);
         setProgress(0);
         setUploading(false);
         onSuccess();
@@ -198,6 +230,74 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
               <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label>Deadline</Label>
+          <div className="flex flex-col space-y-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !deadline && "text-muted-foreground"
+                  )}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {deadline ? format(deadline, "PPP") : "Select a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <CalendarComponent
+                  mode="single"
+                  selected={deadline}
+                  onSelect={setDeadline}
+                  initialFocus
+                  disabled={(date) => date < new Date()}
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="expedited"
+                checked={expeditedService}
+                onCheckedChange={(checked) => {
+                  setExpeditedService(!!checked);
+                  if (!checked) setExpeditedDays(0);
+                }}
+              />
+              <label 
+                htmlFor="expedited" 
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Expedited service (+{EXPEDITED_DISCOUNT_PERCENT}% per day)
+              </label>
+            </div>
+            
+            {expeditedService && (
+              <div className="space-y-2">
+                <Label htmlFor="expeditedDays">Days to reduce</Label>
+                <Select
+                  value={expeditedDays.toString()}
+                  onValueChange={(value) => setExpeditedDays(parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select days" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 day (-24h)</SelectItem>
+                    <SelectItem value="2">2 days (-48h)</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <div className="mt-2 text-sm font-medium">
+                  Total price: ${calculatePrice().toFixed(2)}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="space-y-2">

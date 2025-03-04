@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard, HelpCircle } from "lucide-react";
+import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard, HelpCircle, Share2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
@@ -24,6 +24,16 @@ import {
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { NotificationCenter } from "@/components/ui/notification-center";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
@@ -31,6 +41,13 @@ const Navbar = () => {
   const { data: isAdmin } = useIsAdmin();
   const [keyPoints, setKeyPoints] = useState(0);
   const [isMasterMind, setIsMasterMind] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const appDownloadUrl = "https://drive.google.com/uc?id=1rhoD4s2jTh2deIZ1VqnWJjUDSST04lCq";
+  
+  // Cookie consent state
+  const [cookieConsent, setCookieConsent] = useState(() => {
+    return localStorage.getItem("cookieConsent") === "accepted";
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -89,6 +106,36 @@ const Navbar = () => {
     }
   };
 
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Multi Project Association (MPA)',
+          text: 'Check out the MPA app for project management and collaboration!',
+          url: window.location.origin,
+        });
+      } else {
+        // If Web Share API is not available, open the dialog
+        setIsShareDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      setIsShareDialogOpen(true);
+    }
+  };
+
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(window.location.origin);
+    toast.success("Share link copied to clipboard!");
+    setIsShareDialogOpen(false);
+  };
+
+  const acceptCookies = () => {
+    localStorage.setItem("cookieConsent", "accepted");
+    setCookieConsent(true);
+    toast.success("Cookie preferences saved!");
+  };
+
   const NavItems = () => (
     <>
       <Link to="/" className="text-foreground hover:text-primary transition-colors">
@@ -112,6 +159,10 @@ const Navbar = () => {
       <Link to="/referral" className="text-foreground hover:text-primary transition-colors">
         Referrals
       </Link>
+      <Button variant="ghost" onClick={handleShare} className="text-foreground hover:text-primary transition-colors flex items-center gap-1">
+        <Share2 className="h-4 w-4" />
+        Share App
+      </Button>
       {(isAdmin && isMasterMind) && (
         <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors group relative">
           Admin
@@ -193,60 +244,123 @@ const Navbar = () => {
   );
 
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4">
-        <Link to="/" className="flex items-center space-x-2">
-          <span className="text-xl font-bold">Multi Project Association</span>
-          <span className="text-lg text-muted-foreground">(MPA)</span>
-        </Link>
+    <>
+      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between px-4">
+          <Link to="/" className="flex items-center space-x-2">
+            <span className="text-xl font-bold">Multi Project Association</span>
+            <span className="text-lg text-muted-foreground">(MPA)</span>
+          </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-6">
-          <NavItems />
-        </div>
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-6">
+            <NavItems />
+          </div>
 
-        <div className="flex items-center gap-4">
-          {user && (
-            <div className="hidden md:flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-full">
-              <CreditCard className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">{keyPoints} Spark Points</span>
+          <div className="flex items-center gap-4">
+            {user && (
+              <div className="hidden md:flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-full">
+                <CreditCard className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">{keyPoints} Spark Points</span>
+              </div>
+            )}
+
+            {user && <NotificationCenter />}
+          
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
+
+            {/* Mobile Navigation */}
+            <Sheet>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                <nav className="flex flex-col space-y-4 mt-4">
+                  <NavItems />
+                  <AuthButtons />
+                </nav>
+              </SheetContent>
+            </Sheet>
+
+            <div className="hidden md:flex items-center gap-4">
+              <AuthButtons />
             </div>
-          )}
-
-          {user && <NotificationCenter />}
-        
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-
-          {/* Mobile Navigation */}
-          <Sheet>
-            <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-              <nav className="flex flex-col space-y-4 mt-4">
-                <NavItems />
-                <AuthButtons />
-              </nav>
-            </SheetContent>
-          </Sheet>
-
-          <div className="hidden md:flex items-center gap-4">
-            <AuthButtons />
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+
+      {/* Share Dialog */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share MPA App</DialogTitle>
+            <DialogDescription>
+              Share the MPA App with friends and colleagues
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Website Link</h3>
+              <div className="flex items-center gap-2">
+                <Input value={window.location.origin} readOnly />
+                <Button onClick={copyShareLink}>Copy</Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">App Download</h3>
+              <div className="flex items-center gap-2">
+                <Input value={appDownloadUrl} readOnly />
+                <Button onClick={() => {
+                  navigator.clipboard.writeText(appDownloadUrl);
+                  toast.success("Download link copied!");
+                }}>Copy</Button>
+              </div>
+              <Button 
+                className="w-full mt-2" 
+                onClick={() => window.open(appDownloadUrl, '_blank')}
+              >
+                Download App
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cookie Consent Banner */}
+      {!cookieConsent && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 z-50 shadow-md">
+          <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="font-medium">Cookie Consent</h3>
+              <p className="text-sm text-muted-foreground">
+                We use cookies to enhance your experience. By continuing to use our site, you agree to our use of cookies.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setCookieConsent(true)}>
+                Decline
+              </Button>
+              <Button onClick={acceptCookies}>
+                Accept All
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
