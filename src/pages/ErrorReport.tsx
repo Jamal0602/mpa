@@ -1,83 +1,52 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { ErrorReportForm } from "@/components/error-report/ErrorReportForm";
 import { LimitReachedDisplay } from "@/components/error-report/LimitReachedDisplay";
+import { Button } from "@/components/ui/button";
+import { GitHub } from "lucide-react";
 
 const ErrorReport = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [dailyLimitReached, setDailyLimitReached] = useState(false);
-  const [timeUntilReset, setTimeUntilReset] = useState<string>("");
-
-  // Check if user has reached daily limit
-  useEffect(() => {
-    const checkDailyLimit = async () => {
-      if (!user) return;
-      
-      try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const { data, error } = await supabase
-          .from('error_reports')
-          .select('created_at')
-          .eq('user_id', user.id)
-          .gte('created_at', today.toISOString());
-          
-        if (error) throw error;
-        
-        // Assuming a limit of 3 reports per day
-        if (data && data.length >= 3) {
-          setDailyLimitReached(true);
-          
-          // Calculate time until next day
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          tomorrow.setHours(0, 0, 0, 0);
-          
-          const updateTimeRemaining = () => {
-            const now = new Date();
-            const diffMs = tomorrow.getTime() - now.getTime();
-            const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-            const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-            setTimeUntilReset(`${diffHrs}h ${diffMins}m`);
-          };
-          
-          updateTimeRemaining();
-          const interval = setInterval(updateTimeRemaining, 60000); // Update every minute
-          
-          return () => clearInterval(interval);
-        }
-      } catch (error) {
-        console.error("Error checking daily limit:", error);
-      }
-    };
-    
-    checkDailyLimit();
-  }, [user]);
+  const [limitReached, setLimitReached] = useState(false);
+  
+  const handleSuccess = () => {
+    // Redirect to homepage after successful report submission
+    setTimeout(() => {
+      navigate("/");
+    }, 2000);
+  };
 
   return (
-    <PageLayout
-      title="Report an Error"
-      description="If you encountered a problem, please let us know and we'll address it as soon as possible."
+    <PageLayout 
+      title="Report an Error" 
+      description="Help us improve by reporting bugs and issues"
       requireAuth={true}
     >
-      <div className="max-w-3xl mx-auto">
-        {dailyLimitReached ? (
-          <LimitReachedDisplay timeUntilReset={timeUntilReset} />
-        ) : (
-          user && (
-            <ErrorReportForm 
-              userId={user.id} 
-              userEmail={user.email || ""}
-            />
-          )
-        )}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <p className="text-muted-foreground">
+          Found a bug or issue? Let us know so we can improve MPA for everyone.
+        </p>
+        
+        <Button 
+          variant="outline"
+          className="gap-2"
+          onClick={() => window.open("https://github.com/Jamal0602/MPA/issues/new", "_blank")}
+        >
+          <GitHub className="h-4 w-4" />
+          Report on GitHub
+        </Button>
       </div>
+      
+      {limitReached ? (
+        <LimitReachedDisplay />
+      ) : (
+        <ErrorReportForm 
+          onLimitReached={() => setLimitReached(true)}
+          onSuccess={handleSuccess}
+        />
+      )}
     </PageLayout>
   );
 };

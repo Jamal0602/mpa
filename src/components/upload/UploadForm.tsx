@@ -27,8 +27,9 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
   const [projectType, setProjectType] = useState("idea");
   const [file, setFile] = useState<File | null>(null);
   
-  const UPLOAD_COST = 5;
-  const hasEnoughPoints = userPoints >= UPLOAD_COST;
+  // Upload is now free
+  const UPLOAD_COST = 0;
+  const hasEnoughPoints = true;
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -68,11 +69,6 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
   const handleUpload = async () => {
     if (!file || !title) {
       toast.error("Please provide a title and select a file");
-      return;
-    }
-    
-    if (!hasEnoughPoints) {
-      toast.error(`You need at least ${UPLOAD_COST} Key Points to upload. You have ${userPoints}.`);
       return;
     }
     
@@ -118,22 +114,6 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         
       if (projectError) throw projectError;
       
-      const { error: pointsError } = await supabase
-        .from("profiles")
-        .update({ key_points: userPoints - UPLOAD_COST })
-        .eq("id", userId);
-        
-      if (pointsError) throw pointsError;
-      
-      await supabase
-        .from("key_points_transactions")
-        .insert({
-          user_id: userId,
-          amount: -UPLOAD_COST,
-          description: `Project upload: ${title}`,
-          transaction_type: 'spend'
-        });
-        
       // Create notification for the user
       await supabase
         .from("notifications")
@@ -265,7 +245,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
       <CardFooter>
         <Button 
           onClick={handleUpload} 
-          disabled={uploading || !hasEnoughPoints || !title || !file}
+          disabled={uploading || !title || !file}
           className="w-full"
         >
           <Upload className="mr-2 h-4 w-4" />
