@@ -1,4 +1,4 @@
-
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +10,51 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { CreditCard, HelpCircle, Info } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+
+interface ServiceOffer {
+  id: string;
+  name: string;
+  description: string;
+  discount_percentage: number;
+  start_date: string;
+  end_date: string;
+}
 
 export const ServicePricing = () => {
+  const { data: serviceOffers } = useQuery({
+    queryKey: ['service-offers'],
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('service_offers')
+        .select('*')
+        .lte('start_date', now)
+        .gte('end_date', now);
+        
+      if (error) throw error;
+      return data as ServiceOffer[];
+    }
+  });
+
+  const activeOffers = serviceOffers?.length ? (
+    <div className="mb-4 p-3 bg-primary/10 rounded-lg border border-primary/30">
+      <h3 className="font-medium text-primary mb-2">Active Offers</h3>
+      <div className="space-y-2">
+        {serviceOffers.map((offer) => (
+          <div key={offer.id} className="flex justify-between items-center">
+            <div>
+              <p className="font-medium">{offer.name}</p>
+              <p className="text-xs text-muted-foreground">{offer.description}</p>
+            </div>
+            <Badge className="bg-primary">{offer.discount_percentage}% OFF</Badge>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <Card>
       <CardHeader>
@@ -24,6 +67,8 @@ export const ServicePricing = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {activeOffers}
+        
         <Accordion type="multiple" className="w-full">
           <AccordionItem value="document-media">
             <AccordionTrigger>Document & Media Services</AccordionTrigger>

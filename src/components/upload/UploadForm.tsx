@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,13 +37,12 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
   const [deadline, setDeadline] = useState<Date | undefined>(addDays(new Date(), 3));
   const [expeditedService, setExpeditedService] = useState(false);
   const [expeditedDays, setExpeditedDays] = useState(0);
+  const [projectCategory, setProjectCategory] = useState("general");
   
-  // Upload is now free
   const UPLOAD_COST = 0;
   
-  // Calculate expedited service pricing
-  const BASE_PRICE = 20; // Example base price
-  const EXPEDITED_DISCOUNT_PERCENT = 25; // 25% extra per day reduced
+  const BASE_PRICE = 20;
+  const EXPEDITED_DISCOUNT_PERCENT = 25;
   
   const calculatePrice = () => {
     if (!expeditedService) return BASE_PRICE;
@@ -56,7 +54,6 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
-      // Check file size (limit to 100MB)
       if (selectedFile.size > 100 * 1024 * 1024) {
         toast.error("File size exceeds 100MB limit. Please select a smaller file.");
         return;
@@ -113,14 +110,12 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         return;
       }
       
-      // Generate public URL for the file
       const { data: publicUrlData } = supabase.storage
         .from("projects")
         .getPublicUrl(fileName);
       
       const fileUrl = publicUrlData?.publicUrl || '';
       
-      // Calculate final price based on expedited service
       const price = calculatePrice();
       
       const { error: projectError } = await supabase
@@ -129,6 +124,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
           title,
           description,
           type: projectType,
+          category: projectCategory,
           file_path: fileName,
           file_type: file.type,
           file_size: file.size,
@@ -143,7 +139,6 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         
       if (projectError) throw projectError;
       
-      // Create notification for the user
       await supabase
         .from("notifications")
         .insert({
@@ -162,6 +157,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         setTitle("");
         setDescription("");
         setProjectType("idea");
+        setProjectCategory("general");
         setFile(null);
         setDeadline(addDays(new Date(), 3));
         setExpeditedService(false);
@@ -169,7 +165,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         setProgress(0);
         setUploading(false);
         onSuccess();
-        navigate("/"); // Redirect to home page after upload
+        navigate("/");
       }, 1500);
       
     } catch (error: any) {
@@ -210,6 +206,27 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
             disabled={uploading}
             rows={4}
           />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="category">Project Category</Label>
+          <Select
+            value={projectCategory}
+            onValueChange={setProjectCategory}
+            disabled={uploading}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="general">General</SelectItem>
+              <SelectItem value="design">Design</SelectItem>
+              <SelectItem value="development">Development</SelectItem>
+              <SelectItem value="content">Content</SelectItem>
+              <SelectItem value="marketing">Marketing</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         <div className="space-y-2">
