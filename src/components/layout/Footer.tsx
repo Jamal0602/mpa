@@ -17,10 +17,10 @@ interface FooterContent {
   privacy_text: string;
   terms_text: string;
   social_links: {
-    github?: string;
-    twitter?: string;
-    instagram?: string;
-    facebook?: string;
+    github: string;
+    twitter: string;
+    instagram: string;
+    facebook: string;
   };
   created_at: string;
   updated_at: string;
@@ -65,7 +65,12 @@ export const Footer = () => {
       setContactEmail(footerContent.contact_email || '');
       setPrivacyText(footerContent.privacy_text || '');
       setTermsText(footerContent.terms_text || '');
-      setSocialLinks(footerContent.social_links || {});
+      setSocialLinks(footerContent.social_links || {
+        github: '',
+        twitter: '',
+        instagram: '',
+        facebook: ''
+      });
     } else if (!isLoading) {
       // Default values when no data is found
       setAboutText('Multi Project Association (MPA) is a platform for managing projects, collaborating with team members, and tracking progress.');
