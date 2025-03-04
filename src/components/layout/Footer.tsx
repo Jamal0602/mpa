@@ -6,7 +6,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Pencil, Save, Github, Twitter, Instagram, Facebook, Mail } from 'lucide-react';
 
@@ -55,29 +55,31 @@ export const Footer = () => {
       }
       
       return data as FooterContent || null;
-    },
-    onSuccess: (data) => {
-      if (data) {
-        setAboutText(data.about_text || '');
-        setContactEmail(data.contact_email || '');
-        setPrivacyText(data.privacy_text || '');
-        setTermsText(data.terms_text || '');
-        setSocialLinks(data.social_links || {});
-      } else {
-        // Default values
-        setAboutText('Multi Project Association (MPA) is a platform for managing projects, collaborating with team members, and tracking progress.');
-        setContactEmail('contact@mpa.example.com');
-        setPrivacyText('Your privacy is important to us. We collect minimal data and use it only for service improvement.');
-        setTermsText('By using MPA, you agree to our terms of service.');
-        setSocialLinks({
-          github: 'https://github.com/Jamal0602/MPA',
-          twitter: '',
-          instagram: '',
-          facebook: ''
-        });
-      }
     }
   });
+
+  // Use useEffect to set state when data is loaded
+  useEffect(() => {
+    if (footerContent) {
+      setAboutText(footerContent.about_text || '');
+      setContactEmail(footerContent.contact_email || '');
+      setPrivacyText(footerContent.privacy_text || '');
+      setTermsText(footerContent.terms_text || '');
+      setSocialLinks(footerContent.social_links || {});
+    } else if (!isLoading) {
+      // Default values when no data is found
+      setAboutText('Multi Project Association (MPA) is a platform for managing projects, collaborating with team members, and tracking progress.');
+      setContactEmail('contact@mpa.example.com');
+      setPrivacyText('Your privacy is important to us. We collect minimal data and use it only for service improvement.');
+      setTermsText('By using MPA, you agree to our terms of service.');
+      setSocialLinks({
+        github: 'https://github.com/Jamal0602/MPA',
+        twitter: '',
+        instagram: '',
+        facebook: ''
+      });
+    }
+  }, [footerContent, isLoading]);
 
   const handleSave = async () => {
     try {
