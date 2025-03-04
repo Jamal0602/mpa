@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -246,7 +245,7 @@ export const EmployeeVerification = () => {
                     {new Date(application.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="warning">Pending</Badge>
+                    <Badge variant="destructive">Pending</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">

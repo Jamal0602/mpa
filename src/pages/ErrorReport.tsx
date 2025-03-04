@@ -5,11 +5,12 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { ErrorReportForm } from "@/components/error-report/ErrorReportForm";
 import { LimitReachedDisplay } from "@/components/error-report/LimitReachedDisplay";
 import { Button } from "@/components/ui/button";
-import { GitHub } from "lucide-react";
+import { Github } from "lucide-react";
 
 const ErrorReport = () => {
   const navigate = useNavigate();
   const [limitReached, setLimitReached] = useState(false);
+  const [timeUntilReset, setTimeUntilReset] = useState("24:00:00");
   
   const handleSuccess = () => {
     // Redirect to homepage after successful report submission
@@ -34,16 +35,15 @@ const ErrorReport = () => {
           className="gap-2"
           onClick={() => window.open("https://github.com/Jamal0602/MPA/issues/new", "_blank")}
         >
-          <GitHub className="h-4 w-4" />
+          <Github className="h-4 w-4" />
           Report on GitHub
         </Button>
       </div>
       
       {limitReached ? (
-        <LimitReachedDisplay />
+        <LimitReachedDisplay timeUntilReset={timeUntilReset} />
       ) : (
         <ErrorReportForm 
-          onLimitReached={() => setLimitReached(true)}
           onSuccess={handleSuccess}
         />
       )}

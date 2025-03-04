@@ -1,220 +1,227 @@
-
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useNavigate } from "react-router-dom";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 
 const errorReportSchema = z.object({
-  errorType: z.string().min(1, "Error type is required"),
-  transactionId: z.string().optional(),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  contactEmail: z.string().email("Invalid email address"),
+  error_type: z.string({
+    required_error: "Please select an error type",
+  }),
+  transaction_id: z.string().optional(),
+  description: z
+    .string()
+    .min(10, "Description must be at least 10 characters")
+    .max(1000, "Description must be less than 1000 characters"),
+  contact_email: z.string().email("Please enter a valid email address"),
 });
 
-type ErrorReportFormData = z.infer<typeof errorReportSchema>;
+type ErrorReportFormValues = z.infer<typeof errorReportSchema>;
 
 interface ErrorReportFormProps {
-  userId: string;
-  userEmail: string;
+  onSuccess?: () => void;
 }
 
-export const ErrorReportForm = ({ userId, userEmail }: ErrorReportFormProps) => {
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState<ErrorReportFormData>({
-    errorType: "",
-    transactionId: "",
-    description: "",
-    contactEmail: userEmail || "",
-  });
+export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof ErrorReportFormData, string>>>({});
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear the error for this field when user changes it
-    if (errors[name as keyof ErrorReportFormData]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }));
+  const form = useForm<ErrorReportFormValues>({
+    resolver: zodResolver(errorReportSchema),
+    defaultValues: {
+      error_type: "",
+      transaction_id: "",
+      description: "",
+      contact_email: user?.email || "",
+    },
+  });
+
+  const onSubmit = async (data: ErrorReportFormValues) => {
+    if (!user) {
+      toast.error("You must be logged in to submit a report");
+      return;
     }
-  };
 
-  const handleSelectChange = (value: string) => {
-    setFormData(prev => ({ ...prev, errorType: value }));
-    
-    // Clear the error for this field when user changes it
-    if (errors.errorType) {
-      setErrors(prev => ({ ...prev, errorType: undefined }));
-    }
-  };
-
-  const validateForm = () => {
-    try {
-      errorReportSchema.parse(formData);
-      setErrors({});
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Partial<Record<keyof ErrorReportFormData, string>> = {};
-        error.errors.forEach(err => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as keyof ErrorReportFormData] = err.message;
-          }
-        });
-        setErrors(newErrors);
-      }
-      return false;
-    }
-  };
-
-  const openGitHubIssue = () => {
-    const issueTitle = `[${formData.errorType}] Issue Report`;
-    const issueBody = `
-## Error Details
-- **Type**: ${formData.errorType}
-- **Transaction ID**: ${formData.transactionId || 'N/A'}
-- **Contact Email**: ${formData.contactEmail}
-
-## Description
-${formData.description}
-
----
-*This issue was submitted via the MPA Error Report System*
-    `;
-    
-    const encodedTitle = encodeURIComponent(issueTitle);
-    const encodedBody = encodeURIComponent(issueBody);
-    
-    window.open(`https://github.com/Jamal0602/MPA/issues/new?title=${encodedTitle}&body=${encodedBody}`, '_blank');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-    
     setIsSubmitting(true);
-    
+
     try {
-      if (!userId) {
-        throw new Error("You must be logged in to report an error");
+      // Check if user has reached daily limit (5 reports per day)
+      const today = new Date().toISOString().split("T")[0]; // Get current date in YYYY-MM-DD format
+      const { data: existingReports, error: countError } = await supabase
+        .from("error_reports")
+        .select("id")
+        .eq("user_id", user.id)
+        .gte("created_at", `${today}T00:00:00`)
+        .lt("created_at", `${today}T23:59:59`);
+
+      if (countError) throw countError;
+
+      if (existingReports && existingReports.length >= 5) {
+        toast.error("You've reached the daily limit of 5 error reports");
+        return;
       }
-      
-      const { error } = await supabase
-        .from('error_reports')
-        .insert({
-          user_id: userId,
-          error_type: formData.errorType,
-          transaction_id: formData.transactionId || null,
-          description: formData.description,
-          contact_email: formData.contactEmail,
-          status: 'pending'
-        });
-      
+
+      // Submit the report
+      const { error } = await supabase.from("error_reports").insert({
+        user_id: user.id,
+        error_type: data.error_type,
+        transaction_id: data.transaction_id || null,
+        description: data.description,
+        contact_email: data.contact_email,
+      });
+
       if (error) throw error;
-      
-      // Open GitHub issue page
-      openGitHubIssue();
-      
+
       toast.success("Error report submitted successfully");
-      navigate("/"); // Redirect to home page after submission
+      form.reset();
+      
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error: any) {
       console.error("Error submitting report:", error);
-      toast.error(error.message || "Failed to submit error report");
+      toast.error("Failed to submit report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 bg-card border rounded-lg p-6">
-      <div className="space-y-2">
-        <Label htmlFor="errorType">Type of Error <span className="text-destructive">*</span></Label>
-        <Select value={formData.errorType} onValueChange={handleSelectChange}>
-          <SelectTrigger id="errorType">
-            <SelectValue placeholder="Select error type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="payment">Payment Issue</SelectItem>
-            <SelectItem value="technical">Technical Problem</SelectItem>
-            <SelectItem value="content">Content Error</SelectItem>
-            <SelectItem value="account">Account Problem</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-        {errors.errorType && (
-          <p className="text-sm text-destructive">{errors.errorType}</p>
-        )}
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="transactionId">
-          Transaction ID (if applicable)
-        </Label>
-        <Input 
-          id="transactionId"
-          name="transactionId"
-          value={formData.transactionId}
-          onChange={handleChange}
-          placeholder="e.g., tx_1234567890"
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="description">
-          Detailed Description <span className="text-destructive">*</span>
-        </Label>
-        <Textarea 
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          placeholder="Please describe the error in detail, including what you were doing when it occurred."
-          rows={5}
-        />
-        {errors.description && (
-          <p className="text-sm text-destructive">{errors.description}</p>
-        )}
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="contactEmail">
-          Contact Email <span className="text-destructive">*</span>
-        </Label>
-        <Input 
-          id="contactEmail"
-          name="contactEmail"
-          type="email"
-          value={formData.contactEmail}
-          onChange={handleChange}
-          placeholder="email@example.com"
-        />
-        {errors.contactEmail && (
-          <p className="text-sm text-destructive">{errors.contactEmail}</p>
-        )}
-      </div>
-      
-      <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-between items-center">
-        <Button 
-          variant="outline" 
-          type="button" 
-          onClick={() => navigate("/")}
-        >
-          Cancel
-        </Button>
-        <Button 
-          type="submit" 
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Submitting..." : "Submit Report"}
-        </Button>
-      </div>
-    </form>
+    <div className="bg-card border rounded-lg p-6">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <FormField
+            control={form.control}
+            name="error_type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Error Type</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  disabled={isSubmitting}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select the type of error" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="login_issue">Login Issue</SelectItem>
+                    <SelectItem value="payment_problem">Payment Problem</SelectItem>
+                    <SelectItem value="feature_not_working">Feature Not Working</SelectItem>
+                    <SelectItem value="display_error">Display Error</SelectItem>
+                    <SelectItem value="performance_issue">Performance Issue</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Select the category that best describes the error you encountered
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="transaction_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Transaction ID (Optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter transaction ID if applicable"
+                    {...field}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <FormDescription>
+                  If this is related to a specific transaction, please provide the ID
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Please describe the error in detail. Include what you were doing when it occurred."
+                    className="min-h-[120px]"
+                    {...field}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Be as specific as possible. Include steps to reproduce if applicable.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="contact_email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Contact Email</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    placeholder="Your email address"
+                    {...field}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <FormDescription>
+                  We'll use this to contact you if we need more information
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              "Submit Report"
+            )}
+          </Button>
+        </form>
+      </Form>
+    </div>
   );
 };
