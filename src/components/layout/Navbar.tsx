@@ -1,7 +1,6 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard, HelpCircle, Share2 } from "lucide-react";
+import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard, HelpCircle, Share2, Bug } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Sheet,
@@ -159,10 +158,10 @@ const Navbar = () => {
       <Link to="/referral" className="text-foreground hover:text-primary transition-colors">
         Referrals
       </Link>
-      <Button variant="ghost" onClick={handleShare} className="text-foreground hover:text-primary transition-colors flex items-center gap-1">
-        <Share2 className="h-4 w-4" />
-        Share App
-      </Button>
+      <Link to="/report-error" className="text-foreground hover:text-primary transition-colors flex items-center gap-1">
+        <Bug className="h-4 w-4" />
+        Report Issue
+      </Link>
       {(isAdmin && isMasterMind) && (
         <Link to="/dashboard" className="text-foreground hover:text-primary transition-colors group relative">
           Admin
@@ -178,45 +177,52 @@ const Navbar = () => {
     if (!user) return null;
 
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-            <Avatar>
-              <AvatarImage src={user.user_metadata.avatar_url} />
-              <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
-            </Avatar>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">{user.user_metadata.full_name}</p>
-              <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-              <div className="flex items-center gap-1 mt-1 text-xs text-primary">
-                <CreditCard className="h-3 w-3" />
-                <span>{keyPoints} Spark Points</span>
+      <div className="flex flex-col items-end space-y-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Avatar>
+                <AvatarImage src={user.user_metadata.avatar_url} />
+                <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user.user_metadata.full_name}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                <div className="flex items-center gap-1 mt-1 text-xs text-primary">
+                  <CreditCard className="h-3 w-3" />
+                  <span>{keyPoints} Spark Points</span>
+                </div>
               </div>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link to="/dashboard">
-              <BarChart2 className="mr-2 h-4 w-4" />
-              Dashboard
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/account">
-              <Settings className="mr-2 h-4 w-4" />
-              Account settings
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/dashboard">
+                <BarChart2 className="mr-2 h-4 w-4" />
+                Dashboard
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/account">
+                <Settings className="mr-2 h-4 w-4" />
+                Account settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
+        <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-1">
+          <Share2 className="h-4 w-4" />
+          Share App
+        </Button>
+      </div>
     );
   };
 
@@ -225,7 +231,7 @@ const Navbar = () => {
       {user ? (
         <UserMenu />
       ) : (
-        <>
+        <div className="flex flex-col sm:flex-row gap-2 items-end">
           <Link to="/auth">
             <Button variant="ghost">
               <LogIn className="mr-2 h-4 w-4" />
@@ -238,7 +244,12 @@ const Navbar = () => {
               Sign up
             </Button>
           </Link>
-        </>
+          
+          <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-1 mt-2 sm:mt-0">
+            <Share2 className="h-4 w-4" />
+            Share App
+          </Button>
+        </div>
       )}
     </>
   );
@@ -293,7 +304,7 @@ const Navbar = () => {
               </SheetContent>
             </Sheet>
 
-            <div className="hidden md:flex items-center gap-4">
+            <div className="hidden md:block">
               <AuthButtons />
             </div>
           </div>
@@ -334,6 +345,27 @@ const Navbar = () => {
               >
                 Download App
               </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Share on Social Media</h3>
+              <div className="flex justify-center gap-4">
+                <Button variant="outline" className="w-full" onClick={() => {
+                  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin)}`, '_blank');
+                }}>
+                  Facebook
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => {
+                  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out MPA - Multi Project Association!')}&url=${encodeURIComponent(window.location.origin)}`, '_blank');
+                }}>
+                  Twitter
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => {
+                  window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.origin)}`, '_blank');
+                }}>
+                  LinkedIn
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>

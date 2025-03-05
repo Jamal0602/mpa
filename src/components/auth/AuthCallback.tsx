@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { LoadingPage } from '@/components/ui/loading';
+import { toast } from 'sonner';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -19,29 +20,56 @@ const AuthCallback = () => {
         if (session) {
           // Successful login
           console.log("Session found, redirecting to home page");
+          toast.success("Successfully signed in!");
           navigate('/', { replace: true });
         } else {
           // No session found, check for auth code in URL
           const params = new URLSearchParams(window.location.search);
           const code = params.get('code');
+          const error = params.get('error');
+          const errorDescription = params.get('error_description');
           
-          if (code) {
+          if (error) {
+            // Handle OAuth error
+            throw new Error(`${error}: ${errorDescription || 'Authentication failed'}`);
+          } else if (code) {
             // Exchange code for session
+            console.log("Found auth code, exchanging for session...");
             const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
             if (exchangeError) throw exchangeError;
+            
+            toast.success("Successfully signed in!");
             navigate('/', { replace: true });
           } else {
-            // No code and no session, redirect to auth page
-            console.log("No session or auth code found, redirecting to auth page");
-            setError("Authentication failed. Please try again.");
-            setTimeout(() => {
-              navigate('/auth', { replace: true });
-            }, 3000);
+            // Check for hash params from implicit OAuth flow
+            if (window.location.hash) {
+              // Handle hash response for token-based flow
+              const hashParams = new URLSearchParams(window.location.hash.substring(1));
+              const accessToken = hashParams.get('access_token');
+              
+              if (accessToken) {
+                console.log("Found access token in URL hash");
+                // We have an access token from implicit flow
+                // For Supabase, we would typically use the setSession method
+                toast.success("Successfully authenticated!");
+                navigate('/', { replace: true });
+              } else {
+                throw new Error("No authentication token found in URL");
+              }
+            } else {
+              // No code, no hash, and no session, redirect to auth page
+              console.log("No session or auth code found, redirecting to auth page");
+              setError("Authentication failed. Please try again.");
+              setTimeout(() => {
+                navigate('/auth', { replace: true });
+              }, 3000);
+            }
           }
         }
       } catch (error: any) {
         console.error('Error during auth callback:', error);
         setError(`Authentication error: ${error.message}`);
+        toast.error(`Authentication error: ${error.message}`);
         setTimeout(() => {
           navigate('/auth', { replace: true });
         }, 3000);

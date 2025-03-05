@@ -22,6 +22,10 @@ const AuthForm = () => {
   const [formError, setFormError] = useState("");
   const navigate = useNavigate();
 
+  // Google OAuth configuration
+  const googleClientId = "YOUR_GOOGLE_CLIENT_ID"; // You should set this in Supabase dashboard
+  const redirectUri = `${window.location.origin}/auth/callback`;
+
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
