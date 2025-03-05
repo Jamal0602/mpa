@@ -5,13 +5,15 @@ import { supabase } from '@/lib/supabase';
 import { LoadingPage } from '@/components/ui/loading';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(true);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -23,24 +25,68 @@ const AuthCallback = () => {
         
         if (session) {
           // Successful login
-          console.log("Session found, redirecting to home page");
-          toast.success("Successfully signed in!");
+          console.log("Session found, checking for profile...");
           
-          // Check if this is a new user
-          const { data: profile } = await supabase
+          // Check if this user has a profile
+          const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("created_at")
+            .select("*")
             .eq("id", session.user.id)
             .single();
             
-          // If this profile was just created (within the last minute)
-          const isNewUser = profile && 
-            (new Date().getTime() - new Date(profile.created_at).getTime()) < 60000;
-            
-          if (isNewUser) {
-            toast.success("Welcome to MPA! Your account has been created.");
+          if (profileError && profileError.code !== 'PGRST116') {
+            // This is a real error, not just "no rows returned"
+            console.error("Error checking for profile:", profileError);
+            throw new Error("Failed to check user profile");
           }
           
+          // If no profile exists, we need to create one
+          if (!profile) {
+            console.log("No profile found, creating one...");
+            setIsCreatingProfile(true);
+            
+            try {
+              // Create the basic profile for the user
+              const username = session.user.email?.split('@')[0] || `user_${Date.now()}`;
+              const mpaId = username.toLowerCase() + '@mpa';
+              
+              const { error: insertError } = await supabase
+                .from("profiles")
+                .insert({
+                  id: session.user.id,
+                  username: username,
+                  avatar_url: session.user.user_metadata?.avatar_url || null,
+                  full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || null,
+                  mpa_id: mpaId,
+                  key_points: 10,
+                  role: 'user'
+                });
+              
+              if (insertError) {
+                console.error("Error creating profile:", insertError);
+                throw new Error(`Failed to create profile: ${insertError.message}`);
+              }
+              
+              toast.success("Your account has been created successfully!");
+              
+              // Create a welcome notification
+              await supabase
+                .from("notifications")
+                .insert({
+                  user_id: session.user.id,
+                  title: "Welcome to MPA!",
+                  message: "Your account has been created successfully. Start exploring our services.",
+                  type: "success"
+                });
+            } catch (error: any) {
+              console.error("Profile creation error:", error);
+              throw new Error(`Failed to set up your account: ${error.message}`);
+            } finally {
+              setIsCreatingProfile(false);
+            }
+          }
+          
+          toast.success("Successfully signed in!");
           navigate('/', { replace: true });
         } else {
           // No session found, check for auth code in URL
@@ -63,8 +109,8 @@ const AuthCallback = () => {
             const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
             if (exchangeError) throw exchangeError;
             
-            toast.success("Successfully signed in!");
-            navigate('/', { replace: true });
+            // This will redirect the user back to this component with a session
+            // The flow will then handle the profile creation in the section above
           } else {
             // Check for hash params from implicit OAuth flow
             if (window.location.hash) {
@@ -87,6 +133,7 @@ const AuthCallback = () => {
                   
                   if (setSessionError) throw setSessionError;
                   
+                  // Session is now set, the next reload will catch it above
                   toast.success("Successfully authenticated!");
                   navigate('/', { replace: true });
                 } else {
@@ -122,6 +169,10 @@ const AuthCallback = () => {
           errorMessage = "Invalid login credentials. Please try again.";
         } else if (error.message.includes("not a valid UUID")) {
           errorMessage = "Invalid authentication token. Please try signing in again.";
+        } else if (error.message.includes("duplicate key")) {
+          errorMessage = "An account with this email already exists. Please sign in instead.";
+        } else if (error.message.includes("relation \"profiles\" does not exist")) {
+          errorMessage = "Database setup issue. Please contact support.";
         }
         
         setError(errorMessage);
@@ -129,6 +180,8 @@ const AuthCallback = () => {
         setTimeout(() => {
           navigate('/auth', { replace: true });
         }, 5000);
+      } finally {
+        setIsProcessing(false);
       }
     };
 
@@ -159,6 +212,21 @@ const AuthCallback = () => {
               Return to Login
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+          </div>
+        ) : isCreatingProfile ? (
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mx-auto">
+              <CheckCircle className="h-6 w-6 text-primary animate-pulse" />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">Setting up your account...</h2>
+            <p className="text-muted-foreground">
+              We're creating your profile. This will only take a moment.
+            </p>
+            <div className="flex justify-center mt-4">
+              <div className="h-2 w-40 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary animate-pulse"></div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="text-center space-y-4">

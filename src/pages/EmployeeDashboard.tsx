@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,7 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
 
-// Define types
 interface Project {
   id: string;
   title: string;
@@ -84,6 +82,7 @@ const EmployeeDashboard = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [action, setAction] = useState<"complete" | "cancel" | null>(null);
   const [completionUrl, setCompletionUrl] = useState("");
+  const [isValidating, setIsValidating] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -119,7 +118,6 @@ const EmployeeDashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch assigned projects
       const { data: projectsData, error: projectsError } = await supabase
         .from("projects")
         .select(`
@@ -132,7 +130,6 @@ const EmployeeDashboard = () => {
 
       if (projectsError) throw projectsError;
 
-      // Transform the data to match our Project interface
       const transformedProjects = projectsData.map(project => ({
         ...project,
         owner: Array.isArray(project.owner) 
@@ -143,7 +140,6 @@ const EmployeeDashboard = () => {
       setProjects(transformedProjects);
       setFilteredProjects(transformedProjects);
 
-      // Fetch payment history
       const { data: paymentsData, error: paymentsError } = await supabase
         .from("project_payments")
         .select(`
@@ -156,7 +152,6 @@ const EmployeeDashboard = () => {
 
       if (paymentsError) throw paymentsError;
 
-      // Transform the data to match our Payment interface
       const transformedPayments = paymentsData.map(payment => ({
         ...payment,
         project: Array.isArray(payment.project)
@@ -166,7 +161,6 @@ const EmployeeDashboard = () => {
 
       setPayments(transformedPayments);
 
-      // Fetch employee metrics
       const { data: metricsData, error: metricsError } = await supabase
         .from("employee_metrics")
         .select("*")
@@ -174,14 +168,13 @@ const EmployeeDashboard = () => {
         .single();
 
       if (metricsError && metricsError.code !== "PGRST116") {
-        // PGRST116 is "No rows returned" - this is fine for new employees
         throw metricsError;
       }
 
       setMetrics(metricsData || {
         id: "",
         user_id: user?.id || "",
-        measured_points: 80, // Default MP
+        measured_points: 80,
         total_completed: 0,
         total_cancelled: 0,
         total_earnings: 0
@@ -228,7 +221,6 @@ const EmployeeDashboard = () => {
           return;
         }
         
-        // Update project status to completed
         const { error: projectError } = await supabase
           .from("projects")
           .update({ 
@@ -239,7 +231,6 @@ const EmployeeDashboard = () => {
           
         if (projectError) throw projectError;
         
-        // Create notification for owner
         await supabase.from("notifications").insert({
           user_id: selectedProject.owner.email ? 
             (await supabase.from("profiles").select("id").eq("email", selectedProject.owner.email).single()).data?.id : 
@@ -249,11 +240,9 @@ const EmployeeDashboard = () => {
           type: "success"
         });
         
-        // Calculate payment based on measured points
         const mpPercentage = (metrics?.measured_points || 80) / 100;
         const paymentAmount = selectedProject.price * mpPercentage;
         
-        // Create payment request
         await supabase.from("project_payments").insert({
           project_id: selectedProject.id,
           employee_id: user?.id,
@@ -264,7 +253,6 @@ const EmployeeDashboard = () => {
         
         toast.success("Project marked as completed and payment request created");
       } else if (action === "cancel") {
-        // Update project status to cancelled
         const { error: projectError } = await supabase
           .from("projects")
           .update({ status: "cancelled" })
@@ -272,7 +260,6 @@ const EmployeeDashboard = () => {
           
         if (projectError) throw projectError;
         
-        // Create notification for owner
         await supabase.from("notifications").insert({
           user_id: selectedProject.owner.email ? 
             (await supabase.from("profiles").select("id").eq("email", selectedProject.owner.email).single()).data?.id : 
@@ -282,7 +269,6 @@ const EmployeeDashboard = () => {
           type: "warning"
         });
         
-        // Update employee metrics - deduct points
         if (metrics) {
           const updatedMP = Math.max(0, (metrics.measured_points || 80) - 3);
           
@@ -293,7 +279,6 @@ const EmployeeDashboard = () => {
             total_cancelled: (metrics.total_cancelled || 0) + 1
           });
           
-          // Deduct Spark Points too
           await supabase.from("profiles")
             .update({ key_points: supabase.rpc('decrement_points', { amount: 10 }) })
             .eq("id", user?.id);
@@ -309,7 +294,6 @@ const EmployeeDashboard = () => {
         toast.success("Project cancelled and MP reduced");
       }
       
-      // Refresh data
       fetchData();
       
     } catch (error: any) {
@@ -335,7 +319,6 @@ const EmployeeDashboard = () => {
       requireAuth={true}
     >
       <div className="space-y-8">
-        {/* Employee metrics */}
         <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-100 dark:border-blue-800">
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -600,7 +583,6 @@ const EmployeeDashboard = () => {
           </TabsContent>
         </Tabs>
         
-        {/* Confirmation Dialog */}
         <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
           <DialogContent>
             <DialogHeader>
