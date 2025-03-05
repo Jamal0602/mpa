@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { LoadingSpinner } from "@/components/ui/loading";
@@ -28,7 +28,7 @@ const ErrorReport = () => {
   const [loading, setLoading] = useState(true);
   
   // Check how many reports the user has submitted today
-  useState(() => {
+  useEffect(() => {
     const checkReportLimit = async () => {
       if (!user) return;
       
@@ -226,8 +226,8 @@ const ErrorReport = () => {
                 <Button type="submit" disabled={submitting}>
                   {submitting ? (
                     <>
-                      <LoadingSpinner className="mr-2 h-4 w-4" />
-                      Submitting...
+                      <LoadingSpinner size="sm" />
+                      <span className="ml-2">Submitting...</span>
                     </>
                   ) : (
                     "Submit Report"
