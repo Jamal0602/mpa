@@ -6,15 +6,20 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Github, Apple } from "lucide-react";
+import { Github, Apple, Mail, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { motion } from "framer-motion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
+  const [formError, setFormError] = useState("");
   const navigate = useNavigate();
 
   // Check if user is already logged in
@@ -43,11 +48,35 @@ const AuthForm = () => {
     setPassword(newPassword);
     if (!isLogin) {
       setPasswordError(validatePassword(newPassword));
+      
+      if (confirmPassword && confirmPassword !== newPassword) {
+        setFormError("Passwords do not match");
+      } else {
+        setFormError("");
+      }
+    }
+  };
+  
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const confirmValue = e.target.value;
+    setConfirmPassword(confirmValue);
+    
+    if (confirmValue !== password) {
+      setFormError("Passwords do not match");
+    } else {
+      setFormError("");
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError("");
+    
+    if (!isLogin && password !== confirmPassword) {
+      setFormError("Passwords do not match");
+      return;
+    }
+    
     if (!isLogin && passwordError) {
       toast.error("Please fix password requirements");
       return;
@@ -76,7 +105,11 @@ const AuthForm = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              username: email.split('@')[0],
+              full_name: email.split('@')[0]
+            }
           }
         });
         
@@ -96,14 +129,14 @@ const AuthForm = () => {
       
       // Handle common auth errors with more user-friendly messages
       if (errorMessage.includes("Invalid login credentials")) {
-        toast.error("Invalid email or password. Please try again.");
+        setFormError("Invalid email or password. Please try again.");
       } else if (errorMessage.includes("Email not confirmed")) {
-        toast.error("Please confirm your email before signing in.");
+        setFormError("Please confirm your email before signing in.");
       } else if (errorMessage.includes("already registered")) {
-        toast.error("This email is already registered. Please sign in instead.");
+        setFormError("This email is already registered. Please sign in instead.");
         setIsLogin(true);
       } else {
-        toast.error(errorMessage);
+        setFormError(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -164,7 +197,12 @@ const AuthForm = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
+      <motion.div 
+        className="w-full max-w-sm space-y-6"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">
             {isLogin ? "Welcome back" : "Create an account"}
@@ -175,6 +213,14 @@ const AuthForm = () => {
               : "Enter your details to create an account"}
           </p>
         </div>
+
+        {formError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{formError}</AlertDescription>
+          </Alert>
+        )}
 
         <div className="space-y-4">
           <Button 
@@ -253,33 +299,84 @@ const AuthForm = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={handlePasswordChange}
-                disabled={loading}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={handlePasswordChange}
+                  disabled={loading}
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {!isLogin && passwordError && (
                 <p className="text-sm text-destructive">{passwordError}</p>
               )}
-              {!isLogin && (
-                <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                  <p>Password must contain:</p>
-                  <ul className="list-disc pl-4">
-                    <li>At least 8 characters</li>
-                    <li>One uppercase letter</li>
-                    <li>One lowercase letter</li>
-                    <li>One number</li>
-                    <li>One special character</li>
-                  </ul>
-                </div>
-              )}
             </div>
-            <Button type="submit" className="w-full" disabled={loading || (!isLogin && !!passwordError)}>
-              {loading ? "Processing..." : (isLogin ? "Sign In" : "Sign Up")}
+            
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    value={confirmPassword}
+                    onChange={handleConfirmPasswordChange}
+                    disabled={loading}
+                    required
+                    className="pr-10"
+                  />
+                </div>
+              </div>
+            )}
+            
+            {!isLogin && (
+              <div className="text-xs text-muted-foreground space-y-1 mt-2">
+                <p>Password must contain:</p>
+                <ul className="list-disc pl-4">
+                  <li className={`${password.length >= 8 ? "text-green-500" : ""}`}>
+                    At least 8 characters
+                  </li>
+                  <li className={`${/[A-Z]/.test(password) ? "text-green-500" : ""}`}>
+                    One uppercase letter
+                  </li>
+                  <li className={`${/[a-z]/.test(password) ? "text-green-500" : ""}`}>
+                    One lowercase letter
+                  </li>
+                  <li className={`${/[0-9]/.test(password) ? "text-green-500" : ""}`}>
+                    One number
+                  </li>
+                  <li className={`${/[!@#$%^&*(),.?":{}|<>]/.test(password) ? "text-green-500" : ""}`}>
+                    One special character
+                  </li>
+                </ul>
+              </div>
+            )}
+            
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading || (!isLogin && (!!passwordError || password !== confirmPassword))}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                isLogin ? "Sign In" : "Sign Up"
+              )}
             </Button>
           </form>
         </div>
@@ -292,13 +389,15 @@ const AuthForm = () => {
             onClick={() => {
               setIsLogin(!isLogin);
               setPasswordError("");
+              setFormError("");
+              setConfirmPassword("");
             }}
             disabled={loading}
           >
             {isLogin ? "Sign Up" : "Sign In"}
           </button>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 };
