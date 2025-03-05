@@ -658,3 +658,30 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
     ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export interface LoginRequestBody {
+    email: string;
+    password: string;
+}
+
+export interface LoginResponseBody {
+    success: boolean;
+    token: string;
+    refreshToken?: string; // Optional if not always returned
+    message?: string;
+    user: User;
+}
+
+export interface User {
+    id: string; // Assuming user ID is always a string
+    name: string;
+    email: string;
+    role?: string; // Optional role field for permission handling
+}
+
+export interface ErrorResponse {
+    error: boolean;
+    message: string;
+    statusCode?: number; // Optional status code for API responses
+       }
+  
