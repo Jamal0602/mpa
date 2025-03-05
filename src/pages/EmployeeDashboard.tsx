@@ -1,23 +1,31 @@
 
 import { useState, useEffect } from "react";
-import { PageLayout } from "@/components/layout/PageLayout";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { LoadingSpinner } from "@/components/ui/loading";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, CheckCircle, Clock, DollarSign, ExternalLink, FileText, Hourglass, X } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { 
+  Calendar, CheckCircle, XCircle, Clock, DollarSign, 
+  Package, FileText, AlertTriangle, ChevronRight
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { LoadingSpinner } from "@/components/ui/loading";
-import { format } from "date-fns";
+import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
+import { 
+  Dialog, DialogContent, DialogDescription, DialogFooter, 
+  DialogHeader, DialogTitle, DialogTrigger 
+} from "@/components/ui/dialog";
+import { format } from "date-fns";
 
+// Define types
 interface Project {
   id: string;
   title: string;
@@ -27,11 +35,11 @@ interface Project {
   category: string;
   file_url: string;
   price: number;
+  created_at: string;
   owner: {
     email: string;
     username: string;
   };
-  created_at: string;
 }
 
 interface Payment {
@@ -48,759 +56,621 @@ interface Payment {
 }
 
 interface EmployeeMetrics {
+  id: string;
+  user_id: string;
   measured_points: number;
-  total_completed_projects: number;
-  total_cancelled_projects: number;
-  pending_payout: number;
+  total_completed: number;
+  total_cancelled: number;
+  total_earnings: number;
 }
+
+const statusColors = {
+  pending: "bg-yellow-500",
+  processing: "bg-blue-500",
+  completed: "bg-green-500",
+  cancelled: "bg-red-500",
+};
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
-  const [completedProjects, setCompletedProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [metrics, setMetrics] = useState<EmployeeMetrics | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [action, setAction] = useState<"complete" | "cancel" | null>(null);
   const [completionUrl, setCompletionUrl] = useState("");
-  const [completionNotes, setCompletionNotes] = useState("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
-  const [processingAction, setProcessingAction] = useState(false);
 
   useEffect(() => {
-    const checkEmployeeStatus = async () => {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
 
+    const fetchEmployeeAccess = async () => {
       try {
-        // Check if user is an employee
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
+        const { data: employeeData, error: employeeError } = await supabase
+          .from("employee_access")
+          .select("*")
+          .eq("user_id", user.id)
           .single();
 
-        if (profileError) throw profileError;
-
-        if (profile.role !== "employee" && profile.role !== "admin") {
-          toast.error("You don't have access to the employee dashboard");
+        if (employeeError || !employeeData) {
           navigate("/");
+          toast.error("You don't have employee access");
           return;
         }
 
-        // Load employee metrics
-        loadEmployeeMetrics();
-        
-        // Load assigned projects
-        loadAssignedProjects();
-        
-        // Load completed projects
-        loadCompletedProjects();
-        
-        // Load payment history
-        loadPayments();
+        fetchData();
       } catch (error) {
-        console.error("Error checking employee status:", error);
-        toast.error("Failed to load employee data");
-      } finally {
-        setLoading(false);
+        console.error("Error checking employee access:", error);
+        navigate("/");
       }
     };
 
-    checkEmployeeStatus();
+    fetchEmployeeAccess();
   }, [user, navigate]);
 
-  const loadEmployeeMetrics = async () => {
-    if (!user) return;
-    
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+
+      // Fetch assigned projects
+      const { data: projectsData, error: projectsError } = await supabase
+        .from("projects")
+        .select(`
+          id, title, description, status, deadline, category, 
+          file_url, price, created_at, 
+          owner:owner_id(email, username)
+        `)
+        .eq("assigned_to", user?.id)
+        .order("created_at", { ascending: false });
+
+      if (projectsError) throw projectsError;
+
+      // Transform the data to match our Project interface
+      const transformedProjects = projectsData.map(project => ({
+        ...project,
+        owner: Array.isArray(project.owner) 
+          ? { email: project.owner[0]?.email || "", username: project.owner[0]?.username || "" }
+          : project.owner as { email: string; username: string }
+      }));
+
+      setProjects(transformedProjects);
+      setFilteredProjects(transformedProjects);
+
+      // Fetch payment history
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from("project_payments")
+        .select(`
+          id, project_id, amount, percentage, status, 
+          transaction_id, created_at,
+          project:project_id(title)
+        `)
+        .eq("employee_id", user?.id)
+        .order("created_at", { ascending: false });
+
+      if (paymentsError) throw paymentsError;
+
+      // Transform the data to match our Payment interface
+      const transformedPayments = paymentsData.map(payment => ({
+        ...payment,
+        project: Array.isArray(payment.project)
+          ? { title: payment.project[0]?.title || "" }
+          : payment.project as { title: string }
+      }));
+
+      setPayments(transformedPayments);
+
+      // Fetch employee metrics
+      const { data: metricsData, error: metricsError } = await supabase
         .from("employee_metrics")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", user?.id)
         .single();
-        
-      if (error && error.code !== "PGRST116") throw error;
-      
-      if (data) {
-        setMetrics(data);
-      } else {
-        // Create metrics record if it doesn't exist
-        const { data: newMetrics, error: insertError } = await supabase
-          .from("employee_metrics")
-          .insert({ user_id: user.id })
-          .select()
-          .single();
-          
-        if (insertError) throw insertError;
-        
-        setMetrics(newMetrics);
+
+      if (metricsError && metricsError.code !== "PGRST116") {
+        // PGRST116 is "No rows returned" - this is fine for new employees
+        throw metricsError;
       }
-    } catch (error) {
-      console.error("Error loading employee metrics:", error);
+
+      setMetrics(metricsData || {
+        id: "",
+        user_id: user?.id || "",
+        measured_points: 80, // Default MP
+        total_completed: 0,
+        total_cancelled: 0,
+        total_earnings: 0
+      });
+
+    } catch (error: any) {
+      console.error("Error fetching employee data:", error);
+      toast.error(`Error loading data: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadAssignedProjects = async () => {
-    if (!user) return;
+  const handleFilterChange = (status: string) => {
+    setStatusFilter(status);
     
-    try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select(`
-          id, title, description, status, deadline, category, file_url, price, created_at,
-          owner:owner_id (
-            email:email,
-            username:username
-          )
-        `)
-        .eq("assigned_to", user.id)
-        .eq("status", "assigned")
-        .order("deadline", { ascending: true });
-        
-      if (error) throw error;
-      
-      setAssignedProjects(data || []);
-    } catch (error) {
-      console.error("Error loading assigned projects:", error);
-      toast.error("Failed to load assigned projects");
+    if (status === "all") {
+      setFilteredProjects(projects);
+    } else {
+      setFilteredProjects(projects.filter(project => project.status === status));
     }
   };
 
-  const loadCompletedProjects = async () => {
-    if (!user) return;
+  const handleActionClick = (project: Project, actionType: "complete" | "cancel") => {
+    setSelectedProject(project);
+    setAction(actionType);
+    setConfirmDialogOpen(true);
     
-    try {
-      const { data, error } = await supabase
-        .from("projects")
-        .select(`
-          id, title, description, status, deadline, category, file_url, price, created_at,
-          owner:owner_id (
-            email:email,
-            username:username
-          )
-        `)
-        .eq("assigned_to", user.id)
-        .eq("status", "completed")
-        .order("completed_at", { ascending: false });
-        
-      if (error) throw error;
-      
-      setCompletedProjects(data || []);
-    } catch (error) {
-      console.error("Error loading completed projects:", error);
-      toast.error("Failed to load completed projects");
+    if (actionType === "complete") {
+      setCompletionUrl("");
     }
   };
 
-  const loadPayments = async () => {
-    if (!user) return;
+  const handleConfirmAction = async () => {
+    if (!selectedProject || !action) return;
     
     try {
-      const { data, error } = await supabase
-        .from("project_payments")
-        .select(`
-          id, project_id, amount, percentage, status, transaction_id, created_at,
-          project:project_id (
-            title
-          )
-        `)
-        .eq("employee_id", user.id)
-        .order("created_at", { ascending: false });
+      setLoading(true);
+      
+      if (action === "complete") {
+        if (!completionUrl.trim()) {
+          toast.error("Please provide a valid completion URL");
+          setLoading(false);
+          return;
+        }
         
-      if (error) throw error;
-      
-      setPayments(data || []);
-    } catch (error) {
-      console.error("Error loading payments:", error);
-      toast.error("Failed to load payment history");
-    }
-  };
-
-  const handleCompleteProject = async () => {
-    if (!selectedProject || !completionUrl) {
-      toast.error("Please provide a completion URL");
-      return;
-    }
-    
-    setProcessingAction(true);
-    
-    try {
-      // Update project status
-      const { error: updateError } = await supabase
-        .from("projects")
-        .update({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-          download_url: completionUrl,
-          completion_notes: completionNotes
-        })
-        .eq("id", selectedProject.id);
+        // Update project status to completed
+        const { error: projectError } = await supabase
+          .from("projects")
+          .update({ 
+            status: "completed",
+            completion_url: completionUrl
+          })
+          .eq("id", selectedProject.id);
+          
+        if (projectError) throw projectError;
         
-      if (updateError) throw updateError;
-      
-      // Calculate payment based on measured points
-      const mpPercentage = metrics?.measured_points || 80;
-      const paymentAmount = (selectedProject.price * mpPercentage) / 100;
-      
-      // Create payment record
-      const { error: paymentError } = await supabase
-        .from("project_payments")
-        .insert({
-          project_id: selectedProject.id,
-          employee_id: user?.id,
-          amount: paymentAmount,
-          percentage: mpPercentage,
-          status: "pending"
-        });
-        
-      if (paymentError) throw paymentError;
-      
-      // Update employee metrics
-      const { error: metricsError } = await supabase
-        .from("employee_metrics")
-        .update({
-          total_completed_projects: (metrics?.total_completed_projects || 0) + 1,
-          pending_payout: (metrics?.pending_payout || 0) + paymentAmount,
-          updated_at: new Date().toISOString()
-        })
-        .eq("user_id", user?.id);
-        
-      if (metricsError) throw metricsError;
-      
-      // Send notification to owner
-      const { error: notificationError } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: selectedProject.owner.email,
+        // Create notification for owner
+        await supabase.from("notifications").insert({
+          user_id: selectedProject.owner.email ? 
+            (await supabase.from("profiles").select("id").eq("email", selectedProject.owner.email).single()).data?.id : 
+            (await supabase.from("profiles").select("id").eq("username", selectedProject.owner.username).single()).data?.id,
           title: "Project Completed",
-          message: `Your project "${selectedProject.title}" has been completed. You can download the result now.`,
+          message: `Your project "${selectedProject.title}" has been completed! You can download the files now.`,
           type: "success"
         });
         
-      if (notificationError) console.error("Notification error:", notificationError);
-      
-      toast.success("Project marked as completed successfully");
-      
-      // Refresh data
-      loadAssignedProjects();
-      loadCompletedProjects();
-      loadPayments();
-      loadEmployeeMetrics();
-      
-      // Reset form and close dialog
-      setCompletionUrl("");
-      setCompletionNotes("");
-      setSelectedProject(null);
-      setIsDialogOpen(false);
-    } catch (error: any) {
-      console.error("Error completing project:", error);
-      toast.error(`Failed to complete project: ${error.message}`);
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  const handleCancelProject = async () => {
-    if (!selectedProject) return;
-    
-    if (!cancelReason.trim()) {
-      toast.error("Please provide a reason for cancellation");
-      return;
-    }
-    
-    setProcessingAction(true);
-    
-    try {
-      // Update project status
-      const { error: updateError } = await supabase
-        .from("projects")
-        .update({
-          status: "cancelled",
-          cancellation_reason: cancelReason,
-          cancelled_at: new Date().toISOString()
-        })
-        .eq("id", selectedProject.id);
+        // Calculate payment based on measured points
+        const mpPercentage = (metrics?.measured_points || 80) / 100;
+        const paymentAmount = selectedProject.price * mpPercentage;
         
-      if (updateError) throw updateError;
-      
-      // Deduct measured points
-      const newMeasuredPoints = Math.max(0, (metrics?.measured_points || 80) - 3);
-      
-      // Update employee metrics
-      const { error: metricsError } = await supabase
-        .from("employee_metrics")
-        .update({
-          measured_points: newMeasuredPoints,
-          total_cancelled_projects: (metrics?.total_cancelled_projects || 0) + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq("user_id", user?.id);
-        
-      if (metricsError) throw metricsError;
-      
-      // Deduct user spark points
-      const { error: pointsError } = await supabase.rpc("deduct_key_points", {
-        user_id: user?.id,
-        amount: 10,
-        description: `Penalty for cancelling project: ${selectedProject.title}`
-      });
-      
-      if (pointsError) console.error("Points deduction error:", pointsError);
-      
-      // Send notification to owner
-      const { error: notificationError } = await supabase
-        .from("notifications")
-        .insert({
-          user_id: selectedProject.owner.email,
-          title: "Project Cancelled",
-          message: `Your project "${selectedProject.title}" has been cancelled. Reason: ${cancelReason}`,
-          type: "error"
+        // Create payment request
+        await supabase.from("project_payments").insert({
+          project_id: selectedProject.id,
+          employee_id: user?.id,
+          amount: paymentAmount,
+          percentage: mpPercentage * 100,
+          status: "pending"
         });
         
-      if (notificationError) console.error("Notification error:", notificationError);
-      
-      toast.success("Project cancelled. Note: 10 Spark Points and 3 MP have been deducted.");
+        toast.success("Project marked as completed and payment request created");
+      } else if (action === "cancel") {
+        // Update project status to cancelled
+        const { error: projectError } = await supabase
+          .from("projects")
+          .update({ status: "cancelled" })
+          .eq("id", selectedProject.id);
+          
+        if (projectError) throw projectError;
+        
+        // Create notification for owner
+        await supabase.from("notifications").insert({
+          user_id: selectedProject.owner.email ? 
+            (await supabase.from("profiles").select("id").eq("email", selectedProject.owner.email).single()).data?.id : 
+            (await supabase.from("profiles").select("id").eq("username", selectedProject.owner.username).single()).data?.id,
+          title: "Project Cancelled",
+          message: `Unfortunately, your project "${selectedProject.title}" has been cancelled by the assigned employee.`,
+          type: "warning"
+        });
+        
+        // Update employee metrics - deduct points
+        if (metrics) {
+          const updatedMP = Math.max(0, (metrics.measured_points || 80) - 3);
+          
+          await supabase.from("employee_metrics").upsert({
+            id: metrics.id || undefined,
+            user_id: user?.id,
+            measured_points: updatedMP,
+            total_cancelled: (metrics.total_cancelled || 0) + 1
+          });
+          
+          // Deduct Spark Points too
+          await supabase.from("profiles")
+            .update({ key_points: supabase.rpc('decrement_points', { amount: 10 }) })
+            .eq("id", user?.id);
+            
+          await supabase.from("key_points_transactions").insert({
+            user_id: user?.id,
+            amount: -10,
+            description: `Deduction for cancelling project "${selectedProject.title}"`,
+            transaction_type: "spend"
+          });
+        }
+        
+        toast.success("Project cancelled and MP reduced");
+      }
       
       // Refresh data
-      loadAssignedProjects();
-      loadEmployeeMetrics();
+      fetchData();
       
-      // Reset form and close dialog
-      setCancelReason("");
-      setSelectedProject(null);
-      setIsCancelDialogOpen(false);
     } catch (error: any) {
-      console.error("Error cancelling project:", error);
-      toast.error(`Failed to cancel project: ${error.message}`);
+      console.error(`Error ${action}ing project:`, error);
+      toast.error(`Error: ${error.message}`);
     } finally {
-      setProcessingAction(false);
+      setLoading(false);
+      setConfirmDialogOpen(false);
+      setSelectedProject(null);
+      setAction(null);
+      setCompletionUrl("");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+  if (loading && (!projects.length && !payments.length)) {
+    return <LoadingSpinner />;
   }
 
   return (
     <PageLayout
       title="Employee Dashboard"
-      description="Manage your assigned projects and track your performance"
+      description="Manage assigned projects and view payment history"
       requireAuth={true}
     >
-      <div className="space-y-6">
-        {/* Employee Metrics */}
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-4 gap-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Measured Points</p>
-                  <div className="flex items-center">
-                    <h3 className="text-2xl font-bold">{metrics?.measured_points || 0}</h3>
-                    <span className="ml-2 text-xs">/90</span>
-                  </div>
+      <div className="space-y-8">
+        {/* Employee metrics */}
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-100 dark:border-blue-800">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {metrics?.measured_points || 80}/90
                 </div>
-                <div className={`h-10 w-10 rounded-full flex items-center justify-center 
-                  ${(metrics?.measured_points || 0) >= 80 ? 'bg-green-100 text-green-600' : 
-                    (metrics?.measured_points || 0) >= 60 ? 'bg-yellow-100 text-yellow-600' : 
-                    'bg-red-100 text-red-600'}`}
-                >
-                  {(metrics?.measured_points || 0) >= 80 ? '😃' : 
-                   (metrics?.measured_points || 0) >= 60 ? '😐' : '😟'}
-                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Measured Points (MP)</div>
+                <Progress 
+                  value={((metrics?.measured_points || 80) / 90) * 100} 
+                  className="h-2 mt-2 w-full" 
+                />
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Completed Projects</p>
-                  <h3 className="text-2xl font-bold">{metrics?.total_completed_projects || 0}</h3>
+              
+              <div className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {metrics?.total_completed || 0}
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-500 opacity-80" />
+                <div className="text-sm text-gray-500 dark:text-gray-400">Completed Projects</div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Cancelled Projects</p>
-                  <h3 className="text-2xl font-bold">{metrics?.total_cancelled_projects || 0}</h3>
+              
+              <div className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {metrics?.total_cancelled || 0}
                 </div>
-                <X className="h-8 w-8 text-red-500 opacity-80" />
+                <div className="text-sm text-gray-500 dark:text-gray-400">Cancelled Projects</div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Pending Payout</p>
-                  <h3 className="text-2xl font-bold">${metrics?.pending_payout?.toFixed(2) || "0.00"}</h3>
+              
+              <div className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                  ${metrics?.total_earnings?.toFixed(2) || "0.00"}
                 </div>
-                <DollarSign className="h-8 w-8 text-primary opacity-80" />
+                <div className="text-sm text-gray-500 dark:text-gray-400">Total Earnings</div>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </CardContent>
+        </Card>
         
-        {/* Projects and Payments */}
-        <Tabs defaultValue="assigned">
-          <TabsList className="mb-4">
-            <TabsTrigger value="assigned" className="relative">
-              Assigned Projects
-              {assignedProjects.length > 0 && (
-                <Badge className="ml-2 bg-primary text-primary-foreground">{assignedProjects.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
+        <Tabs defaultValue="projects" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="projects">Assigned Projects</TabsTrigger>
             <TabsTrigger value="payments">Payment History</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="assigned" className="space-y-4">
-            {assignedProjects.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <Hourglass className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-3" />
-                  <h3 className="text-lg font-medium">No Assigned Projects</h3>
-                  <p className="text-muted-foreground mt-1">
-                    You don't have any assigned projects at the moment.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              assignedProjects.map((project, index) => (
-                <motion.div 
-                  key={project.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: index * 0.1 }}
+          <TabsContent value="projects" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-x-2">
+                <Button
+                  size="sm"
+                  variant={statusFilter === "all" ? "default" : "outline"}
+                  onClick={() => handleFilterChange("all")}
                 >
-                  <Card className="overflow-hidden">
-                    <div className={`h-2 ${new Date(project.deadline) < new Date() ? 'bg-red-500' : 'bg-primary'}`} />
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle>{project.title}</CardTitle>
-                          <CardDescription>
-                            {project.owner?.username || project.owner?.email}
-                          </CardDescription>
-                        </div>
-                        <Badge variant={new Date(project.deadline) < new Date() ? "destructive" : "secondary"}>
-                          {new Date(project.deadline) < new Date() ? (
-                            <span className="flex items-center">
-                              <Clock className="mr-1 h-3 w-3" /> Overdue
-                            </span>
-                          ) : (
-                            project.category
-                          )}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pb-3">
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                        {project.description || "No description provided"}
-                      </p>
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center text-muted-foreground">
-                          <Calendar className="mr-1 h-4 w-4" />
-                          <span>
-                            Due: {format(new Date(project.deadline), "MMM d, yyyy")}
-                          </span>
-                        </div>
-                        <div className="font-medium">${project.price.toFixed(2)}</div>
-                      </div>
-                      
-                      {project.file_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-4 w-full text-xs"
-                          onClick={() => window.open(project.file_url, "_blank")}
-                        >
-                          <FileText className="mr-1 h-3 w-3" /> View Source Files
-                        </Button>
-                      )}
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                      <Button 
-                        variant="destructive" 
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setIsCancelDialogOpen(true);
-                        }}
-                      >
-                        <X className="mr-1 h-4 w-4" /> Cancel
-                      </Button>
-                      <Button 
-                        onClick={() => {
-                          setSelectedProject(project);
-                          setIsDialogOpen(true);
-                        }}
-                      >
-                        <CheckCircle className="mr-1 h-4 w-4" /> Complete
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </motion.div>
-              ))
-            )}
-          </TabsContent>
-          
-          <TabsContent value="completed" className="space-y-4">
-            {completedProjects.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <CheckCircle className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-3" />
-                  <h3 className="text-lg font-medium">No Completed Projects</h3>
-                  <p className="text-muted-foreground mt-1">
-                    You haven't completed any projects yet.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              completedProjects.map((project, index) => (
-                <motion.div 
-                  key={project.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: index * 0.05 }}
+                  All
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === "pending" ? "default" : "outline"}
+                  onClick={() => handleFilterChange("pending")}
                 >
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle>{project.title}</CardTitle>
-                          <CardDescription>
-                            {project.owner?.username || project.owner?.email}
-                          </CardDescription>
-                        </div>
-                        <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300">
-                          Completed
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                        {project.description || "No description provided"}
-                      </p>
-                      
-                      <div className="flex items-center justify-between text-sm mt-4">
-                        <div className="text-muted-foreground">Category: {project.category || "General"}</div>
-                        <div className="font-medium">${project.price.toFixed(2)}</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))
-            )}
-          </TabsContent>
-          
-          <TabsContent value="payments">
-            {payments.length === 0 ? (
+                  Pending
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === "processing" ? "default" : "outline"}
+                  onClick={() => handleFilterChange("processing")}
+                >
+                  Processing
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === "completed" ? "default" : "outline"}
+                  onClick={() => handleFilterChange("completed")}
+                >
+                  Completed
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === "cancelled" ? "default" : "outline"}
+                  onClick={() => handleFilterChange("cancelled")}
+                >
+                  Cancelled
+                </Button>
+              </div>
+              
+              <Button onClick={fetchData} variant="outline" size="sm">
+                Refresh
+              </Button>
+            </div>
+            
+            {filteredProjects.length === 0 ? (
               <Card>
-                <CardContent className="p-6 text-center">
-                  <DollarSign className="mx-auto h-12 w-12 text-muted-foreground opacity-50 mb-3" />
-                  <h3 className="text-lg font-medium">No Payment History</h3>
-                  <p className="text-muted-foreground mt-1">
-                    You don't have any payment records yet.
+                <CardContent className="flex flex-col items-center justify-center py-10">
+                  <Package className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">No projects found</p>
+                  <p className="text-sm text-muted-foreground">
+                    {statusFilter === "all" 
+                      ? "You don't have any assigned projects yet." 
+                      : `You don't have any ${statusFilter} projects.`}
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
-                {payments.map((payment, index) => (
-                  <motion.div 
-                    key={payment.id}
+                {filteredProjects.map((project) => (
+                  <motion.div
+                    key={project.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 }}
+                    transition={{ duration: 0.3 }}
                   >
                     <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-medium">{payment.project?.title || "Unknown Project"}</h3>
-                            <p className="text-sm text-muted-foreground">
-                              {format(new Date(payment.created_at), "MMM d, yyyy")}
-                            </p>
+                            <CardTitle>{project.title}</CardTitle>
+                            <CardDescription>{project.category}</CardDescription>
                           </div>
-                          
-                          <div className="flex items-center">
-                            <div className="mr-4 text-right">
-                              <p className="font-bold">${payment.amount.toFixed(2)}</p>
-                              <p className="text-xs text-muted-foreground">{payment.percentage}% of project</p>
+                          <Badge
+                            className={`${
+                              statusColors[project.status as keyof typeof statusColors] || "bg-gray-500"
+                            } text-white`}
+                          >
+                            {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-2">Description:</p>
+                            <p className="text-sm">{project.description || "No description provided"}</p>
+                            
+                            <div className="flex items-center mt-4 gap-1 text-sm text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              <span>
+                                Deadline: {project.deadline ? format(new Date(project.deadline), "PPP") : "Not specified"}
+                              </span>
                             </div>
                             
-                            <Badge 
-                              variant={
-                                payment.status === "paid" ? "outline" : 
-                                payment.status === "pending" ? "secondary" : "default"
-                              }
-                              className={payment.status === "paid" ? "bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300" : ""}
-                            >
-                              {payment.status === "paid" ? "Paid" : "Pending"}
-                            </Badge>
+                            <div className="flex items-center mt-2 gap-1 text-sm text-muted-foreground">
+                              <DollarSign className="h-4 w-4" />
+                              <span>Price: ${project.price?.toFixed(2) || "0.00"}</span>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-2">Client:</p>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  {project.owner?.username?.[0]?.toUpperCase() || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">{project.owner?.username || "Unknown User"}</p>
+                                <p className="text-xs text-muted-foreground">{project.owner?.email || ""}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center mt-4 gap-1 text-sm text-muted-foreground">
+                              <FileText className="h-4 w-4" />
+                              <a 
+                                href={project.file_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 dark:text-blue-400 hover:underline"
+                              >
+                                View Project Files
+                              </a>
+                            </div>
+                            
+                            <div className="flex items-center mt-2 gap-1 text-sm text-muted-foreground">
+                              <Clock className="h-4 w-4" />
+                              <span>
+                                Created: {format(new Date(project.created_at), "PPP")}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        
-                        {payment.transaction_id && (
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            Transaction ID: {payment.transaction_id}
-                          </div>
-                        )}
                       </CardContent>
+                      
+                      {(project.status === "pending" || project.status === "processing") && (
+                        <CardFooter className="flex justify-end gap-2">
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleActionClick(project, "cancel")}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Cancel Project
+                          </Button>
+                          <Button
+                            variant="default"
+                            onClick={() => handleActionClick(project, "complete")}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Mark as Complete
+                          </Button>
+                        </CardFooter>
+                      )}
                     </Card>
                   </motion.div>
                 ))}
               </div>
             )}
           </TabsContent>
+          
+          <TabsContent value="payments">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment History</CardTitle>
+                <CardDescription>
+                  View all your payment records and pending requests
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {payments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <DollarSign className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-lg font-medium">No payment records</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your payment history will appear here after completing projects
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {payments.map((payment) => (
+                      <div 
+                        key={payment.id}
+                        className="flex flex-col sm:flex-row justify-between items-start sm:items-center border p-4 rounded-lg hover:bg-secondary/10 transition-colors"
+                      >
+                        <div>
+                          <h4 className="font-medium">{payment.project?.title}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant={payment.status === "completed" ? "success" : "outline"}>
+                              {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {format(new Date(payment.created_at), "MMM d, yyyy")}
+                            </span>
+                          </div>
+                          {payment.status === "completed" && payment.transaction_id && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              TXN: {payment.transaction_id}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="mt-2 sm:mt-0 flex flex-col items-end">
+                          <span className="font-bold text-green-600 dark:text-green-400">
+                            ${payment.amount?.toFixed(2)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {payment.percentage}% of project value
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
+        
+        {/* Confirmation Dialog */}
+        <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {action === "complete" ? "Complete Project" : "Cancel Project"}
+              </DialogTitle>
+              <DialogDescription>
+                {action === "complete"
+                  ? "Are you sure you want to mark this project as complete? Your MP will determine the payment amount."
+                  : "Are you sure you want to cancel this project? This will reduce your MP by 3 points and deduct 10 Spark Points."}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {action === "complete" && (
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="completionUrl">Project Completion URL</Label>
+                  <Input
+                    id="completionUrl"
+                    placeholder="Enter the URL where the completed files can be accessed"
+                    value={completionUrl}
+                    onChange={(e) => setCompletionUrl(e.target.value)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    This URL will be shared with the client to download the completed project
+                  </p>
+                </div>
+                
+                <div className="flex items-center p-3 border rounded-md bg-blue-50 dark:bg-blue-900/20">
+                  <AlertTriangle className="h-5 w-5 text-blue-500 mr-2" />
+                  <div className="text-sm">
+                    <p className="font-medium">Payment Information:</p>
+                    <p>Your Measured Points: {metrics?.measured_points || 80}/90</p>
+                    <p>Payment Percentage: {(metrics?.measured_points || 80)}%</p>
+                    <p>Estimated Payment: ${selectedProject ? ((selectedProject.price * (metrics?.measured_points || 80)) / 100).toFixed(2) : "0.00"}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {action === "cancel" && (
+              <div className="flex items-center p-3 border rounded-md bg-red-50 dark:bg-red-900/20 my-4">
+                <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                <div className="text-sm">
+                  <p className="font-medium">Warning:</p>
+                  <p>Cancelling this project will:</p>
+                  <ul className="list-disc list-inside ml-2">
+                    <li>Reduce your MP by 3 points</li>
+                    <li>Deduct 10 Spark Points</li>
+                    <li>Notify the client of cancellation</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleConfirmAction}
+                variant={action === "complete" ? "default" : "destructive"}
+                disabled={action === "complete" && !completionUrl.trim()}
+              >
+                {action === "complete" ? "Complete Project" : "Cancel Project"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-      
-      {/* Complete Project Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Complete Project</DialogTitle>
-            <DialogDescription>
-              Enter the download URL for the completed project files.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="completionUrl">Download URL *</Label>
-              <Input
-                id="completionUrl"
-                value={completionUrl}
-                onChange={(e) => setCompletionUrl(e.target.value)}
-                placeholder="https://drive.google.com/..."
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Provide a link where the client can download the completed project.
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="completionNotes">Completion Notes</Label>
-              <Textarea
-                id="completionNotes"
-                value={completionNotes}
-                onChange={(e) => setCompletionNotes(e.target.value)}
-                placeholder="Add any notes about the completed project..."
-                rows={3}
-              />
-            </div>
-            
-            <div className="bg-muted p-3 rounded-md text-sm space-y-2">
-              <p className="font-medium flex items-center">
-                <DollarSign className="h-4 w-4 mr-1 text-primary" />
-                Payment Information
-              </p>
-              <p>Your Measured Points: <span className="font-bold">{metrics?.measured_points || 80}</span>/90</p>
-              <p>
-                Expected Payment: <span className="font-bold">
-                  ${selectedProject ? ((selectedProject.price * (metrics?.measured_points || 80)) / 100).toFixed(2) : "0.00"}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">
-                  ({metrics?.measured_points || 80}% of ${selectedProject?.price.toFixed(2) || "0.00"})
-                </span>
-              </p>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={processingAction}>
-              Cancel
-            </Button>
-            <Button onClick={handleCompleteProject} disabled={!completionUrl || processingAction}>
-              {processingAction ? (
-                <>
-                  <LoadingSpinner className="mr-2 h-4 w-4" />
-                  Processing...
-                </>
-              ) : (
-                "Submit"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Cancel Project Dialog */}
-      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-red-600">Cancel Project</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel this project? This will deduct 10 Spark Points and 3 MP.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="cancelReason">Reason for Cancellation *</Label>
-              <Textarea
-                id="cancelReason"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="Explain why you need to cancel this project..."
-                rows={3}
-                required
-              />
-            </div>
-            
-            <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md text-sm space-y-2 text-red-600 dark:text-red-300">
-              <p className="font-medium">Penalties for cancellation:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>-10 Spark Points will be deducted</li>
-                <li>-3 Measured Points will be deducted</li>
-                <li>Your cancellation count will increase</li>
-              </ul>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCancelDialogOpen(false)} disabled={processingAction}>
-              Go Back
-            </Button>
-            <Button variant="destructive" onClick={handleCancelProject} disabled={!cancelReason || processingAction}>
-              {processingAction ? (
-                <>
-                  <LoadingSpinner className="mr-2 h-4 w-4" />
-                  Processing...
-                </>
-              ) : (
-                "Cancel Project"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </PageLayout>
   );
 };

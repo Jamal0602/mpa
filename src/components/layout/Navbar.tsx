@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Moon, Sun, Menu, LogIn, UserPlus, LogOut, Settings, BarChart2, CreditCard, HelpCircle, Share2, Bug } from "lucide-react";
@@ -33,6 +34,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { motion } from "framer-motion";
 
 const Navbar = () => {
   const { theme, setTheme } = useTheme();
@@ -218,7 +220,7 @@ const Navbar = () => {
           </DropdownMenuContent>
         </DropdownMenu>
         
-        <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-1">
+        <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-1 animate-fade-in">
           <Share2 className="h-4 w-4" />
           Share App
         </Button>
@@ -232,20 +234,22 @@ const Navbar = () => {
         <UserMenu />
       ) : (
         <div className="flex flex-col sm:flex-row gap-2 items-end">
-          <Link to="/auth">
-            <Button variant="ghost">
-              <LogIn className="mr-2 h-4 w-4" />
-              Sign in
-            </Button>
-          </Link>
-          <Link to="/auth">
-            <Button>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Sign up
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link to="/auth">
+              <Button variant="ghost">
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign in
+              </Button>
+            </Link>
+            <Link to="/auth">
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Sign up
+              </Button>
+            </Link>
+          </div>
           
-          <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-1 mt-2 sm:mt-0">
+          <Button variant="outline" size="sm" onClick={handleShare} className="flex items-center gap-1 mt-2 sm:mt-0 animate-fade-in">
             <Share2 className="h-4 w-4" />
             Share App
           </Button>
@@ -256,7 +260,12 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <motion.nav 
+        className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40"
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="container flex h-16 items-center justify-between px-4">
           <Link to="/" className="flex items-center space-x-2">
             <span className="text-xl font-bold">Multi Project Association</span>
@@ -282,6 +291,7 @@ const Navbar = () => {
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="transition-transform hover:rotate-12"
             >
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -309,7 +319,7 @@ const Navbar = () => {
             </div>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
       {/* Share Dialog */}
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
@@ -349,21 +359,48 @@ const Navbar = () => {
             
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Share on Social Media</h3>
-              <div className="flex justify-center gap-4">
+              <div className="grid grid-cols-3 gap-2">
                 <Button variant="outline" className="w-full" onClick={() => {
                   window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.origin)}`, '_blank');
                 }}>
-                  Facebook
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-blue-600">
+                    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                  </svg>
                 </Button>
                 <Button variant="outline" className="w-full" onClick={() => {
                   window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out MPA - Multi Project Association!')}&url=${encodeURIComponent(window.location.origin)}`, '_blank');
                 }}>
-                  Twitter
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-blue-400">
+                    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
+                  </svg>
                 </Button>
                 <Button variant="outline" className="w-full" onClick={() => {
                   window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.origin)}`, '_blank');
                 }}>
-                  LinkedIn
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-blue-700">
+                    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                    <rect x="2" y="9" width="4" height="12"></rect>
+                    <circle cx="4" cy="4" r="2"></circle>
+                  </svg>
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Button variant="outline" className="w-full" onClick={() => {
+                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent('Check out MPA - Multi Project Association! ' + window.location.origin)}`, '_blank');
+                }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-green-500 mr-2">
+                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+                  </svg>
+                  WhatsApp
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => {
+                  window.open(`mailto:?subject=${encodeURIComponent('Check out MPA')}&body=${encodeURIComponent('I wanted to share this amazing project management app with you: ' + window.location.origin)}`, '_blank');
+                }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-orange-500 mr-2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                  </svg>
+                  Email
                 </Button>
               </div>
             </div>
@@ -373,7 +410,12 @@ const Navbar = () => {
 
       {/* Cookie Consent Banner */}
       {!cookieConsent && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 z-50 shadow-md">
+        <motion.div 
+          className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 z-50 shadow-md"
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.5, delay: 1 }}
+        >
           <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
               <h3 className="font-medium">Cookie Consent</h3>
@@ -390,7 +432,7 @@ const Navbar = () => {
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </>
   );
