@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +8,7 @@ import { toast } from "sonner";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Users, ShoppingCart, DollarSign, BarChart3, Activity, TrendingUp } from "lucide-react";
+import { Loader2, Users, ShoppingCart, DollarSign, BarChart3, Activity, TrendingUp, Briefcase } from "lucide-react";
 
 interface AnalyticsData {
   totalUsers: number;

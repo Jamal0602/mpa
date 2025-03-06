@@ -7,7 +7,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 
-import PageLayout from '@/components/layout/PageLayout';
+import { PageLayout } from '@/components/layout/PageLayout';
 import Index from '@/pages/Index';
 import Dashboard from '@/pages/Dashboard';
 import Features from '@/pages/Features';
