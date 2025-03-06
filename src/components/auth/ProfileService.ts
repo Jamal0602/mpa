@@ -124,3 +124,71 @@ export const updateUserProfile = async (userId: string, updates: any): Promise<P
     };
   }
 };
+
+// Function to check if user has enough points
+export const checkUserBalance = async (userId: string, amountNeeded: number): Promise<boolean> => {
+  try {
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("key_points")
+      .eq("id", userId)
+      .single();
+    
+    if (error) {
+      console.error("Error checking balance:", error);
+      throw error;
+    }
+    
+    return profile.key_points >= amountNeeded;
+  } catch (error) {
+    console.error("Error in checkUserBalance:", error);
+    return false;
+  }
+};
+
+// Function to deduct points and record transaction
+export const deductPoints = async (userId: string, amount: number, description: string): Promise<boolean> => {
+  try {
+    // Use the decrement_points function
+    const { data, error } = await supabase
+      .rpc('decrement_points', {
+        user_id: userId,
+        amount_to_deduct: amount
+      });
+    
+    if (error) {
+      console.error("Error deducting points:", error);
+      throw error;
+    }
+    
+    // Record the transaction
+    const { error: transactionError } = await supabase
+      .from("key_points_transactions")
+      .insert({
+        user_id: userId,
+        amount: amount,
+        description: description,
+        transaction_type: 'spend'
+      });
+    
+    if (transactionError) {
+      console.error("Error recording transaction:", transactionError);
+      throw transactionError;
+    }
+    
+    // Create a notification
+    await supabase
+      .from("notifications")
+      .insert({
+        user_id: userId,
+        title: "Points Deducted",
+        message: `${amount} points have been deducted for: ${description}`,
+        type: "info"
+      });
+    
+    return true;
+  } catch (error) {
+    console.error("Error in deductPoints:", error);
+    return false;
+  }
+};

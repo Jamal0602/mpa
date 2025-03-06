@@ -1,6 +1,7 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Loader2, AlertTriangle, Check, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -8,140 +9,128 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+} from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
+import { checkUserBalance, deductPoints } from '@/components/auth/ProfileService';
+import { toast } from 'sonner';
 
 interface PaymentConfirmationModalProps {
   open: boolean;
-  title: string;
-  description: string;
+  onOpenChange: (open: boolean) => void;
   amount: number;
   serviceName: string;
-  onClose: () => void;
-  onConfirm: () => Promise<boolean>;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
-export function PaymentConfirmationModal({
+const PaymentConfirmationModal = ({
   open,
-  title,
-  description,
+  onOpenChange,
   amount,
   serviceName,
-  onClose,
-  onConfirm,
-}: PaymentConfirmationModalProps) {
-  const { profile } = useAuth();
+  onSuccess,
+  onCancel
+}: PaymentConfirmationModalProps) => {
+  const { user, refreshProfile } = useAuth();
   const [processing, setProcessing] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleConfirm = async () => {
-    setProcessing(true);
-    setError(null);
-    
+    if (!user) {
+      toast.error("You must be logged in to make a purchase");
+      onOpenChange(false);
+      return;
+    }
+
     try {
-      const result = await onConfirm();
+      setProcessing(true);
       
-      if (result) {
-        setSuccess(true);
-        // Auto close after success
-        setTimeout(() => {
-          setSuccess(false);
-          setProcessing(false);
-          onClose();
-        }, 2000);
-      } else {
-        setError("Transaction failed. Please try again.");
-        setProcessing(false);
+      // Check if user has enough points
+      const hasEnoughPoints = await checkUserBalance(user.id, amount);
+      
+      if (!hasEnoughPoints) {
+        toast.error("You don't have enough points for this purchase. Please add more points to your account.");
+        onOpenChange(false);
+        onCancel();
+        return;
       }
-    } catch (err: any) {
-      setError(err.message || "Transaction failed. Please try again.");
+      
+      // Deduct points
+      const success = await deductPoints(
+        user.id, 
+        amount, 
+        `Payment for ${serviceName}`
+      );
+      
+      if (!success) {
+        throw new Error("Failed to process payment");
+      }
+      
+      // Refresh the user profile to update points
+      await refreshProfile();
+      
+      toast.success(`Successfully purchased ${serviceName} for ${amount} points`);
+      onOpenChange(false);
+      onSuccess();
+    } catch (error: any) {
+      console.error("Payment error:", error);
+      toast.error(`Payment failed: ${error.message}`);
+      onCancel();
+    } finally {
       setProcessing(false);
     }
   };
 
-  const handleClose = () => {
-    if (!processing) {
-      setError(null);
-      setSuccess(false);
-      onClose();
-    }
-  };
-
-  const currentBalance = profile?.key_points || 0;
-  const insufficientFunds = currentBalance < amount;
-
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>Confirm Purchase</DialogTitle>
+          <DialogDescription>
+            You are about to spend <span className="font-semibold">{amount} points</span> for {serviceName}.
+          </DialogDescription>
         </DialogHeader>
-        
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 items-center gap-4">
-            <div className="text-sm font-medium">Service:</div>
-            <div>{serviceName}</div>
+
+        <div className="flex items-center gap-4 py-3">
+          <div className="bg-amber-100 dark:bg-amber-900 p-3 rounded-full">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
           </div>
-          
-          <div className="grid grid-cols-2 items-center gap-4">
-            <div className="text-sm font-medium">Cost:</div>
-            <div>{amount} Spark Points</div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Points will be deducted immediately</p>
+            <p className="text-xs text-muted-foreground">
+              This action cannot be undone. Please confirm to proceed.
+            </p>
           </div>
-          
-          <div className="grid grid-cols-2 items-center gap-4">
-            <div className="text-sm font-medium">Current Balance:</div>
-            <div>{currentBalance} Spark Points</div>
-          </div>
-          
-          <div className="grid grid-cols-2 items-center gap-4">
-            <div className="text-sm font-medium">New Balance:</div>
-            <div>{currentBalance - amount} Spark Points</div>
-          </div>
-          
-          {insufficientFunds && (
-            <div className="flex items-center gap-2 text-red-500 text-sm mt-2">
-              <AlertCircle className="h-4 w-4" />
-              <span>Insufficient funds. Please add more Spark Points.</span>
-            </div>
-          )}
-          
-          {error && (
-            <div className="flex items-center gap-2 text-red-500 text-sm mt-2">
-              <AlertCircle className="h-4 w-4" />
-              <span>{error}</span>
-            </div>
-          )}
-          
-          {success && (
-            <div className="flex items-center gap-2 text-green-500 text-sm mt-2">
-              <CheckCircle2 className="h-4 w-4" />
-              <span>Payment successful!</span>
-            </div>
-          )}
         </div>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={processing}>
+
+        <DialogFooter className="flex flex-row items-center gap-2 sm:justify-between">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              onOpenChange(false);
+              onCancel();
+            }}
+            disabled={processing}
+            className="flex-1"
+          >
+            <X className="mr-1 h-4 w-4" />
             Cancel
           </Button>
           <Button 
             onClick={handleConfirm} 
-            disabled={processing || insufficientFunds || success}
+            className="flex-1" 
+            disabled={processing}
           >
             {processing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
             ) : (
-              "Confirm Payment"
+              <Check className="mr-1 h-4 w-4" />
             )}
+            {processing ? "Processing..." : "Confirm Payment"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export default PaymentConfirmationModal;
