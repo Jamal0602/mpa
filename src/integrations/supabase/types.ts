@@ -685,3 +685,11 @@ export interface ErrorResponse {
     statusCode?: number; // Optional status code for API responses
        }
   
+export interface LogoutRequestBody {
+    token: string;
+}
+
+export interface LogoutResponse {
+    success: boolean;
+    message: string;
+}
