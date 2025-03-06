@@ -26,15 +26,14 @@ export const deductUserPoints = async (
   description: string
 ): Promise<boolean> => {
   try {
-    // Update the profile key_points
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ 
-        key_points: supabase.rpc('decrement_points', { amount_to_deduct: amount }) 
-      })
-      .eq("id", userId);
+    // Call the decrement_points function which will update the profile
+    const { data, error } = await supabase
+      .rpc('decrement_points', { 
+        user_id: userId,
+        amount_to_deduct: amount 
+      });
     
-    if (updateError) throw updateError;
+    if (error) throw error;
     
     // Record the transaction
     const { error: transactionError } = await supabase

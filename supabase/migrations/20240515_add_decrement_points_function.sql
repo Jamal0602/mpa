@@ -17,8 +17,12 @@ BEGIN
   -- Calculate new points, ensuring we don't go below zero
   new_points := GREATEST(0, current_points - amount_to_deduct);
   
-  -- Return the new points value without updating
-  -- The update will be handled by the caller
+  -- Update the profile with new points value
+  UPDATE public.profiles
+  SET key_points = new_points
+  WHERE id = user_id;
+  
+  -- Return the new points value
   RETURN new_points;
 END;
 $$;
