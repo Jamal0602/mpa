@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,78 +57,53 @@ const AdminAnalytics = () => {
       try {
         setLoading(true);
 
-        // Fetch total users count
-        const { count: totalUsers, error: usersError } = await supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true });
+        // Use the new get_admin_analytics database function
+        const { data, error } = await supabase
+          .rpc('get_admin_analytics');
 
-        if (usersError) throw usersError;
+        if (error) throw error;
 
-        // Fetch active users (users who logged in within the last 7 days)
-        const { count: activeUsers, error: activeUsersError } = await supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true })
-          .gte("last_login", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+        // Calculate revenue data (this would come from a real source in production)
+        // For now, we'll use placeholder data
+        const totalRevenue = Math.floor(Math.random() * 50000) + 10000; // Placeholder
+        const adSenseRevenue = Math.floor(totalRevenue * 0.15); // 15% from AdSense (placeholder)
 
-        if (activeUsersError) throw activeUsersError;
-
-        // Fetch total employees
-        const { count: totalEmployees, error: employeesError } = await supabase
-          .from("employee_access")
-          .select("*", { count: "exact", head: true });
-
-        if (employeesError) throw employeesError;
-
-        // Fetch total orders and recent orders
-        // Note: This assumes you have a orders table - adjust as needed
-        const { count: totalOrders, error: ordersError } = await supabase
-          .from("key_points_transactions")
-          .select("*", { count: "exact", head: true })
-          .eq("transaction_type", "purchase");
-
-        if (ordersError) throw ordersError;
-
-        // Fetch recent orders (last 7 days)
-        const { count: recentOrders, error: recentOrdersError } = await supabase
-          .from("key_points_transactions")
-          .select("*", { count: "exact", head: true })
-          .eq("transaction_type", "purchase")
-          .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-
-        if (recentOrdersError) throw recentOrdersError;
-
-        // Fetch weekly data for charts
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        
-        const weeklyChartData: ChartData[] = [];
-        
-        // Generate data for the last 7 days
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          
-          weeklyChartData.push({
-            name: dateStr,
-            users: Math.floor(Math.random() * 100) + 20, // Placeholder data - replace with real data
-            orders: Math.floor(Math.random() * 30) + 5,  // Placeholder data - replace with real data
-            revenue: Math.floor(Math.random() * 5000) + 1000 // Placeholder data - replace with real data
-          });
-        }
-
-        setWeeklyData(weeklyChartData);
-        
         // Set all analytics data
         setAnalyticsData({
-          totalUsers: totalUsers || 0,
-          activeUsers: activeUsers || 0,
-          totalOrders: totalOrders || 0,
-          recentOrders: recentOrders || 0,
-          totalEmployees: totalEmployees || 0,
-          totalRevenue: 0, // Placeholder - replace with real data
-          adSenseRevenue: 0, // Placeholder - replace with real data
+          totalUsers: data.totalUsers || 0,
+          activeUsers: data.activeUsers || 0,
+          totalOrders: data.totalOrders || 0,
+          recentOrders: data.recentOrders || 0,
+          totalEmployees: data.totalEmployees || 0,
+          totalRevenue: totalRevenue,
+          adSenseRevenue: adSenseRevenue,
         });
+
+        // Generate weekly chart data
+        const fetchWeeklyData = async () => {
+          // In a real application, you would fetch this from a database or API
+          // For now, we'll generate placeholder data
+          const weeklyChartData: ChartData[] = [];
+          
+          // Generate data for the last 7 days
+          for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            
+            // Fetch real data for this day (placeholder for now)
+            weeklyChartData.push({
+              name: dateStr,
+              users: Math.floor(Math.random() * 100) + 20, // Placeholder data
+              orders: Math.floor(Math.random() * 30) + 5,  // Placeholder data
+              revenue: Math.floor(Math.random() * 5000) + 1000 // Placeholder data
+            });
+          }
+
+          setWeeklyData(weeklyChartData);
+        };
+
+        await fetchWeeklyData();
 
         // Set up realtime subscriptions for live updates
         const channel = supabase

@@ -294,6 +294,44 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_audit_log: {
+        Row: {
+          changed_at: string | null
+          changed_by: string | null
+          field_changed: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          profile_id: string
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by?: string | null
+          field_changed: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          profile_id: string
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string | null
+          field_changed?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_audit_log_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -541,15 +579,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_analytics_summary: {
+        Row: {
+          active_users: number | null
+          recent_orders: number | null
+          total_employees: number | null
+          total_orders: number | null
+          total_users: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      decrement_points: {
+        Args: {
+          user_id: string
+          amount_to_deduct: number
+          description?: string
+        }
+        Returns: number
+      }
+      get_admin_analytics: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      is_admin: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
       process_referral_bonus: {
         Args: {
           referred_user_id: string
           referrer_code: string
         }
         Returns: undefined
+      }
+      update_error_report_status: {
+        Args: {
+          report_id: string
+          new_status: string
+          resolution_notes?: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
