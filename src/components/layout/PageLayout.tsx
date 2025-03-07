@@ -20,11 +20,16 @@ export const PageLayout = ({
   requireAuth = false,
   className = "",
 }: PageLayoutProps) => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Check for auth requirement 
+  // Handle loading state
+  if (isLoading) {
+    return <LoadingPage />;
+  }
+  
+  // Handle authentication requirement
   if (requireAuth && !user) {
     toast({
       title: "Authentication Required",

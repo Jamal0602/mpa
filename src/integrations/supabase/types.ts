@@ -63,81 +63,6 @@ export type Database = {
           },
         ]
       }
-      employee_access: {
-        Row: {
-          access_level: string
-          department: string
-          hired_date: string | null
-          id: string
-          user_id: string
-        }
-        Insert: {
-          access_level?: string
-          department: string
-          hired_date?: string | null
-          id?: string
-          user_id: string
-        }
-        Update: {
-          access_level?: string
-          department?: string
-          hired_date?: string | null
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      job_applications: {
-        Row: {
-          age: number
-          created_at: string | null
-          email: string
-          experience: string
-          feedback: string | null
-          full_name: string
-          id: string
-          location: string
-          message: string
-          portfolio: string | null
-          position: string
-          status: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          age: number
-          created_at?: string | null
-          email: string
-          experience: string
-          feedback?: string | null
-          full_name: string
-          id?: string
-          location: string
-          message: string
-          portfolio?: string | null
-          position: string
-          status?: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          age?: number
-          created_at?: string | null
-          email?: string
-          experience?: string
-          feedback?: string | null
-          full_name?: string
-          id?: string
-          location?: string
-          message?: string
-          portfolio?: string | null
-          position?: string
-          status?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       key_points_transactions: {
         Row: {
           amount: number
@@ -293,44 +218,6 @@ export type Database = {
           username?: string
         }
         Relationships: []
-      }
-      profile_audit_log: {
-        Row: {
-          changed_at: string | null
-          changed_by: string | null
-          field_changed: string
-          id: string
-          new_value: string | null
-          old_value: string | null
-          profile_id: string
-        }
-        Insert: {
-          changed_at?: string | null
-          changed_by?: string | null
-          field_changed: string
-          id?: string
-          new_value?: string | null
-          old_value?: string | null
-          profile_id: string
-        }
-        Update: {
-          changed_at?: string | null
-          changed_by?: string | null
-          field_changed?: string
-          id?: string
-          new_value?: string | null
-          old_value?: string | null
-          profile_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profile_audit_log_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       profiles: {
         Row: {
@@ -579,36 +466,9 @@ export type Database = {
       }
     }
     Views: {
-      admin_analytics_summary: {
-        Row: {
-          active_users: number | null
-          recent_orders: number | null
-          total_employees: number | null
-          total_orders: number | null
-          total_users: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
-      decrement_points: {
-        Args: {
-          user_id: string
-          amount_to_deduct: number
-          description?: string
-        }
-        Returns: number
-      }
-      get_admin_analytics: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      is_admin: {
-        Args: {
-          user_id: string
-        }
-        Returns: boolean
-      }
       process_referral_bonus: {
         Args: {
           referred_user_id: string
@@ -616,17 +476,9 @@ export type Database = {
         }
         Returns: undefined
       }
-      update_error_report_status: {
-        Args: {
-          report_id: string
-          new_status: string
-          resolution_notes?: string
-        }
-        Returns: boolean
-      }
     }
     Enums: {
-      user_role: "admin" | "user" | "employee"
+      user_role: "admin" | "user"
       widget_type: "chart" | "stats" | "list" | "calendar"
     }
     CompositeTypes: {
