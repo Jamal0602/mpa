@@ -35,4 +35,10 @@ To generate these files, you need to:
 
 6. Build from the native IDEs (Android Studio, Xcode)
 
-See the [Capacitor documentation](https://capacitorjs.com/docs) for more details.
+See the [Capacitor documentation](https://capacitorjs.com/docs) 
+
+Download Apk...
+https://github.com/CUBIZ-G/multiprojectassociation/blob/main/src/apk/MPA.v.1.apk
+```
+https://drive.google.com/uc?id=1rhoD4s2jTh2deIZ1VqnWJjUDSST04lCq
+```

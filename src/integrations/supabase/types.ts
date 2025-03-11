@@ -63,6 +63,81 @@ export type Database = {
           },
         ]
       }
+      employee_access: {
+        Row: {
+          access_level: string
+          department: string
+          hired_date: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          access_level?: string
+          department: string
+          hired_date?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: string
+          department?: string
+          hired_date?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      job_applications: {
+        Row: {
+          age: number
+          created_at: string | null
+          email: string
+          experience: string
+          feedback: string | null
+          full_name: string
+          id: string
+          location: string
+          message: string
+          portfolio: string | null
+          position: string
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          age: number
+          created_at?: string | null
+          email: string
+          experience: string
+          feedback?: string | null
+          full_name: string
+          id?: string
+          location: string
+          message: string
+          portfolio?: string | null
+          position: string
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          age?: number
+          created_at?: string | null
+          email?: string
+          experience?: string
+          feedback?: string | null
+          full_name?: string
+          id?: string
+          location?: string
+          message?: string
+          portfolio?: string | null
+          position?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       key_points_transactions: {
         Row: {
           amount: number
@@ -478,7 +553,7 @@ export type Database = {
       }
     }
     Enums: {
-      user_role: "admin" | "user"
+      user_role: "admin" | "user" | "employee"
       widget_type: "chart" | "stats" | "list" | "calendar"
     }
     CompositeTypes: {
