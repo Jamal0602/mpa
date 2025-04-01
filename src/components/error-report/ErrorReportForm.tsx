@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -24,7 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, AlertTriangle } from "lucide-react";
+import { CustomBadge } from "@/components/ui/custom-badge";
 
 const errorReportSchema = z.object({
   error_type: z.string({
@@ -36,6 +38,9 @@ const errorReportSchema = z.object({
     .min(10, "Description must be at least 10 characters")
     .max(1000, "Description must be less than 1000 characters"),
   contact_email: z.string().email("Please enter a valid email address"),
+  priority: z.string().optional(),
+  category: z.string().optional(),
+  platform: z.string().optional(),
 });
 
 type ErrorReportFormValues = z.infer<typeof errorReportSchema>;
@@ -47,6 +52,7 @@ interface ErrorReportFormProps {
 export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reachedLimit, setReachedLimit] = useState(false);
 
   const form = useForm<ErrorReportFormValues>({
     resolver: zodResolver(errorReportSchema),
@@ -55,6 +61,9 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
       transaction_id: "",
       description: "",
       contact_email: user?.email || "",
+      priority: "medium",
+      category: "general",
+      platform: "web",
     },
   });
 
@@ -79,9 +88,18 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
       if (countError) throw countError;
 
       if (existingReports && existingReports.length >= 5) {
+        setReachedLimit(true);
         toast.error("You've reached the daily limit of 5 error reports");
         return;
       }
+
+      // Get browser info
+      const browserInfo = {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+        screenSize: `${window.screen.width}x${window.screen.height}`,
+      };
 
       // Submit the report
       const { error } = await supabase.from("error_reports").insert({
@@ -90,6 +108,10 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
         transaction_id: data.transaction_id || null,
         description: data.description,
         contact_email: data.contact_email,
+        priority: data.priority,
+        category: data.category,
+        platform: data.platform,
+        browser_info: browserInfo,
       });
 
       if (error) throw error;
@@ -108,42 +130,148 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
     }
   };
 
+  if (reachedLimit) {
+    return (
+      <div className="bg-card border rounded-lg p-6">
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900/20">
+            <AlertTriangle className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+          </div>
+          <h3 className="text-lg font-medium">Daily Report Limit Reached</h3>
+          <p className="text-muted-foreground">
+            You've submitted the maximum number of 5 reports for today. Please try again tomorrow or contact support directly.
+          </p>
+          <CustomBadge variant="warning" className="mt-2">5/5 Reports Used</CustomBadge>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-card border rounded-lg p-6">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="error_type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Error Type</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  disabled={isSubmitting}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select the type of error" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="login_issue">Login Issue</SelectItem>
-                    <SelectItem value="payment_problem">Payment Problem</SelectItem>
-                    <SelectItem value="feature_not_working">Feature Not Working</SelectItem>
-                    <SelectItem value="display_error">Display Error</SelectItem>
-                    <SelectItem value="performance_issue">Performance Issue</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Select the category that best describes the error you encountered
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="error_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Error Type</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select the type of error" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="login_issue">Login Issue</SelectItem>
+                      <SelectItem value="payment_problem">Payment Problem</SelectItem>
+                      <SelectItem value="feature_not_working">Feature Not Working</SelectItem>
+                      <SelectItem value="display_error">Display Error</SelectItem>
+                      <SelectItem value="performance_issue">Performance Issue</SelectItem>
+                      <SelectItem value="security_concern">Security Concern</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="priority"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Priority</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select priority level" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="account">Account</SelectItem>
+                      <SelectItem value="projects">Projects</SelectItem>
+                      <SelectItem value="billing">Billing</SelectItem>
+                      <SelectItem value="ui">User Interface</SelectItem>
+                      <SelectItem value="api">API</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="platform"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Platform</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select platform" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="web">Web Browser</SelectItem>
+                      <SelectItem value="mobile">Mobile App</SelectItem>
+                      <SelectItem value="desktop">Desktop App</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}
@@ -210,16 +338,24 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
             )}
           />
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              "Submit Report"
-            )}
-          </Button>
+          <div className="flex justify-end items-center gap-4">
+            <div className="text-xs text-muted-foreground">
+              <span className="font-medium">{5 - (form.formState.isSubmitSuccessful ? 1 : 0)}/5</span> reports remaining today
+            </div>
+            <Button type="submit" className="gap-2" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Submit Report
+                </>
+              )}
+            </Button>
+          </div>
         </form>
       </Form>
     </div>

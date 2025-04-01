@@ -87,6 +87,63 @@ export type Database = {
         }
         Relationships: []
       }
+      error_reports: {
+        Row: {
+          browser_info: Json | null
+          category: string | null
+          contact_email: string
+          created_at: string | null
+          description: string
+          error_type: string
+          id: string
+          platform: string | null
+          priority: string | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          screenshots: string[] | null
+          status: string
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          browser_info?: Json | null
+          category?: string | null
+          contact_email: string
+          created_at?: string | null
+          description: string
+          error_type: string
+          id?: string
+          platform?: string | null
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          screenshots?: string[] | null
+          status?: string
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          browser_info?: Json | null
+          category?: string | null
+          contact_email?: string
+          created_at?: string | null
+          description?: string
+          error_type?: string
+          id?: string
+          platform?: string | null
+          priority?: string | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          screenshots?: string[] | null
+          status?: string
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       job_applications: {
         Row: {
           age: number
@@ -619,6 +676,17 @@ export type Database = {
         }
         Relationships: []
       }
+      error_report_stats: {
+        Row: {
+          avg_resolution_time_hours: number | null
+          in_progress_reports: number | null
+          pending_reports: number | null
+          reports_last_24h: number | null
+          resolved_reports: number | null
+          total_reports: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       decrement_points: {
@@ -630,6 +698,10 @@ export type Database = {
         Returns: number
       }
       get_admin_analytics: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_error_report_stats: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
