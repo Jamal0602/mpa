@@ -1,48 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, Circle, Copy, Mail, MessageSquare, Plus, Trash2, User, UserPlus, Users } from 'lucide-react';
-import { Separator } from "@/components/ui/separator"
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar, Check, Clock, FileText, Filter, Loader2, RefreshCw, ScrollText, Search, Upload, User2, XCircle } from "lucide-react";
+import { format } from "date-fns";
+import { EmployeeStatus } from "@/components/employee/EmployeeStatus";
+import { LoadingSpinner } from "@/components/ui/loading";
 
 interface Employee {
   id: string;
@@ -134,7 +108,6 @@ const EmployeeDashboard: React.FC = () => {
       if (data && data.success) {
         toast.success('Invitation sent successfully!');
         handleCloseInviteModal();
-        // Refresh employees list
         const { data: updatedEmployees, error: refreshError } = await supabase
           .from('employees')
           .select('*')
@@ -391,7 +364,6 @@ const EmployeeDashboard: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Invite Employee Modal */}
       <Dialog open={isInviteModalOpen} onOpenChange={handleCloseInviteModal}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

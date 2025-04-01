@@ -1,1368 +1,1389 @@
 
 import { useState, useEffect } from "react";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from "@/lib/supabase";
-import { LoadingPage, LoadingSpinner } from "@/components/ui/loading";
-import { 
-  Users, ShoppingBag, CreditCard, Bell, FileText, Upload, Settings, 
-  UserCog, Shield, Database, BarChart2, RefreshCw, CheckCircle, 
-  XCircle, AlertTriangle, User, Globe
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { toast } from "sonner";
+import { LoadingSpinner } from "@/components/ui/loading";
+import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BarChart3, CheckCircle, ShieldAlert, Trash2, UserCog, XCircle, Settings, FileText, Users, Bell, Upload, Briefcase, Database, Search, Eye, EyeOff, Edit, Save, RefreshCw, Loader2, Download, Filter, CheckSquare, Share2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomBadge } from "@/components/ui/custom-badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
-interface UserProfile {
-  id: string;
-  username: string;
-  avatar_url: string | null;
-  full_name: string | null;
-  mpa_id: string;
-  key_points: number;
-  role: string;
-  last_login: string;
-}
+// Function to get status badge variant
+const getStatusBadgeVariant = (status: string) => {
+  switch (status) {
+    case "active":
+      return "success";
+    case "pending":
+      return "warning";
+    case "blocked":
+      return "destructive";
+    default:
+      return "secondary";
+  }
+};
 
-interface ProjectItem {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  created_at: string;
-  owner_id: string;
-  owner_name?: string;
-}
+// Function to get verification badge variant
+const getVerificationBadgeVariant = (status: string) => {
+  switch (status) {
+    case "verified":
+      return "success";
+    case "pending":
+      return "warning";
+    case "rejected":
+      return "destructive";
+    default:
+      return "secondary";
+  }
+};
 
-interface ErrorReport {
-  id: string;
-  user_id: string;
-  user_name?: string;
-  title: string;
-  description: string;
-  status: string;
-  created_at: string;
-  page_url: string;
-  severity: string;
-  resolved_at: string | null;
-  resolution_notes: string | null;
-}
-
+// Main component
 const AdminPanel = () => {
   const navigate = useNavigate();
-  const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [errorReports, setErrorReports] = useState<ErrorReport[]>([]);
+  const { user, profile } = useAuth();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState({
-    users: true,
-    projects: true,
-    errors: true
-  });
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
-  const [isErrorDialogOpen, setIsErrorDialogOpen] = useState(false);
-  const [selectedError, setSelectedError] = useState<ErrorReport | null>(null);
-  const [selectedRole, setSelectedRole] = useState<string>("");
-  const [pointsToAdd, setPointsToAdd] = useState<number>(0);
-  const [resolutionNotes, setResolutionNotes] = useState<string>("");
-  const [analyticsData, setAnalyticsData] = useState({
-    totalUsers: 0,
-    activeUsers: 0,
-    totalOrders: 0,
-    recentOrders: 0,
-    totalEmployees: 0
-  });
-  const [refreshing, setRefreshing] = useState({
-    users: false,
-    projects: false,
-    errors: false,
-    analytics: false
+  const [userStatusFilter, setUserStatusFilter] = useState("all");
+  const [pageNumber, setPageNumber] = useState(1);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [reportFilter, setReportFilter] = useState("all");
+  const [isEditingSettings, setIsEditingSettings] = useState(false);
+  const [systemSettings, setSystemSettings] = useState({
+    maintenance_mode: false,
+    require_email_verification: true,
+    allow_social_login: true,
+    max_upload_size_mb: 10,
+    default_user_role: "member",
+    enable_analytics: true
   });
   
-  // Fetch admin analytics
-  const fetchAnalytics = async () => {
-    try {
-      setRefreshing({...refreshing, analytics: true});
+  const itemsPerPage = 10;
+
+  // Fetch admin analytics data
+  const { data: analytics, isLoading: isLoadingAnalytics, refetch: refetchAnalytics } = useQuery({
+    queryKey: ['admin-analytics'],
+    queryFn: async () => {
       const { data, error } = await supabase.rpc('get_admin_analytics');
       
-      if (error) {
-        throw error;
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch users with pagination and filtering
+  const { data: usersData, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
+    queryKey: ['admin-users', pageNumber, searchQuery, userStatusFilter],
+    queryFn: async () => {
+      let query = supabase
+        .from('profiles')
+        .select('*', { count: 'exact' });
+      
+      // Apply search filter
+      if (searchQuery) {
+        query = query.or(`username.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`);
       }
       
-      setAnalyticsData(data);
-    } catch (error: any) {
-      console.error("Error fetching analytics:", error);
-      toast.error(`Failed to load analytics: ${error.message}`);
-    } finally {
-      setRefreshing({...refreshing, analytics: false});
-    }
-  };
-  
-  useEffect(() => {
-    if (!isAdminLoading && !isAdmin) {
-      toast.error("🔒 Admin access required");
-      navigate('/dashboard');
-    } else if (isAdmin) {
-      fetchAnalytics();
-    }
-  }, [isAdmin, isAdminLoading, navigate]);
-
-  // Set up realtime subscriptions
-  useEffect(() => {
-    if (!isAdmin) return;
-    
-    const usersChannel = supabase
-      .channel('admin-dashboard-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'profiles' },
-        (payload) => {
-          fetchUsers();
-        }
-      )
-      .subscribe();
+      // Apply status filter
+      if (userStatusFilter !== 'all') {
+        query = query.eq('status', userStatusFilter);
+      }
       
-    const projectsChannel = supabase
-      .channel('projects-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'projects' },
-        (payload) => {
-          fetchProjects();
-        }
-      )
-      .subscribe();
+      // Apply pagination
+      const from = (pageNumber - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
       
-    const errorsChannel = supabase
-      .channel('errors-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'error_reports' },
-        (payload) => {
-          fetchErrorReports();
-        }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(usersChannel);
-      supabase.removeChannel(projectsChannel);
-      supabase.removeChannel(errorsChannel);
-    };
-  }, [isAdmin]);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading({...loading, users: true});
-      setRefreshing({...refreshing, users: true});
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
       
       if (error) throw error;
-      setUsers(data || []);
-    } catch (error: any) {
-      console.error("Error fetching users:", error);
-      toast.error(`Failed to load users: ${error.message}`);
-    } finally {
-      setLoading({...loading, users: false});
-      setRefreshing({...refreshing, users: false});
-    }
-  };
-
-  const fetchProjects = async () => {
-    try {
-      setLoading({...loading, projects: true});
-      setRefreshing({...refreshing, projects: true});
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
       
-      // Get owner names
-      const projectsWithOwners = await Promise.all(
-        (data || []).map(async (project) => {
-          const { data: ownerData } = await supabase
-            .from('profiles')
-            .select('username, full_name')
-            .eq('id', project.owner_id)
-            .single();
-            
-          return {
-            ...project,
-            owner_name: ownerData?.full_name || ownerData?.username || 'Unknown'
-          };
-        })
-      );
-      
-      setProjects(projectsWithOwners);
-    } catch (error: any) {
-      console.error("Error fetching projects:", error);
-      toast.error(`Failed to load projects: ${error.message}`);
-    } finally {
-      setLoading({...loading, projects: false});
-      setRefreshing({...refreshing, projects: false});
+      return {
+        users: data,
+        totalCount: count || 0
+      };
     }
-  };
+  });
 
-  const fetchErrorReports = async () => {
-    try {
-      setLoading({...loading, errors: true});
-      setRefreshing({...refreshing, errors: true});
-      const { data, error } = await supabase
+  // Fetch error reports
+  const { data: errorReports, isLoading: isLoadingReports, refetch: refetchReports } = useQuery({
+    queryKey: ['admin-reports', reportFilter],
+    queryFn: async () => {
+      let query = supabase
         .from('error_reports')
-        .select('*')
+        .select(`
+          *,
+          profiles:user_id (username, avatar_url)
+        `);
+      
+      // Apply status filter
+      if (reportFilter !== 'all') {
+        query = query.eq('status', reportFilter);
+      }
+      
+      const { data, error } = await query
         .order('created_at', { ascending: false });
-        
+      
       if (error) throw error;
       
-      // Get user names
-      const errorsWithUsers = await Promise.all(
-        (data || []).map(async (report) => {
-          const { data: userData } = await supabase
-            .from('profiles')
-            .select('username, full_name')
-            .eq('id', report.user_id)
-            .single();
-            
-          return {
-            ...report,
-            user_name: userData?.full_name || userData?.username || 'Unknown'
-          };
-        })
-      );
+      return data;
+    }
+  });
+
+  // Fetch upload requests
+  const { data: uploadRequests, isLoading: isLoadingUploads, refetch: refetchUploads } = useQuery({
+    queryKey: ['admin-uploads'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('upload_requests')
+        .select(`
+          *,
+          profiles:user_id (username, avatar_url)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(20);
       
-      setErrorReports(errorsWithUsers);
-    } catch (error: any) {
-      console.error("Error fetching error reports:", error);
-      toast.error(`Failed to load error reports: ${error.message}`);
-    } finally {
-      setLoading({...loading, errors: false});
-      setRefreshing({...refreshing, errors: false});
-    }
-  };
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchUsers();
-      fetchProjects();
-      fetchErrorReports();
-    }
-  }, [isAdmin]);
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    setSearchQuery("");
-  };
-
-  const handleUserClick = (user: UserProfile) => {
-    setSelectedUser(user);
-    setSelectedRole(user.role);
-    setIsUserDialogOpen(true);
-  };
-
-  const handleProjectClick = (project: ProjectItem) => {
-    setSelectedProject(project);
-    setIsProjectDialogOpen(true);
-  };
-
-  const handleErrorClick = (error: ErrorReport) => {
-    setSelectedError(error);
-    setResolutionNotes(error.resolution_notes || "");
-    setIsErrorDialogOpen(true);
-  };
-
-  const updateUserRole = async () => {
-    if (!selectedUser || selectedRole === selectedUser.role) return;
-    
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: selectedRole })
-        .eq('id', selectedUser.id);
-        
       if (error) throw error;
       
-      toast.success(`✅ User role updated to ${selectedRole}`);
-      setIsUserDialogOpen(false);
-      fetchUsers();
-    } catch (error: any) {
-      console.error("Error updating user role:", error);
-      toast.error(`Failed to update role: ${error.message}`);
+      return data;
     }
-  };
+  });
 
-  const addUserPoints = async () => {
-    if (!selectedUser || pointsToAdd === 0) return;
-    
-    try {
-      // Update the profile key_points
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ key_points: (selectedUser.key_points || 0) + pointsToAdd })
-        .eq('id', selectedUser.id);
+  // Fetch job applications
+  const { data: jobApplications, isLoading: isLoadingApplications, refetch: refetchApplications } = useQuery({
+    queryKey: ['admin-job-applications'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select(`
+          *,
+          profiles:user_id (username, avatar_url, email)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(20);
       
-      if (profileError) throw profileError;
+      if (error) throw error;
       
-      // Record the transaction
-      const { error: transactionError } = await supabase
-        .from('key_points_transactions')
-        .insert({
-          user_id: selectedUser.id,
-          amount: pointsToAdd,
-          description: `Admin adjustment: added ${pointsToAdd} points`,
-          transaction_type: 'admin'
-        });
-      
-      if (transactionError) throw transactionError;
-      
-      toast.success(`✅ Added ${pointsToAdd} Spark Points to user`);
-      setPointsToAdd(0);
-      fetchUsers();
-    } catch (error: any) {
-      console.error("Error adding points:", error);
-      toast.error(`Failed to add points: ${error.message}`);
+      return data;
     }
-  };
+  });
 
-  const updateProjectStatus = async (newStatus: string) => {
-    if (!selectedProject) return;
-    
-    try {
+  // Fetch system settings
+  const { data: fetchedSettings, isLoading: isLoadingSettings, refetch: refetchSettings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*')
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      return data || {
+        maintenance_mode: false,
+        require_email_verification: true,
+        allow_social_login: true,
+        max_upload_size_mb: 10,
+        default_user_role: "member",
+        enable_analytics: true
+      };
+    },
+    onSuccess: (data) => {
+      if (data) {
+        setSystemSettings(data);
+      }
+    }
+  });
+
+  // Update user role mutation
+  const updateUserRole = useMutation({
+    mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
       const { error } = await supabase
-        .from('projects')
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success('User role updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update user role: ${error.message}`);
+    }
+  });
+
+  // Update user status mutation
+  const updateUserStatus = useMutation({
+    mutationFn: async ({ userId, newStatus }: { userId: string, newStatus: string }) => {
+      const { error } = await supabase
+        .from('profiles')
         .update({ status: newStatus })
-        .eq('id', selectedProject.id);
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast.success('User status updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update user status: ${error.message}`);
+    }
+  });
+
+  // Update error report status mutation
+  const updateReportStatus = useMutation({
+    mutationFn: async ({ reportId, newStatus, notes }: { reportId: string, newStatus: string, notes?: string }) => {
+      const { error } = await supabase.rpc('update_error_report_status', {
+        report_id: reportId,
+        new_status: newStatus,
+        resolution_notes: notes
+      });
+      
+      if (error) throw error;
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-reports'] });
+      toast.success('Report status updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update report status: ${error.message}`);
+    }
+  });
+
+  // Update upload request status mutation
+  const updateUploadStatus = useMutation({
+    mutationFn: async ({ requestId, newStatus }: { requestId: string, newStatus: string }) => {
+      const { error } = await supabase
+        .from('upload_requests')
+        .update({ status: newStatus })
+        .eq('id', requestId);
+      
+      if (error) throw error;
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-uploads'] });
+      toast.success('Upload request updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update upload request: ${error.message}`);
+    }
+  });
+
+  // Update job application status mutation
+  const updateApplicationStatus = useMutation({
+    mutationFn: async ({ applicationId, newStatus }: { applicationId: string, newStatus: string }) => {
+      const { error } = await supabase
+        .from('job_applications')
+        .update({ status: newStatus })
+        .eq('id', applicationId);
+      
+      if (error) throw error;
+      
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-job-applications'] });
+      toast.success('Application status updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update application status: ${error.message}`);
+    }
+  });
+
+  // Update system settings mutation
+  const updateSystemSettings = useMutation({
+    mutationFn: async (settings: typeof systemSettings) => {
+      let { data: existingSettings } = await supabase
+        .from('system_settings')
+        .select('id')
+        .single();
+      
+      let result;
+      
+      if (existingSettings) {
+        // Update existing settings
+        const { data, error } = await supabase
+          .from('system_settings')
+          .update(settings)
+          .eq('id', existingSettings.id);
         
-      if (error) throw error;
+        if (error) throw error;
+        result = data;
+      } else {
+        // Insert new settings
+        const { data, error } = await supabase
+          .from('system_settings')
+          .insert([settings])
+          .select()
+          .single();
+        
+        if (error) throw error;
+        result = data;
+      }
       
-      toast.success(`✅ Project status updated to ${newStatus}`);
-      setIsProjectDialogOpen(false);
-      fetchProjects();
-    } catch (error: any) {
-      console.error("Error updating project status:", error);
-      toast.error(`Failed to update status: ${error.message}`);
+      return result;
+    },
+    onSuccess: () => {
+      setIsEditingSettings(false);
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      toast.success('System settings updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to update system settings: ${error.message}`);
     }
+  });
+
+  // Set up real-time subscription for updates
+  useEffect(() => {
+    const subscription = supabase
+      .channel('admin-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        refetchUsers();
+        refetchAnalytics();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'error_reports' }, () => {
+        refetchReports();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'upload_requests' }, () => {
+        refetchUploads();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'job_applications' }, () => {
+        refetchApplications();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [refetchUsers, refetchAnalytics, refetchReports, refetchUploads, refetchApplications]);
+
+  // Handle saving system settings
+  const handleSaveSettings = () => {
+    updateSystemSettings.mutate(systemSettings);
   };
 
-  const resolveErrorReport = async (newStatus: string) => {
-    if (!selectedError) return;
-    
-    try {
-      const { error } = await supabase.rpc(
-        'update_error_report_status',
-        { 
-          report_id: selectedError.id,
-          new_status: newStatus,
-          resolution_notes: resolutionNotes
-        }
-      );
-      
-      if (error) throw error;
-      
-      toast.success(`✅ Error report marked as ${newStatus}`);
-      setIsErrorDialogOpen(false);
-      fetchErrorReports();
-    } catch (error: any) {
-      console.error("Error resolving error report:", error);
-      toast.error(`Failed to resolve error: ${error.message}`);
-    }
-  };
+  // Pagination controls
+  const totalPages = usersData ? Math.ceil(usersData.totalCount / itemsPerPage) : 0;
 
-  const filteredUsers = users.filter(user => 
-    user.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.mpa_id?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredProjects = projects.filter(project => 
-    project.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.owner_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredErrors = errorReports.filter(error => 
-    error.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    error.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    error.user_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  if (isAdminLoading) {
-    return <LoadingPage />;
+  if (isLoadingAnalytics) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
-
-  if (!isAdmin) {
-    return null; // Will redirect in useEffect
-  }
-
-  const renderUserDetails = (user: UserProfile) => (
-    <div className="p-4 border rounded-lg hover:shadow-md transition-all flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="bg-primary text-primary-foreground w-10 h-10 rounded-full flex items-center justify-center">
-          <User className="h-6 w-6" />
-        </div>
-        <div>
-          <h3 className="font-medium">{user.full_name || user.username}</h3>
-          <div className="flex gap-2 text-xs text-muted-foreground">
-            <span>{user.mpa_id}</span>
-            <span>•</span>
-            <span>{new Date(user.last_login).toLocaleDateString()}</span>
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <Badge variant={
-          user.role === 'admin' ? 'destructive' : 
-          user.role === 'moderator' ? 'default' : 
-          'secondary'
-        }>
-          {user.role === 'admin' ? '👑 ' : user.role === 'moderator' ? '🛡️ ' : '👤 '}
-          {user.role}
-        </Badge>
-        <Badge variant="outline">✨ {user.key_points}</Badge>
-        <Button size="sm" variant="ghost" onClick={() => handleUserClick(user)}>
-          Manage
-        </Button>
-      </div>
-    </div>
-  );
-
-  const renderProjectItem = (project: ProjectItem) => (
-    <div className="p-4 border rounded-lg hover:shadow-md transition-all flex items-center justify-between">
-      <div>
-        <h3 className="font-medium">{project.title}</h3>
-        <div className="flex gap-2 text-xs text-muted-foreground">
-          <span>By: {project.owner_name}</span>
-          <span>•</span>
-          <span>{new Date(project.created_at).toLocaleDateString()}</span>
-        </div>
-        <p className="text-sm line-clamp-1 mt-1">{project.description}</p>
-      </div>
-      <div className="flex items-center gap-3">
-        <Badge variant={
-          project.status === 'active' ? 'default' : 
-          project.status === 'completed' ? 'success' : 
-          project.status === 'pending' ? 'warning' : 
-          'secondary'
-        }>
-          {project.status === 'active' ? '🟢 ' : 
-           project.status === 'completed' ? '✅ ' : 
-           project.status === 'pending' ? '⏳ ' : 
-           project.status === 'cancelled' ? '❌ ' : ''}
-          {project.status}
-        </Badge>
-        <Button size="sm" variant="ghost" onClick={() => handleProjectClick(project)}>
-          Manage
-        </Button>
-      </div>
-    </div>
-  );
-
-  const renderErrorReport = (error: ErrorReport) => (
-    <div className="p-4 border rounded-lg hover:shadow-md transition-all">
-      <div className="flex justify-between">
-        <div>
-          <h3 className="font-medium">{error.title}</h3>
-          <div className="flex gap-2 text-xs text-muted-foreground">
-            <span>By: {error.user_name}</span>
-            <span>•</span>
-            <span>{new Date(error.created_at).toLocaleDateString()}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={
-            error.severity === 'high' ? 'destructive' : 
-            error.severity === 'medium' ? 'warning' : 
-            'secondary'
-          }>
-            {error.severity === 'high' ? '🔴 ' : 
-             error.severity === 'medium' ? '🟠 ' : 
-             '🟢 '}
-            {error.severity}
-          </Badge>
-          <Badge variant={
-            error.status === 'resolved' ? 'success' : 
-            error.status === 'in_progress' ? 'default' : 
-            'outline'
-          }>
-            {error.status === 'resolved' ? '✅ ' : 
-             error.status === 'in_progress' ? '🔧 ' : 
-             '🔔 '}
-            {error.status.replace('_', ' ')}
-          </Badge>
-        </div>
-      </div>
-      <p className="text-sm mt-2 line-clamp-2">{error.description}</p>
-      <div className="flex justify-between items-center mt-3">
-        <div className="text-xs text-muted-foreground">
-          <span>Page: {error.page_url}</span>
-        </div>
-        <Button size="sm" variant="ghost" onClick={() => handleErrorClick(error)}>
-          Manage
-        </Button>
-      </div>
-    </div>
-  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row gap-6 lg:items-center justify-between">
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col items-start gap-4 md:flex-row md:justify-between md:items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Shield className="h-8 w-8 text-primary" />
-            Admin Control Center
-          </h1>
-          <p className="text-muted-foreground">
-            Manage users, projects, and system settings
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Admin Panel</h1>
+          <p className="text-muted-foreground">Manage your application and users.</p>
         </div>
-        
-        <div className="flex flex-wrap gap-3">
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2"
-            onClick={fetchAnalytics}
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing.analytics ? "animate-spin" : ""}`} />
-            Refresh Stats
-          </Button>
-          
-          <Button 
-            variant="default"
-            onClick={() => navigate('/analytics')}
-            className="flex items-center gap-2"
-          >
-            <BarChart2 className="h-4 w-4" />
-            Full Analytics
-          </Button>
-        </div>
+        <Button onClick={() => refetchAnalytics()} className="shrink-0">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh Data
+        </Button>
       </div>
-      
-      {/* Dashboard Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">👥 Total Users</p>
-                <h3 className="text-2xl font-bold">{analyticsData.totalUsers}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {analyticsData.activeUsers} active this week
-                </p>
-              </div>
-              <Users className="h-8 w-8 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">🛒 Projects</p>
-                <h3 className="text-2xl font-bold">{analyticsData.totalOrders}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {analyticsData.recentOrders} new this week
-                </p>
-              </div>
-              <ShoppingBag className="h-8 w-8 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">🧑‍💼 Employees</p>
-                <h3 className="text-2xl font-bold">{analyticsData.totalEmployees}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Active team members
-                </p>
-              </div>
-              <UserCog className="h-8 w-8 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">🔔 Error Reports</p>
-                <h3 className="text-2xl font-bold">{errorReports.length}</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {errorReports.filter(e => e.status !== 'resolved').length} unresolved
-                </p>
-              </div>
-              <Bell className="h-8 w-8 text-primary opacity-80" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Tabs defaultValue="dashboard" value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="dashboard" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            <span className="hidden sm:inline">Dashboard</span>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full grid grid-cols-2 md:grid-cols-5 lg:w-auto">
+          <TabsTrigger value="overview" className="flex items-center">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            <span>Overview</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span className="hidden sm:inline">Users</span>
+          <TabsTrigger value="users" className="flex items-center">
+            <Users className="mr-2 h-4 w-4" />
+            <span>Users</span>
           </TabsTrigger>
-          <TabsTrigger value="projects" className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4" />
-            <span className="hidden sm:inline">Projects</span>
+          <TabsTrigger value="reports" className="flex items-center">
+            <Bell className="mr-2 h-4 w-4" />
+            <span>Reports</span>
           </TabsTrigger>
-          <TabsTrigger value="errors" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Error Reports</span>
+          <TabsTrigger value="uploads" className="flex items-center">
+            <Upload className="mr-2 h-4 w-4" />
+            <span>Uploads</span>
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Settings</span>
+          <TabsTrigger value="settings" className="flex items-center">
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Settings</span>
           </TabsTrigger>
         </TabsList>
-        
-        <div className="flex mb-4">
-          <Input
-            placeholder={`Search ${activeTab}...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="max-w-sm"
-          />
-          <Button 
-            variant="outline" 
-            className="ml-2"
-            onClick={() => {
-              if (activeTab === "users") fetchUsers();
-              if (activeTab === "projects") fetchProjects();
-              if (activeTab === "errors") fetchErrorReports();
-            }}
-          >
-            <RefreshCw className={`h-4 w-4 ${
-              (activeTab === "users" && refreshing.users) ||
-              (activeTab === "projects" && refreshing.projects) ||
-              (activeTab === "errors" && refreshing.errors)
-                ? "animate-spin"
-                : ""
-            }`} />
-          </Button>
-        </div>
-        
-        <TabsContent value="dashboard">
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Activity Chart */}
-            <Card className="col-span-2 md:col-span-1">
-              <CardHeader>
-                <CardTitle>📊 User Activity</CardTitle>
-                <CardDescription>Last 7 days user registration</CardDescription>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart 
-                    data={[
-                      { name: 'Mon', users: 4 },
-                      { name: 'Tue', users: 3 },
-                      { name: 'Wed', users: 5 },
-                      { name: 'Thu', users: 7 },
-                      { name: 'Fri', users: 2 },
-                      { name: 'Sat', users: 6 },
-                      { name: 'Sun', users: 8 }
-                    ]}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="users" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            
-            {/* System Status */}
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
-              <CardHeader>
-                <CardTitle>💻 System Status</CardTitle>
-                <CardDescription>Current platform health</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center">
-                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                      Authentication
-                    </span>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300">
-                      Operational
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center">
-                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                      Database
-                    </span>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300">
-                      Operational
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center">
-                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                      Storage
-                    </span>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300">
-                      Operational
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center">
-                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                      API Services
-                    </span>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900 dark:text-green-300">
-                      Operational
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="flex items-center">
-                      <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2" />
-                      Payment Gateway
-                    </span>
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
-                      Degraded
-                    </Badge>
+                <div className="text-2xl font-bold">{analytics?.totalUsers || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {analytics?.activeUsers || 0} active in the last 7 days
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Key Points Spent</CardTitle>
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics?.totalOrders || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {analytics?.recentOrders || 0} in the last 7 days
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Employee Access</CardTitle>
+                <UserCog className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics?.totalEmployees || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  Total approved employees
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">System Status</CardTitle>
+                <Settings className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <div className={`h-3 w-3 rounded-full mr-2 ${systemSettings.maintenance_mode ? 'bg-destructive' : 'bg-green-500'}`}></div>
+                  <div className="text-sm font-medium">
+                    {systemSettings.maintenance_mode ? 'Maintenance Mode' : 'Operational'}
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {systemSettings.maintenance_mode 
+                    ? 'System is in maintenance mode' 
+                    : 'All systems operational'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="col-span-1">
+              <CardHeader>
+                <CardTitle>Recent Error Reports</CardTitle>
+                <CardDescription>Latest issues reported by users</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingReports ? (
+                  <div className="flex justify-center p-4">
+                    <LoadingSpinner />
+                  </div>
+                ) : errorReports && errorReports.length > 0 ? (
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-4">
+                      {errorReports.slice(0, 5).map((report) => (
+                        <div key={report.id} className="flex items-start gap-4 p-3 border rounded-lg">
+                          <div className={`h-2 w-2 rounded-full mt-2 ${
+                            report.status === 'resolved' ? 'bg-green-500' : 
+                            report.status === 'in_progress' ? 'bg-yellow-500' : 'bg-red-500'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-medium truncate">{report.title}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  By {report.profiles?.username || 'Anonymous'} • {format(new Date(report.created_at), 'MMM d, yyyy')}
+                                </p>
+                              </div>
+                              <CustomBadge variant={
+                                report.status === 'resolved' ? 'success' : 
+                                report.status === 'in_progress' ? 'warning' : 'destructive'
+                              }>
+                                {report.status.replace('_', ' ')}
+                              </CustomBadge>
+                            </div>
+                            <p className="text-sm mt-1 truncate">{report.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No error reports found
+                  </div>
+                )}
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
-                  View Full Status
+                <Button variant="outline" className="w-full" onClick={() => setActiveTab("reports")}>
+                  View All Reports
                 </Button>
               </CardFooter>
             </Card>
-            
-            {/* Recent Activity */}
-            <Card className="col-span-2">
+
+            <Card className="col-span-1">
               <CardHeader>
-                <CardTitle>🕒 Recent Activity</CardTitle>
-                <CardDescription>Latest system events</CardDescription>
+                <CardTitle>Recent Uploads</CardTitle>
+                <CardDescription>Latest content upload requests</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center">
-                    <Badge className="mr-2" variant="outline">👤</Badge>
-                    <span>New user registration - <span className="font-medium">john.doe</span></span>
-                    <span className="ml-auto text-xs text-muted-foreground">2 min ago</span>
+                {isLoadingUploads ? (
+                  <div className="flex justify-center p-4">
+                    <LoadingSpinner />
                   </div>
-                  
-                  <div className="flex items-center">
-                    <Badge className="mr-2" variant="outline">📝</Badge>
-                    <span>Project status updated - <span className="font-medium">Website Redesign</span></span>
-                    <span className="ml-auto text-xs text-muted-foreground">15 min ago</span>
+                ) : uploadRequests && uploadRequests.length > 0 ? (
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-4">
+                      {uploadRequests.slice(0, 5).map((upload) => (
+                        <div key={upload.id} className="flex items-start gap-4 p-3 border rounded-lg">
+                          <div className={`h-2 w-2 rounded-full mt-2 ${
+                            upload.status === 'approved' ? 'bg-green-500' : 
+                            upload.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-medium truncate">{upload.file_name}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  By {upload.profiles?.username || 'Unknown'} • {format(new Date(upload.created_at), 'MMM d, yyyy')}
+                                </p>
+                              </div>
+                              <CustomBadge variant={
+                                upload.status === 'approved' ? 'success' : 
+                                upload.status === 'pending' ? 'warning' : 'destructive'
+                              }>
+                                {upload.status}
+                              </CustomBadge>
+                            </div>
+                            <p className="text-sm mt-1">{(upload.file_size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No upload requests found
                   </div>
-                  
-                  <div className="flex items-center">
-                    <Badge className="mr-2" variant="outline">✨</Badge>
-                    <span>Points awarded to user - <span className="font-medium">alice.smith</span></span>
-                    <span className="ml-auto text-xs text-muted-foreground">1 hour ago</span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <Badge className="mr-2" variant="outline">🔔</Badge>
-                    <span>Error report resolved - <span className="font-medium">#ERR-2023-06</span></span>
-                    <span className="ml-auto text-xs text-muted-foreground">3 hours ago</span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <Badge className="mr-2" variant="outline">🚀</Badge>
-                    <span>New project created - <span className="font-medium">Mobile App Development</span></span>
-                    <span className="ml-auto text-xs text-muted-foreground">Yesterday</span>
-                  </div>
-                </div>
+                )}
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">View All Activity</Button>
+                <Button variant="outline" className="w-full" onClick={() => setActiveTab("uploads")}>
+                  View All Uploads
+                </Button>
               </CardFooter>
             </Card>
           </div>
         </TabsContent>
-        
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>👥 User Management</CardTitle>
-              <CardDescription>View and manage user accounts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading.users ? (
-                <div className="flex justify-center py-8">
-                  <LoadingSpinner />
-                </div>
-              ) : filteredUsers.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredUsers.map(user => renderUserDetails(user))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  {searchQuery ? "No users found matching your search" : "No users found"}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="projects">
-          <Card>
-            <CardHeader>
-              <CardTitle>🚀 Project Management</CardTitle>
-              <CardDescription>Monitor and manage projects</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading.projects ? (
-                <div className="flex justify-center py-8">
-                  <LoadingSpinner />
-                </div>
-              ) : filteredProjects.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredProjects.map(project => renderProjectItem(project))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  {searchQuery ? "No projects found matching your search" : "No projects found"}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="errors">
-          <Card>
-            <CardHeader>
-              <CardTitle>🔔 Error Reports</CardTitle>
-              <CardDescription>Review and resolve user-reported issues</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading.errors ? (
-                <div className="flex justify-center py-8">
-                  <LoadingSpinner />
-                </div>
-              ) : filteredErrors.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredErrors.map(error => renderErrorReport(error))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  {searchQuery ? "No error reports found matching your search" : "No error reports found"}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="settings">
-          <Card>
-            <CardHeader>
-              <CardTitle>⚙️ System Settings</CardTitle>
-              <CardDescription>Configure platform settings</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="registration">
-                  <AccordionTrigger>👤 User Registration</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Open Registration</h4>
-                          <p className="text-sm text-muted-foreground">Allow new users to sign up</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Email Verification</h4>
-                          <p className="text-sm text-muted-foreground">Require email verification for new accounts</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Default User Role</h4>
-                          <p className="text-sm text-muted-foreground">Set the default role for new users</p>
-                        </div>
-                        <Select defaultValue="user">
-                          <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="employee">Employee</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                
-                <AccordionItem value="payments">
-                  <AccordionTrigger>💳 Payment Settings</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Enable Payments</h4>
-                          <p className="text-sm text-muted-foreground">Accept payments on the platform</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Payment Gateway</h4>
-                          <p className="text-sm text-muted-foreground">Select active payment provider</p>
-                        </div>
-                        <Select defaultValue="stripe">
-                          <SelectTrigger className="w-32">
-                            <SelectValue placeholder="Select gateway" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="stripe">Stripe</SelectItem>
-                            <SelectItem value="paypal">PayPal</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Payment Verification</h4>
-                          <p className="text-sm text-muted-foreground">Manual approval for transactions</p>
-                        </div>
-                        <Switch />
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                
-                <AccordionItem value="uploads">
-                  <AccordionTrigger>📤 Upload Settings</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Enable Uploads</h4>
-                          <p className="text-sm text-muted-foreground">Allow users to upload files</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Max File Size</h4>
-                          <p className="text-sm text-muted-foreground">Maximum upload size in MB</p>
-                        </div>
-                        <Input type="number" defaultValue="10" className="w-24" />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Allowed File Types</h4>
-                          <p className="text-sm text-muted-foreground">File extensions that can be uploaded</p>
-                        </div>
-                        <Input defaultValue="jpg,png,pdf,doc,docx" className="w-64" />
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                
-                <AccordionItem value="pricing">
-                  <AccordionTrigger>✨ Spark Points Economy</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Default Points for New Users</h4>
-                          <p className="text-sm text-muted-foreground">Starting points for new accounts</p>
-                        </div>
-                        <Input type="number" defaultValue="10" className="w-24" />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Points for Each Upload</h4>
-                          <p className="text-sm text-muted-foreground">Cost in points per upload</p>
-                        </div>
-                        <Input type="number" defaultValue="5" className="w-24" />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Referral Bonus</h4>
-                          <p className="text-sm text-muted-foreground">Points awarded for referring a new user</p>
-                        </div>
-                        <Input type="number" defaultValue="15" className="w-24" />
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                
-                <AccordionItem value="notifications">
-                  <AccordionTrigger>🔔 Notification Settings</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Email Notifications</h4>
-                          <p className="text-sm text-muted-foreground">Send emails for important events</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Admin Alerts</h4>
-                          <p className="text-sm text-muted-foreground">Send notifications to admins for critical events</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">User Activity Notifications</h4>
-                          <p className="text-sm text-muted-foreground">Notify users about account activity</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-                
-                <AccordionItem value="api">
-                  <AccordionTrigger>🔌 API Settings</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Enable API Access</h4>
-                          <p className="text-sm text-muted-foreground">Allow API access to the platform</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">Rate Limiting</h4>
-                          <p className="text-sm text-muted-foreground">Max requests per minute</p>
-                        </div>
-                        <Input type="number" defaultValue="60" className="w-24" />
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">API Key Management</h4>
-                          <p className="text-sm text-muted-foreground">Configure API keys</p>
-                        </div>
-                        <Button variant="outline" size="sm">Manage Keys</Button>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-              
-              <div className="mt-6 flex justify-end gap-2">
-                <Button variant="outline">Reset Defaults</Button>
-                <Button>Save Changes</Button>
+
+        {/* Users Tab */}
+        <TabsContent value="users" className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div className="flex flex-1 gap-2">
+              <div className="relative w-full sm:max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search users..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
+              <Select
+                value={userStatusFilter}
+                onValueChange={setUserStatusFilter}
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="blocked">Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline">
+                <Filter className="mr-2 h-4 w-4" />
+                Advanced Filters
+              </Button>
+              <Button>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>Manage user accounts, roles, and permissions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingUsers ? (
+                <div className="flex justify-center p-8">
+                  <LoadingSpinner />
+                </div>
+              ) : usersData && usersData.users.length > 0 ? (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {usersData.users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar>
+                                <AvatarImage src={user.avatar_url || undefined} alt={user.username || "User"} />
+                                <AvatarFallback>
+                                  {user.username?.[0]?.toUpperCase() || user.full_name?.[0]?.toUpperCase() || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{user.username || "Anonymous"}</span>
+                                <span className="text-xs text-muted-foreground">{user.username || user.email}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <CustomBadge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
+                              {user.role || 'member'}
+                            </CustomBadge>
+                          </TableCell>
+                          <TableCell>
+                            <CustomBadge 
+                              variant={getStatusBadgeVariant(user.status || 'pending')}
+                            >
+                              {user.status || 'pending'}
+                            </CustomBadge>
+                          </TableCell>
+                          <TableCell>
+                            {user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : 'Unknown'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Settings className="h-4 w-4" />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => navigate(`/account?userId=${user.id}`)}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View Profile
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => updateUserRole.mutate({ 
+                                    userId: user.id, 
+                                    newRole: user.role === 'admin' ? 'member' : 'admin' 
+                                  })}
+                                >
+                                  <UserCog className="mr-2 h-4 w-4" />
+                                  Toggle Admin
+                                </DropdownMenuItem>
+                                {user.status !== 'blocked' ? (
+                                  <DropdownMenuItem 
+                                    onClick={() => updateUserStatus.mutate({ 
+                                      userId: user.id, 
+                                      newStatus: 'blocked' 
+                                    })}
+                                    className="text-destructive"
+                                  >
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    Block User
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem 
+                                    onClick={() => updateUserStatus.mutate({ 
+                                      userId: user.id, 
+                                      newStatus: 'active' 
+                                    })}
+                                  >
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Unblock User
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No users found matching your criteria
+                </div>
+              )}
             </CardContent>
+            <CardFooter className="flex items-center justify-center">
+              {usersData && usersData.totalCount > 0 && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                        disabled={pageNumber === 1}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageToRender = (() => {
+                        if (totalPages <= 5) return i + 1;
+                        if (pageNumber <= 3) return i + 1;
+                        if (pageNumber >= totalPages - 2) return totalPages - 4 + i;
+                        return pageNumber - 2 + i;
+                      })();
+                      
+                      return (
+                        <PaginationItem key={i}>
+                          <PaginationLink
+                            onClick={() => setPageNumber(pageToRender)}
+                            isActive={pageNumber === pageToRender}
+                          >
+                            {pageToRender}
+                          </PaginationLink>
+                        </PaginationItem>
+                      );
+                    })}
+                    {totalPages > 5 && pageNumber < totalPages - 2 && (
+                      <PaginationItem>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )}
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setPageNumber(Math.min(totalPages, pageNumber + 1))}
+                        disabled={pageNumber === totalPages}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        {/* Reports Tab */}
+        <TabsContent value="reports" className="space-y-4">
+          <div className="flex justify-between gap-2">
+            <Select
+              value={reportFilter}
+              onValueChange={setReportFilter}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Reports</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={() => refetchReports()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Error Reports</CardTitle>
+              <CardDescription>View and manage user-reported issues</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingReports ? (
+                <div className="flex justify-center p-8">
+                  <LoadingSpinner />
+                </div>
+              ) : errorReports && errorReports.length > 0 ? (
+                <ScrollArea className="h-[600px]">
+                  <div className="space-y-4">
+                    {errorReports.map((report) => (
+                      <Card key={report.id}>
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between">
+                            <div className="flex items-center gap-2">
+                              <CustomBadge variant={
+                                report.status === 'resolved' ? 'success' : 
+                                report.status === 'in_progress' ? 'warning' : 'destructive'
+                              }>
+                                {report.status.replace('_', ' ')}
+                              </CustomBadge>
+                              <CardTitle className="text-lg">{report.title}</CardTitle>
+                            </div>
+                            <CustomBadge variant="outline">
+                              {report.severity || 'medium'}
+                            </CustomBadge>
+                          </div>
+                          <CardDescription>
+                            Reported by {report.profiles?.username || 'Anonymous'} 
+                            on {format(new Date(report.created_at), 'MMM d, yyyy')}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <p className="text-sm">{report.description}</p>
+                            {report.resolution_notes && (
+                              <div className="mt-4 p-3 bg-muted rounded-md">
+                                <h4 className="text-sm font-medium">Resolution Notes:</h4>
+                                <p className="text-sm">{report.resolution_notes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-end gap-2">
+                          {report.status !== 'in_progress' && report.status !== 'resolved' && (
+                            <Button
+                              variant="outline"
+                              onClick={() => updateReportStatus.mutate({
+                                reportId: report.id,
+                                newStatus: 'in_progress'
+                              })}
+                            >
+                              Start Working
+                            </Button>
+                          )}
+                          {report.status !== 'resolved' && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="default">
+                                  <CheckSquare className="mr-2 h-4 w-4" />
+                                  Mark as Resolved
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Resolve Issue</DialogTitle>
+                                  <DialogDescription>
+                                    Add resolution notes for this error report.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="notes">Resolution Notes</Label>
+                                    <textarea
+                                      id="notes"
+                                      className="w-full min-h-[100px] p-2 border rounded-md"
+                                      placeholder="Explain how the issue was resolved..."
+                                    />
+                                  </div>
+                                </div>
+                                <DialogFooter>
+                                  <Button
+                                    type="submit"
+                                    onClick={() => {
+                                      const notes = (document.getElementById('notes') as HTMLTextAreaElement).value;
+                                      updateReportStatus.mutate({
+                                        reportId: report.id,
+                                        newStatus: 'resolved',
+                                        notes
+                                      });
+                                    }}
+                                  >
+                                    {updateReportStatus.isPending ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Saving...
+                                      </>
+                                    ) : (
+                                      'Save Resolution'
+                                    )}
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No error reports found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Uploads Tab */}
+        <TabsContent value="uploads" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Content Upload Requests</CardTitle>
+              <CardDescription>Review and approve user uploads</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingUploads ? (
+                <div className="flex justify-center p-8">
+                  <LoadingSpinner />
+                </div>
+              ) : uploadRequests && uploadRequests.length > 0 ? (
+                <div className="space-y-4">
+                  {uploadRequests.map((upload) => (
+                    <Card key={upload.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <CustomBadge variant={
+                                upload.status === 'approved' ? 'success' : 
+                                upload.status === 'pending' ? 'warning' : 'destructive'
+                              }>
+                                {upload.status}
+                              </CustomBadge>
+                              <CardTitle className="text-lg truncate">{upload.file_name}</CardTitle>
+                            </div>
+                            <CardDescription>
+                              Uploaded by {upload.profiles?.username || 'Unknown'} 
+                              on {format(new Date(upload.created_at), 'MMM d, yyyy')}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CustomBadge variant="outline">
+                              {(upload.file_size / 1024 / 1024).toFixed(2)} MB
+                            </CustomBadge>
+                            <CustomBadge variant="outline">
+                              {upload.file_type}
+                            </CustomBadge>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <div className="flex-1">
+                            <p className="text-sm">{upload.description || 'No description provided'}</p>
+                          </div>
+                          <div className="shrink-0">
+                            {upload.file_type.startsWith('image/') && upload.url && (
+                              <div className="w-24 h-24 relative rounded-md overflow-hidden">
+                                <img 
+                                  src={upload.url} 
+                                  alt={upload.file_name} 
+                                  className="object-cover w-full h-full"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="flex justify-end gap-2">
+                        {upload.status === 'pending' && (
+                          <>
+                            <Button 
+                              variant="outline"
+                              onClick={() => updateUploadStatus.mutate({
+                                requestId: upload.id,
+                                newStatus: 'rejected'
+                              })}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
+                            </Button>
+                            <Button
+                              onClick={() => updateUploadStatus.mutate({
+                                requestId: upload.id,
+                                newStatus: 'approved'
+                              })}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                          </>
+                        )}
+                        {upload.url && (
+                          <Button variant="outline" asChild>
+                            <a href={upload.url} target="_blank" rel="noopener noreferrer">
+                              <Eye className="mr-2 h-4 w-4" />
+                              View File
+                            </a>
+                          </Button>
+                        )}
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No upload requests found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Job Applications</CardTitle>
+              <CardDescription>Review work with us applications</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingApplications ? (
+                <div className="flex justify-center p-8">
+                  <LoadingSpinner />
+                </div>
+              ) : jobApplications && jobApplications.length > 0 ? (
+                <div className="space-y-4">
+                  {jobApplications.map((application) => (
+                    <Card key={application.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <CustomBadge variant={
+                                application.status === 'approved' ? 'success' : 
+                                application.status === 'pending' ? 'warning' : 'destructive'
+                              }>
+                                {application.status}
+                              </CustomBadge>
+                              <CardTitle className="text-lg">{application.position}</CardTitle>
+                            </div>
+                            <CardDescription>
+                              Applied by {application.profiles?.username || 'Unknown'} 
+                              on {format(new Date(application.created_at), 'MMM d, yyyy')}
+                            </CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="text-sm font-medium">Contact Information:</h4>
+                              <p className="text-sm">{application.profiles?.email || 'No email'}</p>
+                              <p className="text-sm">{application.phone || 'No phone'}</p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-medium">Experience:</h4>
+                              <p className="text-sm">{application.experience} years</p>
+                            </div>
+                          </div>
+                          <div className="mt-4">
+                            <h4 className="text-sm font-medium">Cover Letter:</h4>
+                            <p className="text-sm">{application.cover_letter || 'No cover letter provided'}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="flex justify-end gap-2">
+                        {application.status === 'pending' && (
+                          <>
+                            <Button 
+                              variant="outline"
+                              onClick={() => updateApplicationStatus.mutate({
+                                applicationId: application.id,
+                                newStatus: 'rejected'
+                              })}
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Reject
+                            </Button>
+                            <Button
+                              onClick={() => updateApplicationStatus.mutate({
+                                applicationId: application.id,
+                                newStatus: 'approved'
+                              })}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Approve
+                            </Button>
+                          </>
+                        )}
+                        {application.resume_url && (
+                          <Button variant="outline" asChild>
+                            <a href={application.resume_url} target="_blank" rel="noopener noreferrer">
+                              <FileText className="mr-2 h-4 w-4" />
+                              View Resume
+                            </a>
+                          </Button>
+                        )}
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No job applications found
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Settings</CardTitle>
+              <CardDescription>Configure application-wide settings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingSettings ? (
+                <div className="flex justify-center p-8">
+                  <LoadingSpinner />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex flex-col space-y-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="maintenance_mode" className="flex items-center">
+                        <span>Maintenance Mode</span>
+                        {systemSettings.maintenance_mode && (
+                          <CustomBadge variant="destructive" className="ml-2">
+                            Active
+                          </CustomBadge>
+                        )}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        When enabled, only admins can access the application
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="maintenance_mode"
+                        checked={systemSettings.maintenance_mode}
+                        onCheckedChange={(checked) => 
+                          setSystemSettings({...systemSettings, maintenance_mode: !!checked})
+                        }
+                        disabled={!isEditingSettings}
+                      />
+                      <label
+                        htmlFor="maintenance_mode"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Enable maintenance mode
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="require_email_verification">Email Verification</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Require users to verify their email before accessing the application
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="require_email_verification"
+                        checked={systemSettings.require_email_verification}
+                        onCheckedChange={(checked) => 
+                          setSystemSettings({...systemSettings, require_email_verification: !!checked})
+                        }
+                        disabled={!isEditingSettings}
+                      />
+                      <label
+                        htmlFor="require_email_verification"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Require email verification
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="allow_social_login">Social Login</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Allow users to sign in with social media accounts
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="allow_social_login"
+                        checked={systemSettings.allow_social_login}
+                        onCheckedChange={(checked) => 
+                          setSystemSettings({...systemSettings, allow_social_login: !!checked})
+                        }
+                        disabled={!isEditingSettings}
+                      />
+                      <label
+                        htmlFor="allow_social_login"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Enable social login
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="max_upload_size">Maximum Upload Size (MB)</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Set the maximum file size users can upload
+                      </p>
+                    </div>
+                    <Input
+                      id="max_upload_size"
+                      type="number"
+                      value={systemSettings.max_upload_size_mb}
+                      onChange={(e) => 
+                        setSystemSettings({
+                          ...systemSettings, 
+                          max_upload_size_mb: parseInt(e.target.value) || 10
+                        })
+                      }
+                      disabled={!isEditingSettings}
+                      min={1}
+                      max={100}
+                    />
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="default_user_role">Default User Role</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Set the default role for new user registrations
+                      </p>
+                    </div>
+                    <Select
+                      value={systemSettings.default_user_role}
+                      onValueChange={(value) => 
+                        setSystemSettings({...systemSettings, default_user_role: value})
+                      }
+                      disabled={!isEditingSettings}
+                    >
+                      <SelectTrigger id="default_user_role">
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="contributor">Contributor</SelectItem>
+                        <SelectItem value="moderator">Moderator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="enable_analytics">Analytics</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Collect anonymous usage data to improve the application
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="enable_analytics"
+                        checked={systemSettings.enable_analytics}
+                        onCheckedChange={(checked) => 
+                          setSystemSettings({...systemSettings, enable_analytics: !!checked})
+                        }
+                        disabled={!isEditingSettings}
+                      />
+                      <label
+                        htmlFor="enable_analytics"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        Enable analytics
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              {isEditingSettings ? (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsEditingSettings(false);
+                      // Reset to original values
+                      if (fetchedSettings) {
+                        setSystemSettings(fetchedSettings);
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSaveSettings}
+                    disabled={updateSystemSettings.isPending}
+                  >
+                    {updateSystemSettings.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  onClick={() => setIsEditingSettings(true)}
+                  className="ml-auto"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Settings
+                </Button>
+              )}
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>
-      
-      {/* User Management Dialog */}
-      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Manage User
-            </DialogTitle>
-            <DialogDescription>
-              Modify user details and permissions
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedUser && (
-            <div className="space-y-4 py-4">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <div>
-                  <h3 className="font-medium">{selectedUser.full_name || selectedUser.username}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedUser.mpa_id}</p>
-                </div>
-                <Badge variant={
-                  selectedUser.role === 'admin' ? 'destructive' : 
-                  selectedUser.role === 'moderator' ? 'default' : 
-                  'secondary'
-                }>
-                  Current Role: {selectedUser.role}
-                </Badge>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Change Role</Label>
-                <Select
-                  value={selectedRole}
-                  onValueChange={setSelectedRole}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">👑 Admin</SelectItem>
-                    <SelectItem value="moderator">🛡️ Moderator</SelectItem>
-                    <SelectItem value="employee">🧑‍💼 Employee</SelectItem>
-                    <SelectItem value="user">👤 User</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2 border-t pt-4">
-                <Label>Current Spark Points: {selectedUser.key_points}</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Amount"
-                    value={pointsToAdd === 0 ? "" : pointsToAdd}
-                    onChange={(e) => setPointsToAdd(parseInt(e.target.value) || 0)}
-                  />
-                  <Button onClick={addUserPoints} disabled={pointsToAdd === 0}>
-                    Add Points
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2 border-t pt-4">
-                <h4 className="font-medium">🔄 Quick Actions</h4>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm">
-                    Reset Password
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    View Activity
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    Send Message
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsUserDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={updateUserRole} 
-              disabled={!selectedUser || selectedRole === selectedUser.role}
-            >
-              Update User
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Project Management Dialog */}
-      <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5" />
-              Manage Project
-            </DialogTitle>
-            <DialogDescription>
-              Update project status and details
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedProject && (
-            <div className="space-y-4 py-4">
-              <div>
-                <h3 className="font-medium">{selectedProject.title}</h3>
-                <p className="text-sm text-muted-foreground">
-                  Owner: {selectedProject.owner_name}
-                </p>
-                <p className="text-sm mt-2">{selectedProject.description}</p>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span>Current Status:</span>
-                <Badge variant={
-                  selectedProject.status === 'active' ? 'default' : 
-                  selectedProject.status === 'completed' ? 'success' : 
-                  selectedProject.status === 'pending' ? 'warning' : 
-                  'secondary'
-                }>
-                  {selectedProject.status === 'active' ? '🟢 ' : 
-                   selectedProject.status === 'completed' ? '✅ ' : 
-                   selectedProject.status === 'pending' ? '⏳ ' : 
-                   selectedProject.status === 'cancelled' ? '❌ ' : ''}
-                  {selectedProject.status}
-                </Badge>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Update Status</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant={selectedProject.status === 'active' ? 'default' : 'outline'} 
-                    onClick={() => updateProjectStatus('active')}
-                  >
-                    🟢 Active
-                  </Button>
-                  <Button 
-                    variant={selectedProject.status === 'pending' ? 'default' : 'outline'} 
-                    onClick={() => updateProjectStatus('pending')}
-                  >
-                    ⏳ Pending
-                  </Button>
-                  <Button 
-                    variant={selectedProject.status === 'completed' ? 'default' : 'outline'} 
-                    onClick={() => updateProjectStatus('completed')}
-                  >
-                    ✅ Completed
-                  </Button>
-                  <Button 
-                    variant={selectedProject.status === 'cancelled' ? 'default' : 'outline'} 
-                    onClick={() => updateProjectStatus('cancelled')}
-                  >
-                    ❌ Cancelled
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="space-y-2 border-t pt-4">
-                <h4 className="font-medium">🔄 Quick Actions</h4>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm">
-                    View Details
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    Contact Owner
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    View Timeline
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-      
-      {/* Error Report Dialog */}
-      <Dialog open={isErrorDialogOpen} onOpenChange={setIsErrorDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Error Report Details
-            </DialogTitle>
-            <DialogDescription>
-              Review and resolve reported issues
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedError && (
-            <div className="space-y-4 py-4">
-              <div>
-                <div className="flex justify-between">
-                  <h3 className="font-medium">{selectedError.title}</h3>
-                  <Badge variant={
-                    selectedError.severity === 'high' ? 'destructive' : 
-                    selectedError.severity === 'medium' ? 'warning' : 
-                    'secondary'
-                  }>
-                    {selectedError.severity === 'high' ? '🔴 ' : 
-                     selectedError.severity === 'medium' ? '🟠 ' : 
-                     '🟢 '}
-                    {selectedError.severity}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Reported by: {selectedError.user_name} on {new Date(selectedError.created_at).toLocaleString()}
-                </p>
-              </div>
-              
-              <ScrollArea className="h-[100px] rounded-md border p-4">
-                <p className="text-sm">{selectedError.description}</p>
-              </ScrollArea>
-              
-              <div className="text-sm">
-                <span className="font-medium">Page:</span> {selectedError.page_url}
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Resolution Notes</Label>
-                <Input
-                  value={resolutionNotes}
-                  onChange={(e) => setResolutionNotes(e.target.value)}
-                  placeholder="Add notes about the resolution..."
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Update Status</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  <Button 
-                    variant={selectedError.status === 'pending' ? 'default' : 'outline'} 
-                    onClick={() => resolveErrorReport('pending')}
-                  >
-                    🔔 Pending
-                  </Button>
-                  <Button 
-                    variant={selectedError.status === 'in_progress' ? 'default' : 'outline'} 
-                    onClick={() => resolveErrorReport('in_progress')}
-                  >
-                    🔧 In Progress
-                  </Button>
-                  <Button 
-                    variant={selectedError.status === 'resolved' ? 'default' : 'outline'} 
-                    onClick={() => resolveErrorReport('resolved')}
-                  >
-                    ✅ Resolved
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

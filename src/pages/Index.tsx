@@ -1,241 +1,304 @@
-import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, ThumbsUp, MessageCircle, PenSquare } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
+
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { LoadingSpinner } from "@/components/ui/loading";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart3, FileText, Gift, Layout, Shield, Upload, Users, ArrowRight, ExternalLink, CheckCircle, Star, Share2 } from "lucide-react";
 
-interface Profile {
-  username: string;
-  avatar_url: string | null;
-}
+const featureItems = [
+  {
+    icon: <Layout className="h-10 w-10 text-primary" />,
+    title: "Intuitive Dashboard",
+    description: "Access all your projects from a single, easy-to-use dashboard."
+  },
+  {
+    icon: <Upload className="h-10 w-10 text-primary" />,
+    title: "Easy Uploads",
+    description: "Securely upload and manage your files with just a few clicks."
+  },
+  {
+    icon: <FileText className="h-10 w-10 text-primary" />,
+    title: "Detailed Analytics",
+    description: "Track your project performance with comprehensive analytics."
+  },
+  {
+    icon: <Users className="h-10 w-10 text-primary" />,
+    title: "Team Collaboration",
+    description: "Work seamlessly with your team members in real-time."
+  },
+  {
+    icon: <Gift className="h-10 w-10 text-primary" />,
+    title: "Referral Program",
+    description: "Refer friends and earn rewards for growing our community."
+  },
+  {
+    icon: <Shield className="h-10 w-10 text-primary" />,
+    title: "Secure Platform",
+    description: "Enterprise-grade security to protect your valuable data."
+  }
+];
 
-interface Post {
-  id: number;
-  title: string;
-  content: string;
-  user_id: Profile;
-  created_at: string;
-  likes: number;
-  comments: number;
-}
+const testimonials = [
+  {
+    quote: "MPA has revolutionized how we manage multiple projects. The interface is intuitive and the analytics are spot-on!",
+    author: "Sarah Johnson",
+    role: "Product Manager",
+    company: "Tech Innovations"
+  },
+  {
+    quote: "We've seen a 40% increase in team productivity since switching to MPA. It's now an essential part of our workflow.",
+    author: "Michael Chen",
+    role: "Team Lead",
+    company: "Creative Solutions"
+  },
+  {
+    quote: "The ability to track progress across multiple projects simultaneously has been a game-changer for our organization.",
+    author: "Priya Sharma",
+    role: "Operations Director",
+    company: "Global Enterprises"
+  }
+];
 
-interface Contributor {
-  username: string;
-  post_count: number;
-  avatar_url: string | null;
-}
-
-const fetchPosts = async (): Promise<Post[]> => {
-  const { data, error } = await supabase
-    .from('posts')
-    .select(`
-      id,
-      title,
-      content,
-      created_at,
-      likes,
-      comments,
-      user_id:profiles(
-        username,
-        avatar_url
-      )
-    `)
-    .order('created_at', { ascending: false });
-  
-  if (error) throw error;
-  return data.map(post => ({
-    ...post,
-    user_id: post.user_id[0] || { username: 'Anonymous', avatar_url: null }
-  })) as Post[];
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 100, damping: 15 }
+  }
 };
 
-const fetchStats = async () => {
-  const { data: posts, error: postsError } = await supabase
-    .from('posts')
-    .select('count');
-  
-  const { data: users, error: usersError } = await supabase
-    .from('profiles')
-    .select('count');
-  
-  const { data: comments, error: commentsError } = await supabase
-    .from('comments')
-    .select('count');
-    
-  if (postsError || usersError || commentsError) 
-    throw new Error('Failed to fetch statistics');
-    
-  return {
-    posts: posts?.[0]?.count || 0,
-    users: users?.[0]?.count || 0,
-    comments: comments?.[0]?.count || 0,
-  };
-};
-
-const fetchTopContributors = async () => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('username, post_count, avatar_url')
-    .order('post_count', { ascending: false })
-    .limit(3);
-  
-  if (error) throw error;
-  return data as Contributor[];
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.2
+    }
+  }
 };
 
 const Index = () => {
   const { user } = useAuth();
-  const { data: isAdmin } = useIsAdmin();
-  const navigate = useNavigate();
 
-  const { data: posts, isLoading: isLoadingPosts } = useQuery({
-    queryKey: ["posts"],
-    queryFn: fetchPosts,
-  });
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
-  const { data: stats, isLoading: isLoadingStats } = useQuery({
-    queryKey: ["stats"],
-    queryFn: fetchStats,
-  });
-
-  const { data: contributors, isLoading: isLoadingContributors } = useQuery({
-    queryKey: ["contributors"],
-    queryFn: fetchTopContributors,
-  });
-
-  const popularTags = [
-    { name: "React", count: 125 },
-    { name: "TypeScript", count: 98 },
-    { name: "Web Development", count: 84 },
-    { name: "UI/UX", count: 76 },
-    { name: "Performance", count: 65 }
-  ];
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Multi Project Association',
+        text: 'Check out this awesome project management platform!',
+        url: window.location.href,
+      })
+        .then(() => toast.success('Shared successfully!'))
+        .catch((error) => console.error('Error sharing:', error));
+    } else {
+      navigator.clipboard.writeText(window.location.href)
+        .then(() => toast.success('Link copied to clipboard!'))
+        .catch(() => toast.error('Failed to copy link'));
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-      <div className="md:col-span-8 space-y-6">
-        <div className="rounded-lg border bg-card p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold">Latest Posts</h2>
-            {(user && isAdmin) && (
-              <Button 
-                onClick={() => navigate('/create-post')}
-                className="gap-2"
-              >
-                <PenSquare className="h-4 w-4" />
-                Create Post
-              </Button>
-            )}
-          </div>
-          {isLoadingPosts ? (
-            <LoadingSpinner />
-          ) : (
-            <div className="space-y-6">
-              {posts?.map((post) => (
-                <article 
-                  key={post.id} 
-                  className="p-4 rounded-md border bg-background/50 space-y-4 hover:border-primary/50 transition-colors cursor-pointer animate-fade-in"
-                  onClick={() => navigate(`/post/${post.id}`)}
-                >
-                  <h3 className="text-lg font-medium hover:text-primary transition-colors">
-                    {post.title}
-                  </h3>
-                  <p className="text-muted-foreground text-sm line-clamp-2">
-                    {post.content}
-                  </p>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-4">
-                      <span>{post.user_id?.username || "Anonymous"}</span>
-                      <div className="flex items-center gap-1">
-                        <CalendarDays className="h-4 w-4" />
-                        {new Date(post.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1">
-                        <ThumbsUp className="h-4 w-4" />
-                        {post.likes}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <MessageCircle className="h-4 w-4" />
-                        {post.comments}
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="md:col-span-4 space-y-6">
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="font-medium mb-4">Popular Tags</h3>
-          <div className="flex flex-wrap gap-2">
-            {popularTags.map((tag) => (
-              <div
-                key={tag.name}
-                className="px-2 py-1 bg-primary/10 rounded-full text-xs cursor-pointer hover:bg-primary/20 transition-colors"
-              >
-                {tag.name} ({tag.count})
+    <div className="flex flex-col min-h-screen">
+      {/* Hero Section */}
+      <section className="py-20 md:py-28">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col items-center text-center space-y-10">
+            <motion.div
+              className="space-y-4 max-w-3xl"
+              initial="hidden"
+              animate="visible"
+              variants={fadeIn}
+            >
+              <h1 className="text-4xl md:text-6xl font-bold tracking-tighter">
+                Multi Project Association
+              </h1>
+              <p className="text-xl md:text-2xl text-muted-foreground">
+                Simplify your workflow. Amplify your results. 🚀
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                {user ? (
+                  <Button asChild size="lg" className="gap-2">
+                    <Link to="/dashboard">
+                      Go to Dashboard
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button asChild size="lg" className="gap-2">
+                    <Link to="/auth">
+                      Get Started Now
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                )}
+                <Button variant="outline" size="lg" onClick={handleShare} className="gap-2">
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="font-medium mb-4">Site Statistics</h3>
-          {isLoadingStats ? (
-            <LoadingSpinner />
-          ) : (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Total Posts</span>
-                <span className="font-medium animate-fade-in">{stats?.posts || 0}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Active Users</span>
-                <span className="font-medium animate-fade-in">{stats?.users || 0}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Total Comments</span>
-                <span className="font-medium animate-fade-in">{stats?.comments || 0}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-lg border bg-card p-6">
-          <h3 className="font-medium mb-4">Top Contributors</h3>
-          {isLoadingContributors ? (
-            <LoadingSpinner />
-          ) : (
-            <div className="space-y-3">
-              {contributors?.map((contributor) => (
-                <div key={contributor.username} className="flex justify-between items-center animate-fade-in">
-                  <div className="flex items-center gap-2">
-                    {contributor.avatar_url && (
-                      <img
-                        src={contributor.avatar_url}
-                        alt={contributor.username}
-                        className="w-6 h-6 rounded-full"
-                      />
-                    )}
-                    <span className="text-sm">{contributor.username}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {contributor.post_count} posts
-                  </span>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="relative w-full max-w-5xl"
+            >
+              <div className="rounded-lg overflow-hidden shadow-xl border">
+                <img
+                  src="/placeholder.svg"
+                  alt="MPA Dashboard Preview"
+                  className="w-full h-auto object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 flex justify-center">
+                  <Badge className="text-sm px-3 py-1 bg-primary/90 hover:bg-primary transition-colors">
+                    Dashboard Preview
+                  </Badge>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            </motion.div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-muted/50">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col items-center text-center space-y-4 mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold">
+              Features that Elevate Your Work
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl">
+              Everything you need to manage projects effectively in one place.
+            </p>
+          </div>
+
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {featureItems.map((feature, index) => (
+              <motion.div key={index} variants={fadeIn}>
+                <Card className="h-full transition-transform duration-300 hover:scale-105">
+                  <CardHeader>
+                    <div className="p-2 rounded-full w-fit bg-primary/10 mb-4">
+                      {feature.icon}
+                    </div>
+                    <CardTitle>{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">{feature.description}</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Social Proof Section */}
+      <section className="py-20">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col items-center text-center space-y-4 mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold">
+              Trusted by Teams Worldwide
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl">
+              See what our users are saying about MPA.
+            </p>
+          </div>
+
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-100px" }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          >
+            {testimonials.map((testimonial, index) => (
+              <motion.div key={index} variants={fadeIn}>
+                <Card className="h-full">
+                  <CardHeader>
+                    <div className="flex text-yellow-500 mb-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-current" />
+                      ))}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="italic mb-4">"{testimonial.quote}"</p>
+                    <div className="flex items-center">
+                      <Avatar className="h-10 w-10 mr-4">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${testimonial.author}`} />
+                        <AvatarFallback>{testimonial.author[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{testimonial.author}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {testimonial.role}, {testimonial.company}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-primary/5">
+        <div className="container px-4 md:px-6">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={fadeIn}
+            className="flex flex-col items-center text-center space-y-6 max-w-3xl mx-auto"
+          >
+            <div className="bg-primary/10 p-3 rounded-full">
+              <CheckCircle className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold">Ready to Streamline Your Projects?</h2>
+            <p className="text-xl text-muted-foreground">
+              Join thousands of teams who use MPA to manage their projects efficiently.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              {user ? (
+                <Button asChild size="lg" className="gap-2">
+                  <Link to="/dashboard">
+                    Go to Dashboard
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild size="lg" className="gap-2">
+                  <Link to="/auth">
+                    Get Started for Free
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
+              <Button variant="outline" size="lg" asChild className="gap-2">
+                <Link to="/features">
+                  Explore Features
+                  <ExternalLink className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 };

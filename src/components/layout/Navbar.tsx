@@ -29,6 +29,7 @@ import {
   Shield,
   Moon,
   Sun,
+  Share2
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { 
@@ -42,6 +43,16 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import { cn } from "@/lib/utils";
 
 const Navbar = () => {
   const location = useLocation();
@@ -49,6 +60,20 @@ const Navbar = () => {
   const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 10) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -57,6 +82,23 @@ const Navbar = () => {
       toast.success("👋 See you again soon!");
     } catch (error: any) {
       toast.error(`Error signing out: ${error.message}`);
+    }
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Multi Project Association',
+        text: 'Check out this awesome project management platform!',
+        url: window.location.href,
+      })
+        .then(() => toast.success('Shared successfully!'))
+        .catch((error) => toast.error(`Error sharing: ${error}`));
+    } else {
+      // Fallback for browsers that don't support the Web Share API
+      navigator.clipboard.writeText(window.location.href)
+        .then(() => toast.success('Link copied to clipboard!'))
+        .catch(() => toast.error('Failed to copy link'));
     }
   };
 
@@ -79,38 +121,151 @@ const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
+    <header className={`sticky top-0 z-50 w-full backdrop-blur supports-[backdrop-filter]:bg-background/60 ${
+      scrolled ? "border-b shadow-sm" : ""
+    }`}>
+      <div className="container flex h-16 items-center">
         <Link to="/" className="flex items-center gap-2 font-bold text-xl">
           <span className="hidden sm:inline">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary animate-pulse">
               <path d="M12 2L4 7V17L12 22L20 17V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M12 22V16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M20 7L12 12L4 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M12 12L12 16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </span>
-          MPA
+          <span className="transition-colors hover:text-primary">MPA</span>
         </Link>
         
         {/* Desktop navigation */}
-        <div className="flex-1 hidden md:flex items-center justify-center space-x-1">
-          {renderNavLink("/", "🏠 Home", <Home className="h-4 w-4" />)}
-          
-          {user && (
-            <>
-              {renderNavLink("/dashboard", "📊 Dashboard", <BarChart2 className="h-4 w-4" />)}
-              {renderNavLink("/upload", "📤 Upload", <Upload className="h-4 w-4" />)}
-              {renderNavLink("/referral", "🎁 Refer", <Gift className="h-4 w-4" />)}
-              {renderNavLink("/work-with-us", "💼 Work with Us", <Briefcase className="h-4 w-4" />)}
-              {isAdmin && renderNavLink("/admin", "🛡️ Admin", <Shield className="h-4 w-4" />)}
-            </>
-          )}
-          
-          {renderNavLink("/help", "❓ Help", <HelpCircle className="h-4 w-4" />)}
+        <div className="flex-1 hidden md:flex items-center justify-center">
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuLink
+                  href="/"
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <Home className="h-4 w-4 mr-2" />
+                  Home
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              
+              {user && (
+                <>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink
+                      href="/dashboard"
+                      className={navigationMenuTriggerStyle()}
+                    >
+                      <BarChart2 className="h-4 w-4 mr-2" />
+                      Dashboard
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Manage
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                        <li>
+                          <NavigationMenuLink asChild>
+                            <Link
+                              to="/upload"
+                              className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            >
+                              <div className="flex items-center gap-2 text-sm font-medium leading-none">
+                                <Upload className="h-4 w-4" />
+                                Upload
+                              </div>
+                              <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                                Upload files and manage your content
+                              </p>
+                            </Link>
+                          </NavigationMenuLink>
+                        </li>
+                        <li>
+                          <NavigationMenuLink asChild>
+                            <Link
+                              to="/referral"
+                              className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            >
+                              <div className="flex items-center gap-2 text-sm font-medium leading-none">
+                                <Gift className="h-4 w-4" />
+                                Refer
+                              </div>
+                              <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                                Invite friends and earn rewards
+                              </p>
+                            </Link>
+                          </NavigationMenuLink>
+                        </li>
+                        <li>
+                          <NavigationMenuLink asChild>
+                            <Link
+                              to="/work-with-us"
+                              className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            >
+                              <div className="flex items-center gap-2 text-sm font-medium leading-none">
+                                <Briefcase className="h-4 w-4" />
+                                Work with Us
+                              </div>
+                              <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                                Join our team and collaborate on projects
+                              </p>
+                            </Link>
+                          </NavigationMenuLink>
+                        </li>
+                        {isAdmin && (
+                          <li>
+                            <NavigationMenuLink asChild>
+                              <Link
+                                to="/admin"
+                                className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                              >
+                                <div className="flex items-center gap-2 text-sm font-medium leading-none">
+                                  <Shield className="h-4 w-4" />
+                                  Admin Panel
+                                </div>
+                                <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                                  Manage users, settings, and analytics
+                                </p>
+                              </Link>
+                            </NavigationMenuLink>
+                          </li>
+                        )}
+                      </ul>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                </>
+              )}
+              
+              <NavigationMenuItem>
+                <NavigationMenuLink
+                  href="/help"
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Help
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
         </div>
         
         <div className="flex items-center ml-auto space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={handleShare}
+            aria-label="Share page"
+          >
+            <Share2 className="h-5 w-5" />
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"
@@ -141,7 +296,7 @@ const Navbar = () => {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">{profile?.username || profile?.full_name || "User"}</p>
                     <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                      {profile?.mpa_id || user.email}
+                      {profile?.username || user.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -180,7 +335,7 @@ const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild variant="default">
+            <Button asChild variant="default" className="rounded-full">
               <Link to="/auth">Sign In</Link>
             </Button>
           )}
@@ -275,6 +430,18 @@ const Navbar = () => {
                   <HelpCircle className="h-5 w-5" />
                   Help
                 </Link>
+                
+                <Button
+                  variant="ghost"
+                  className="flex justify-start pl-0"
+                  onClick={() => {
+                    handleShare();
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  <Share2 className="h-5 w-5 mr-2" />
+                  Share
+                </Button>
                 
                 {!user && (
                   <Link
