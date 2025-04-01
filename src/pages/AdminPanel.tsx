@@ -16,7 +16,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { LoadingSpinner } from "@/components/ui/loading";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { CustomBadge } from "@/components/ui/custom-badge";
-import { BarChart, PieChart, LineChart } from "@/components/ui/chart";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
@@ -39,10 +38,10 @@ import {
   PieChart as PieChartIcon, 
   LineChart as LineChartIcon,
   Filter,
-  Plus
+  Plus,
+  Copy
 } from "lucide-react";
 
-// Define types for data structures
 type UserProfile = {
   id: string;
   email: string;
@@ -99,7 +98,6 @@ const AdminPanel = () => {
     }
   }, [isAdmin, isAdminLoading, navigate]);
 
-  // Fetch users
   useEffect(() => {
     const fetchUsers = async () => {
       setLoadingUsers(true);
@@ -118,7 +116,6 @@ const AdminPanel = () => {
           },
         }));
 
-        // Fetch profile data for each user
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
           .select('*')
@@ -128,7 +125,6 @@ const AdminPanel = () => {
           console.error("Error fetching profiles:", profilesError);
         }
 
-        // Merge profile data into userList
         const updatedUserList: UserProfile[] = userList.map(user => {
           const profile = profiles?.find(p => p.id === user.id);
           return {
@@ -160,7 +156,6 @@ const AdminPanel = () => {
     }
   }, [isAdmin]);
 
-  // Fetch error reports
   useEffect(() => {
     const fetchErrorReports = async () => {
       setLoadingReports(true);
@@ -184,7 +179,6 @@ const AdminPanel = () => {
     }
   }, [isAdmin]);
 
-  // Update the useQuery hook for error reports stats - fix the onSuccess issue
   const { data: errorReportStats, isLoading: loadingErrorStats, refetch: refetchErrorStats } = useQuery({
     queryKey: ["errorReportStats"],
     queryFn: async () => {
@@ -201,9 +195,8 @@ const AdminPanel = () => {
     }
   });
 
-  // Mutations for updating user role and deleting user
-  const updateUserRoleMutation = useMutation(
-    async ({ userId, role }: { userId: string; role: string }) => {
+  const updateUserRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
       const { data, error } = await supabase
         .from("profiles")
         .update({ role })
@@ -214,35 +207,30 @@ const AdminPanel = () => {
       if (error) throw error;
       return data;
     },
-    {
-      onSuccess: () => {
-        toast.success("User role updated successfully");
-        queryClient.invalidateQueries(["users"]); // Invalidate users query to refetch
-      },
-      onError: (error: any) => {
-        toast.error(`Error updating user role: ${error.message}`);
-      },
-    }
-  );
+    onSuccess: () => {
+      toast.success("User role updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (error: any) => {
+      toast.error(`Error updating user role: ${error.message}`);
+    },
+  });
 
-  const deleteUserMutation = useMutation(
-    async (userId: string) => {
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
       const { data, error } = await supabase.auth.admin.deleteUser(userId);
       if (error) throw error;
       return data;
     },
-    {
-      onSuccess: () => {
-        toast.success("User deleted successfully");
-        queryClient.invalidateQueries(["users"]); // Invalidate users query to refetch
-      },
-      onError: (error: any) => {
-        toast.error(`Error deleting user: ${error.message}`);
-      },
-    }
-  );
+    onSuccess: () => {
+      toast.success("User deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (error: any) => {
+      toast.error(`Error deleting user: ${error.message}`);
+    },
+  });
 
-  // Handler functions
   const handleRoleChange = async (userId: string, role: string) => {
     await updateUserRoleMutation.mutateAsync({ userId, role });
   };
@@ -274,7 +262,6 @@ const AdminPanel = () => {
 
       if (error) throw error;
 
-      // Optimistically update the state
       setErrorReports(currentReports =>
         currentReports.map(report =>
           report.id === reportId ? { ...report, status } : report
@@ -284,11 +271,9 @@ const AdminPanel = () => {
       toast.success('Report status updated successfully');
     } catch (error: any) {
       toast.error(`Failed to update report status: ${error.message}`);
-      // Revert the state in case of error
       setErrorReports(currentReports => {
         return currentReports.map(report => {
           if (report.id === reportId) {
-            // Revert to the previous status
             return { ...report, status: errorReports.find(r => r.id === reportId)?.status || 'pending' };
           }
           return report;
@@ -319,6 +304,61 @@ const AdminPanel = () => {
   if (isAdminLoading) {
     return <LoadingSpinner />;
   }
+
+  const BarChart = ({ data }: { data: any[] }) => (
+    <div className="w-full h-64 bg-muted/30 rounded-lg flex items-end justify-around p-4">
+      {data.map((item, index) => (
+        <div key={index} className="flex flex-col items-center">
+          <div 
+            className="bg-primary w-12 rounded-t-md" 
+            style={{ height: `${(item.value / Math.max(...data.map(d => d.value))) * 150}px` }}
+          ></div>
+          <span className="text-xs mt-2">{item.name}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  const PieChart = ({ data }: { data: any[] }) => (
+    <div className="w-full h-64 bg-muted/30 rounded-lg flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="flex gap-2 justify-center mb-2">
+          {data.map((item, index) => (
+            <div key={index} className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getColor(index) }}></div>
+              <span className="text-xs">{item.name}</span>
+            </div>
+          ))}
+        </div>
+        <div className="w-32 h-32 rounded-full border-8 border-primary mx-auto"></div>
+      </div>
+    </div>
+  );
+
+  const LineChart = ({ data }: { data: any[] }) => (
+    <div className="w-full h-64 bg-muted/30 rounded-lg p-4">
+      <div className="relative h-full">
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-border"></div>
+        <div className="absolute top-0 bottom-0 left-0 w-px bg-border"></div>
+        <div className="flex items-end justify-between h-full relative">
+          {data.map((item, index) => (
+            <div key={index} className="flex flex-col items-center">
+              <div 
+                className="w-2 h-2 rounded-full bg-primary z-10"
+                style={{ marginBottom: `${(item.value / Math.max(...data.map(d => d.value))) * 150}px` }}
+              ></div>
+              <span className="text-xs mt-2">{item.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const getColor = (index: number) => {
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+    return colors[index % colors.length];
+  };
 
   return (
     <PageLayout title="Admin Panel" description="Manage users, error reports, and system settings" requireAuth={true}>
@@ -693,7 +733,6 @@ const AdminPanel = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Delete User Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -709,7 +748,6 @@ const AdminPanel = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Error Report Details Modal */}
       {selectedReport && (
         <AlertDialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>
           <AlertDialogContent>
