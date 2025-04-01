@@ -165,6 +165,33 @@ export type Database = {
         }
         Relationships: []
       }
+      links: {
+        Row: {
+          clicks: number | null
+          created_at: string | null
+          id: string
+          short_code: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          clicks?: number | null
+          created_at?: string | null
+          id?: string
+          short_code: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          clicks?: number | null
+          created_at?: string | null
+          id?: string
+          short_code?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -294,6 +321,44 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_audit_log: {
+        Row: {
+          changed_at: string | null
+          changed_by: string | null
+          field_changed: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          profile_id: string
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by?: string | null
+          field_changed: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          profile_id: string
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string | null
+          field_changed?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_audit_log_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -312,6 +377,7 @@ export type Database = {
           state: string | null
           theme_preference: string | null
           updated_at: string | null
+          user_configuration: Json | null
           username: string
         }
         Insert: {
@@ -331,6 +397,7 @@ export type Database = {
           state?: string | null
           theme_preference?: string | null
           updated_at?: string | null
+          user_configuration?: Json | null
           username: string
         }
         Update: {
@@ -350,6 +417,7 @@ export type Database = {
           state?: string | null
           theme_preference?: string | null
           updated_at?: string | null
+          user_configuration?: Json | null
           username?: string
         }
         Relationships: []
@@ -541,15 +609,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_analytics_summary: {
+        Row: {
+          active_users: number | null
+          recent_orders: number | null
+          total_employees: number | null
+          total_orders: number | null
+          total_users: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      decrement_points: {
+        Args: {
+          user_id: string
+          amount_to_deduct: number
+          description?: string
+        }
+        Returns: number
+      }
+      get_admin_analytics: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      is_admin: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
       process_referral_bonus: {
         Args: {
           referred_user_id: string
           referrer_code: string
         }
         Returns: undefined
+      }
+      regenerate_mpa_id: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      update_error_report_status: {
+        Args: {
+          report_id: string
+          new_status: string
+          resolution_notes?: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

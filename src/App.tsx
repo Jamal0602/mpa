@@ -23,6 +23,8 @@ import { Footer } from "@/components/layout/Footer";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 import { useEffect } from "react";
+import AdminPanel from "@/pages/AdminPanel";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -87,6 +89,16 @@ function App() {
                 element={
                   <MainLayout>
                     <Dashboard />
+                  </MainLayout>
+                } 
+              />
+              <Route 
+                path="/admin" 
+                element={
+                  <MainLayout>
+                    <PageLayout requireAuth={true} title="Admin Panel">
+                      <AdminPanel />
+                    </PageLayout>
                   </MainLayout>
                 } 
               />
