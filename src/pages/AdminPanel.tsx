@@ -1,1390 +1,777 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { LoadingSpinner } from "@/components/ui/loading";
-import { format } from "date-fns";
-import { useAuth } from "@/contexts/AuthContext";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart3, CheckCircle, ShieldAlert, Trash2, UserCog, XCircle, Settings, FileText, Users, Bell, Upload, Briefcase, Database, Search, Eye, EyeOff, Edit, Save, RefreshCw, Loader2, Download, Filter, CheckSquare, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LoadingSpinner } from "@/components/ui/loading";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { CustomBadge } from "@/components/ui/custom-badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { BarChart, PieChart, LineChart } from "@/components/ui/chart";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
+import { 
+  ChevronDown, 
+  Download, 
+  Users, 
+  MoreHorizontal, 
+  FileText, 
+  CheckCircle, 
+  Clock, 
+  AlertCircle, 
+  CircleDashed, 
+  Database, 
+  UserCog, 
+  RefreshCw, 
+  Trash2, 
+  ShieldAlert, 
+  BarChart3, 
+  PieChart as PieChartIcon, 
+  LineChart as LineChartIcon,
+  Filter,
+  Plus
+} from "lucide-react";
 
-// Function to get status badge variant
-const getStatusBadgeVariant = (status: string) => {
-  switch (status) {
-    case "active":
-      return "success";
-    case "pending":
-      return "warning";
-    case "blocked":
-      return "destructive";
-    default:
-      return "secondary";
-  }
+// Define types for data structures
+type UserProfile = {
+  id: string;
+  email: string;
+  created_at: string;
+  profile?: {
+    full_name: string;
+    avatar_url: string;
+    role: string;
+  };
 };
 
-// Function to get verification badge variant
-const getVerificationBadgeVariant = (status: string) => {
-  switch (status) {
-    case "verified":
-      return "success";
-    case "pending":
-      return "warning";
-    case "rejected":
-      return "destructive";
-    default:
-      return "secondary";
-  }
+type ErrorReport = {
+  id: string;
+  created_at: string;
+  user_id: string;
+  title: string;
+  description: string;
+  steps_to_reproduce: string;
+  status: 'pending' | 'in_progress' | 'resolved' | 'rejected';
 };
 
-// Main component
+type ErrorReportStats = {
+  total: number;
+  pending: number;
+  in_progress: number;
+  resolved: number;
+  rejected: number;
+};
+
 const AdminPanel = () => {
+  const [activeTab, setActiveTab] = useState("users");
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [errorReports, setErrorReports] = useState<ErrorReport[]>([]);
+  const [loadingReports, setLoadingReports] = useState(true);
+  const [selectedReport, setSelectedReport] = useState<ErrorReport | null>(null);
+  const [reportStatus, setReportStatus] = useState<'pending' | 'in_progress' | 'resolved' | 'rejected'>('pending');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [reportsPerPage] = useState(5);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("overview");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [userStatusFilter, setUserStatusFilter] = useState("all");
-  const [pageNumber, setPageNumber] = useState(1);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [reportFilter, setReportFilter] = useState("all");
-  const [isEditingSettings, setIsEditingSettings] = useState(false);
-  const [systemSettings, setSystemSettings] = useState({
-    maintenance_mode: false,
-    require_email_verification: true,
-    allow_social_login: true,
-    max_upload_size_mb: 10,
-    default_user_role: "member",
-    enable_analytics: true
-  });
   
-  const itemsPerPage = 10;
+  const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
 
-  // Fetch admin analytics data
-  const { data: analytics, isLoading: isLoadingAnalytics, refetch: refetchAnalytics } = useQuery({
-    queryKey: ['admin-analytics'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_admin_analytics');
-      
-      if (error) throw error;
-      return data;
+  useEffect(() => {
+    if (!isAdmin && !isAdminLoading) {
+      toast.error("You are not authorized to view this page.");
+      navigate("/");
     }
-  });
+  }, [isAdmin, isAdminLoading, navigate]);
 
-  // Fetch users with pagination and filtering
-  const { data: usersData, isLoading: isLoadingUsers, refetch: refetchUsers } = useQuery({
-    queryKey: ['admin-users', pageNumber, searchQuery, userStatusFilter],
-    queryFn: async () => {
-      let query = supabase
-        .from('profiles')
-        .select('*', { count: 'exact' });
-      
-      // Apply search filter
-      if (searchQuery) {
-        query = query.or(`username.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`);
+  // Fetch users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoadingUsers(true);
+      try {
+        const { data, error } = await supabase.auth.admin.listUsers();
+        if (error) throw error;
+
+        const userList: UserProfile[] = data.users.map(user => ({
+          id: user.id,
+          email: user.email || 'N/A',
+          created_at: user.created_at,
+          profile: {
+            full_name: 'N/A',
+            avatar_url: '',
+            role: 'user',
+          },
+        }));
+
+        // Fetch profile data for each user
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', userList.map(user => user.id));
+
+        if (profilesError) {
+          console.error("Error fetching profiles:", profilesError);
+        }
+
+        // Merge profile data into userList
+        const updatedUserList: UserProfile[] = userList.map(user => {
+          const profile = profiles?.find(p => p.id === user.id);
+          return {
+            ...user,
+            profile: profile
+              ? {
+                  full_name: profile.full_name || 'N/A',
+                  avatar_url: profile.avatar_url || '',
+                  role: profile.role || 'user',
+                }
+              : {
+                  full_name: 'N/A',
+                  avatar_url: '',
+                  role: 'user',
+                },
+          };
+        });
+
+        setUsers(updatedUserList);
+      } catch (error: any) {
+        toast.error(`Error fetching users: ${error.message}`);
+      } finally {
+        setLoadingUsers(false);
       }
-      
-      // Apply status filter
-      if (userStatusFilter !== 'all') {
-        query = query.eq('status', userStatusFilter);
-      }
-      
-      // Apply pagination
-      const from = (pageNumber - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-      
-      const { data, error, count } = await query
-        .order('created_at', { ascending: false })
-        .range(from, to);
-      
-      if (error) throw error;
-      
-      return {
-        users: data,
-        totalCount: count || 0
-      };
+    };
+
+    if (isAdmin) {
+      fetchUsers();
     }
-  });
+  }, [isAdmin]);
 
   // Fetch error reports
-  const { data: errorReports, isLoading: isLoadingReports, refetch: refetchReports } = useQuery({
-    queryKey: ['admin-reports', reportFilter],
-    queryFn: async () => {
-      let query = supabase
-        .from('error_reports')
-        .select(`
-          *,
-          profiles:user_id (username, avatar_url)
-        `);
-      
-      // Apply status filter
-      if (reportFilter !== 'all') {
-        query = query.eq('status', reportFilter);
-      }
-      
-      const { data, error } = await query
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      return data;
-    }
-  });
-
-  // Fetch upload requests
-  const { data: uploadRequests, isLoading: isLoadingUploads, refetch: refetchUploads } = useQuery({
-    queryKey: ['admin-uploads'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('upload_requests')
-        .select(`
-          *,
-          profiles:user_id (username, avatar_url)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      
-      if (error) throw error;
-      
-      return data;
-    }
-  });
-
-  // Fetch job applications
-  const { data: jobApplications, isLoading: isLoadingApplications, refetch: refetchApplications } = useQuery({
-    queryKey: ['admin-job-applications'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('job_applications')
-        .select(`
-          *,
-          profiles:user_id (username, avatar_url, email)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      
-      if (error) throw error;
-      
-      return data;
-    }
-  });
-
-  // Fetch system settings
-  const { data: fetchedSettings, isLoading: isLoadingSettings, refetch: refetchSettings } = useQuery({
-    queryKey: ['system-settings'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*')
-        .single();
-      
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      return data || {
-        maintenance_mode: false,
-        require_email_verification: true,
-        allow_social_login: true,
-        max_upload_size_mb: 10,
-        default_user_role: "member",
-        enable_analytics: true
-      };
-    },
-    onSuccess: (data) => {
-      if (data) {
-        setSystemSettings(data);
-      }
-    }
-  });
-
-  // Update user role mutation
-  const updateUserRole = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-      
-      if (error) throw error;
-      
-      return { success: true };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      toast.success('User role updated successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update user role: ${error.message}`);
-    }
-  });
-
-  // Update user status mutation
-  const updateUserStatus = useMutation({
-    mutationFn: async ({ userId, newStatus }: { userId: string, newStatus: string }) => {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status: newStatus })
-        .eq('id', userId);
-      
-      if (error) throw error;
-      
-      return { success: true };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      toast.success('User status updated successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update user status: ${error.message}`);
-    }
-  });
-
-  // Update error report status mutation
-  const updateReportStatus = useMutation({
-    mutationFn: async ({ reportId, newStatus, notes }: { reportId: string, newStatus: string, notes?: string }) => {
-      const { error } = await supabase.rpc('update_error_report_status', {
-        report_id: reportId,
-        new_status: newStatus,
-        resolution_notes: notes
-      });
-      
-      if (error) throw error;
-      
-      return { success: true };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-reports'] });
-      toast.success('Report status updated successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update report status: ${error.message}`);
-    }
-  });
-
-  // Update upload request status mutation
-  const updateUploadStatus = useMutation({
-    mutationFn: async ({ requestId, newStatus }: { requestId: string, newStatus: string }) => {
-      const { error } = await supabase
-        .from('upload_requests')
-        .update({ status: newStatus })
-        .eq('id', requestId);
-      
-      if (error) throw error;
-      
-      return { success: true };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-uploads'] });
-      toast.success('Upload request updated successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update upload request: ${error.message}`);
-    }
-  });
-
-  // Update job application status mutation
-  const updateApplicationStatus = useMutation({
-    mutationFn: async ({ applicationId, newStatus }: { applicationId: string, newStatus: string }) => {
-      const { error } = await supabase
-        .from('job_applications')
-        .update({ status: newStatus })
-        .eq('id', applicationId);
-      
-      if (error) throw error;
-      
-      return { success: true };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-job-applications'] });
-      toast.success('Application status updated successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update application status: ${error.message}`);
-    }
-  });
-
-  // Update system settings mutation
-  const updateSystemSettings = useMutation({
-    mutationFn: async (settings: typeof systemSettings) => {
-      let { data: existingSettings } = await supabase
-        .from('system_settings')
-        .select('id')
-        .single();
-      
-      let result;
-      
-      if (existingSettings) {
-        // Update existing settings
-        const { data, error } = await supabase
-          .from('system_settings')
-          .update(settings)
-          .eq('id', existingSettings.id);
-        
-        if (error) throw error;
-        result = data;
-      } else {
-        // Insert new settings
-        const { data, error } = await supabase
-          .from('system_settings')
-          .insert([settings])
-          .select()
-          .single();
-        
-        if (error) throw error;
-        result = data;
-      }
-      
-      return result;
-    },
-    onSuccess: () => {
-      setIsEditingSettings(false);
-      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
-      toast.success('System settings updated successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update system settings: ${error.message}`);
-    }
-  });
-
-  // Set up real-time subscription for updates
   useEffect(() => {
-    const subscription = supabase
-      .channel('admin-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-        refetchUsers();
-        refetchAnalytics();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'error_reports' }, () => {
-        refetchReports();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'upload_requests' }, () => {
-        refetchUploads();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'job_applications' }, () => {
-        refetchApplications();
-      })
-      .subscribe();
+    const fetchErrorReports = async () => {
+      setLoadingReports(true);
+      try {
+        const { data, error } = await supabase
+          .from("error_reports")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-    return () => {
-      subscription.unsubscribe();
+        if (error) throw error;
+        setErrorReports(data || []);
+      } catch (error: any) {
+        toast.error(`Error fetching error reports: ${error.message}`);
+      } finally {
+        setLoadingReports(false);
+      }
     };
-  }, [refetchUsers, refetchAnalytics, refetchReports, refetchUploads, refetchApplications]);
 
-  // Handle saving system settings
-  const handleSaveSettings = () => {
-    updateSystemSettings.mutate(systemSettings);
+    if (isAdmin) {
+      fetchErrorReports();
+    }
+  }, [isAdmin]);
+
+  // Update the useQuery hook for error reports stats - fix the onSuccess issue
+  const { data: errorReportStats, isLoading: loadingErrorStats, refetch: refetchErrorStats } = useQuery({
+    queryKey: ["errorReportStats"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_error_report_stats');
+      if (error) throw error;
+      return data;
+    },
+    meta: {
+      onSettled: (data, error) => {
+        if (error) {
+          console.error("Error fetching error report stats:", error);
+        }
+      }
+    }
+  });
+
+  // Mutations for updating user role and deleting user
+  const updateUserRoleMutation = useMutation(
+    async ({ userId, role }: { userId: string; role: string }) => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ role })
+        .eq("id", userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    {
+      onSuccess: () => {
+        toast.success("User role updated successfully");
+        queryClient.invalidateQueries(["users"]); // Invalidate users query to refetch
+      },
+      onError: (error: any) => {
+        toast.error(`Error updating user role: ${error.message}`);
+      },
+    }
+  );
+
+  const deleteUserMutation = useMutation(
+    async (userId: string) => {
+      const { data, error } = await supabase.auth.admin.deleteUser(userId);
+      if (error) throw error;
+      return data;
+    },
+    {
+      onSuccess: () => {
+        toast.success("User deleted successfully");
+        queryClient.invalidateQueries(["users"]); // Invalidate users query to refetch
+      },
+      onError: (error: any) => {
+        toast.error(`Error deleting user: ${error.message}`);
+      },
+    }
+  );
+
+  // Handler functions
+  const handleRoleChange = async (userId: string, role: string) => {
+    await updateUserRoleMutation.mutateAsync({ userId, role });
   };
 
-  // Pagination controls
-  const totalPages = usersData ? Math.ceil(usersData.totalCount / itemsPerPage) : 0;
+  const confirmDeleteUser = (userId: string) => {
+    setUserToDelete(userId);
+    setIsDeleteDialogOpen(true);
+  };
 
-  if (isLoadingAnalytics) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+  const handleCancelDelete = () => {
+    setIsDeleteDialogOpen(false);
+    setUserToDelete(null);
+  };
+
+  const handleDeleteUser = async () => {
+    if (userToDelete) {
+      await deleteUserMutation.mutateAsync(userToDelete);
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+    }
+  };
+
+  const handleReportStatusChange = async (reportId: string, status: 'pending' | 'in_progress' | 'resolved' | 'rejected') => {
+    try {
+      const { error } = await supabase
+        .from('error_reports')
+        .update({ status })
+        .eq('id', reportId);
+
+      if (error) throw error;
+
+      // Optimistically update the state
+      setErrorReports(currentReports =>
+        currentReports.map(report =>
+          report.id === reportId ? { ...report, status } : report
+        )
+      );
+
+      toast.success('Report status updated successfully');
+    } catch (error: any) {
+      toast.error(`Failed to update report status: ${error.message}`);
+      // Revert the state in case of error
+      setErrorReports(currentReports => {
+        return currentReports.map(report => {
+          if (report.id === reportId) {
+            // Revert to the previous status
+            return { ...report, status: errorReports.find(r => r.id === reportId)?.status || 'pending' };
+          }
+          return report;
+        });
+      });
+    } finally {
+      setSelectedReport(null);
+    }
+  };
+
+  const filteredReports = errorReports.filter(report => {
+    const searchTermLower = searchTerm.toLowerCase();
+    const titleMatch = report.title.toLowerCase().includes(searchTermLower);
+    const descriptionMatch = report.description.toLowerCase().includes(searchTermLower);
+    const statusMatch = statusFilter === 'all' || report.status === statusFilter;
+  
+    return (titleMatch || descriptionMatch) && statusMatch;
+  });
+
+  const indexOfLastReport = page * reportsPerPage;
+  const indexOfFirstReport = indexOfLastReport - reportsPerPage;
+  const currentReports = filteredReports.slice(indexOfFirstReport, indexOfLastReport);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  if (isAdminLoading) {
+    return <LoadingSpinner />;
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col items-start gap-4 md:flex-row md:justify-between md:items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Panel</h1>
-          <p className="text-muted-foreground">Manage your application and users.</p>
-        </div>
-        <Button onClick={() => refetchAnalytics()} className="shrink-0">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh Data
-        </Button>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-2 md:grid-cols-5 lg:w-auto">
-          <TabsTrigger value="overview" className="flex items-center">
-            <BarChart3 className="mr-2 h-4 w-4" />
-            <span>Overview</span>
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center">
+    <PageLayout title="Admin Panel" description="Manage users, error reports, and system settings" requireAuth={true}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="users">
             <Users className="mr-2 h-4 w-4" />
-            <span>Users</span>
+            Users
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center">
-            <Bell className="mr-2 h-4 w-4" />
-            <span>Reports</span>
+          <TabsTrigger value="error-reports">
+            <FileText className="mr-2 h-4 w-4" />
+            Error Reports
           </TabsTrigger>
-          <TabsTrigger value="uploads" className="flex items-center">
-            <Upload className="mr-2 h-4 w-4" />
-            <span>Uploads</span>
+          <TabsTrigger value="analytics">
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Analytics
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+          <TabsTrigger value="settings">
+            <UserCog className="mr-2 h-4 w-4" />
+            Settings
           </TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analytics?.totalUsers || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {analytics?.activeUsers || 0} active in the last 7 days
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Key Points Spent</CardTitle>
-                <Briefcase className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analytics?.totalOrders || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {analytics?.recentOrders || 0} in the last 7 days
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Employee Access</CardTitle>
-                <UserCog className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{analytics?.totalEmployees || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total approved employees
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">System Status</CardTitle>
-                <Settings className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center">
-                  <div className={`h-3 w-3 rounded-full mr-2 ${systemSettings.maintenance_mode ? 'bg-destructive' : 'bg-green-500'}`}></div>
-                  <div className="text-sm font-medium">
-                    {systemSettings.maintenance_mode ? 'Maintenance Mode' : 'Operational'}
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {systemSettings.maintenance_mode 
-                    ? 'System is in maintenance mode' 
-                    : 'All systems operational'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle>Recent Error Reports</CardTitle>
-                <CardDescription>Latest issues reported by users</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingReports ? (
-                  <div className="flex justify-center p-4">
-                    <LoadingSpinner />
-                  </div>
-                ) : errorReports && errorReports.length > 0 ? (
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-4">
-                      {errorReports.slice(0, 5).map((report) => (
-                        <div key={report.id} className="flex items-start gap-4 p-3 border rounded-lg">
-                          <div className={`h-2 w-2 rounded-full mt-2 ${
-                            report.status === 'resolved' ? 'bg-green-500' : 
-                            report.status === 'in_progress' ? 'bg-yellow-500' : 'bg-red-500'
-                          }`} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-medium truncate">{report.title}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  By {report.profiles?.username || 'Anonymous'} • {format(new Date(report.created_at), 'MMM d, yyyy')}
-                                </p>
-                              </div>
-                              <CustomBadge variant={
-                                report.status === 'resolved' ? 'success' : 
-                                report.status === 'in_progress' ? 'warning' : 'destructive'
-                              }>
-                                {report.status.replace('_', ' ')}
-                              </CustomBadge>
-                            </div>
-                            <p className="text-sm mt-1 truncate">{report.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No error reports found
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full" onClick={() => setActiveTab("reports")}>
-                  View All Reports
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle>Recent Uploads</CardTitle>
-                <CardDescription>Latest content upload requests</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingUploads ? (
-                  <div className="flex justify-center p-4">
-                    <LoadingSpinner />
-                  </div>
-                ) : uploadRequests && uploadRequests.length > 0 ? (
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-4">
-                      {uploadRequests.slice(0, 5).map((upload) => (
-                        <div key={upload.id} className="flex items-start gap-4 p-3 border rounded-lg">
-                          <div className={`h-2 w-2 rounded-full mt-2 ${
-                            upload.status === 'approved' ? 'bg-green-500' : 
-                            upload.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-                          }`} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-medium truncate">{upload.file_name}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  By {upload.profiles?.username || 'Unknown'} • {format(new Date(upload.created_at), 'MMM d, yyyy')}
-                                </p>
-                              </div>
-                              <CustomBadge variant={
-                                upload.status === 'approved' ? 'success' : 
-                                upload.status === 'pending' ? 'warning' : 'destructive'
-                              }>
-                                {upload.status}
-                              </CustomBadge>
-                            </div>
-                            <p className="text-sm mt-1">{(upload.file_size / 1024 / 1024).toFixed(2)} MB</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No upload requests found
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full" onClick={() => setActiveTab("uploads")}>
-                  View All Uploads
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <div className="flex flex-1 gap-2">
-              <div className="relative w-full sm:max-w-sm">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search users..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <Select
-                value={userStatusFilter}
-                onValueChange={setUserStatusFilter}
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="blocked">Blocked</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline">
-                <Filter className="mr-2 h-4 w-4" />
-                Advanced Filters
-              </Button>
-              <Button>
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </div>
-          </div>
-
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>
-              <CardDescription>Manage user accounts, roles, and permissions</CardDescription>
+              <CardDescription>Manage user accounts and roles.</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingUsers ? (
-                <div className="flex justify-center p-8">
-                  <LoadingSpinner />
-                </div>
-              ) : usersData && usersData.users.length > 0 ? (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Joined</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {usersData.users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar>
-                                <AvatarImage src={user.avatar_url || undefined} alt={user.username || "User"} />
-                                <AvatarFallback>
-                                  {user.username?.[0]?.toUpperCase() || user.full_name?.[0]?.toUpperCase() || "U"}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{user.username || "Anonymous"}</span>
-                                <span className="text-xs text-muted-foreground">{user.username || user.email}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <CustomBadge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
-                              {user.role || 'member'}
-                            </CustomBadge>
-                          </TableCell>
-                          <TableCell>
-                            <CustomBadge 
-                              variant={getStatusBadgeVariant(user.status || 'pending')}
-                            >
-                              {user.status || 'pending'}
-                            </CustomBadge>
-                          </TableCell>
-                          <TableCell>
-                            {user.created_at ? format(new Date(user.created_at), 'MMM d, yyyy') : 'Unknown'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <Settings className="h-4 w-4" />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => navigate(`/account?userId=${user.id}`)}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  View Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => updateUserRole.mutate({ 
-                                    userId: user.id, 
-                                    newRole: user.role === 'admin' ? 'member' : 'admin' 
-                                  })}
-                                >
-                                  <UserCog className="mr-2 h-4 w-4" />
-                                  Toggle Admin
-                                </DropdownMenuItem>
-                                {user.status !== 'blocked' ? (
-                                  <DropdownMenuItem 
-                                    onClick={() => updateUserStatus.mutate({ 
-                                      userId: user.id, 
-                                      newStatus: 'blocked' 
-                                    })}
-                                    className="text-destructive"
-                                  >
-                                    <XCircle className="mr-2 h-4 w-4" />
-                                    Block User
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem 
-                                    onClick={() => updateUserStatus.mutate({ 
-                                      userId: user.id, 
-                                      newStatus: 'active' 
-                                    })}
-                                  >
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Unblock User
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+              {loadingUsers ? (
+                <LoadingSpinner />
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No users found matching your criteria
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="flex items-center justify-center">
-              {usersData && usersData.totalCount > 0 && (
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                        disabled={pageNumber === 1}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const pageToRender = (() => {
-                        if (totalPages <= 5) return i + 1;
-                        if (pageNumber <= 3) return i + 1;
-                        if (pageNumber >= totalPages - 2) return totalPages - 4 + i;
-                        return pageNumber - 2 + i;
-                      })();
-                      
-                      return (
-                        <PaginationItem key={i}>
-                          <PaginationLink
-                            onClick={() => setPageNumber(pageToRender)}
-                            isActive={pageNumber === pageToRender}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Avatar>
+                              <AvatarImage src={user.profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} />
+                              <AvatarFallback>{user.profile?.full_name?.charAt(0) || user.email.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span>{user.profile?.full_name || "N/A"}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Select
+                            defaultValue={user.profile?.role || "user"}
+                            onValueChange={(role) => handleRoleChange(user.id, role)}
                           >
-                            {pageToRender}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
-                    {totalPages > 5 && pageNumber < totalPages - 2 && (
-                      <PaginationItem>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    )}
-                    <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => setPageNumber(Math.min(totalPages, pageNumber + 1))}
-                        disabled={pageNumber === totalPages}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </CardFooter>
-          </Card>
-        </TabsContent>
-
-        {/* Reports Tab */}
-        <TabsContent value="reports" className="space-y-4">
-          <div className="flex justify-between gap-2">
-            <Select
-              value={reportFilter}
-              onValueChange={setReportFilter}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Reports</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" onClick={() => refetchReports()}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
-            </Button>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Error Reports</CardTitle>
-              <CardDescription>View and manage user-reported issues</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingReports ? (
-                <div className="flex justify-center p-8">
-                  <LoadingSpinner />
-                </div>
-              ) : errorReports && errorReports.length > 0 ? (
-                <ScrollArea className="h-[600px]">
-                  <div className="space-y-4">
-                    {errorReports.map((report) => (
-                      <Card key={report.id}>
-                        <CardHeader className="pb-2">
-                          <div className="flex justify-between">
-                            <div className="flex items-center gap-2">
-                              <CustomBadge variant={
-                                report.status === 'resolved' ? 'success' : 
-                                report.status === 'in_progress' ? 'warning' : 'destructive'
-                              }>
-                                {report.status.replace('_', ' ')}
-                              </CustomBadge>
-                              <CardTitle className="text-lg">{report.title}</CardTitle>
-                            </div>
-                            <CustomBadge variant="outline">
-                              {report.severity || 'medium'}
-                            </CustomBadge>
-                          </div>
-                          <CardDescription>
-                            Reported by {report.profiles?.username || 'Anonymous'} 
-                            on {format(new Date(report.created_at), 'MMM d, yyyy')}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            <p className="text-sm">{report.description}</p>
-                            {report.resolution_notes && (
-                              <div className="mt-4 p-3 bg-muted rounded-md">
-                                <h4 className="text-sm font-medium">Resolution Notes:</h4>
-                                <p className="text-sm">{report.resolution_notes}</p>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                        <CardFooter className="flex justify-end gap-2">
-                          {report.status !== 'in_progress' && report.status !== 'resolved' && (
-                            <Button
-                              variant="outline"
-                              onClick={() => updateReportStatus.mutate({
-                                reportId: report.id,
-                                newStatus: 'in_progress'
-                              })}
-                            >
-                              Start Working
-                            </Button>
-                          )}
-                          {report.status !== 'resolved' && (
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="default">
-                                  <CheckSquare className="mr-2 h-4 w-4" />
-                                  Mark as Resolved
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Resolve Issue</DialogTitle>
-                                  <DialogDescription>
-                                    Add resolution notes for this error report.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                  <div className="space-y-2">
-                                    <Label htmlFor="notes">Resolution Notes</Label>
-                                    <textarea
-                                      id="notes"
-                                      className="w-full min-h-[100px] p-2 border rounded-md"
-                                      placeholder="Explain how the issue was resolved..."
-                                    />
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button
-                                    type="submit"
-                                    onClick={() => {
-                                      const notes = (document.getElementById('notes') as HTMLTextAreaElement).value;
-                                      updateReportStatus.mutate({
-                                        reportId: report.id,
-                                        newStatus: 'resolved',
-                                        notes
-                                      });
-                                    }}
-                                  >
-                                    {updateReportStatus.isPending ? (
-                                      <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Saving...
-                                      </>
-                                    ) : (
-                                      'Save Resolution'
-                                    )}
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </CardFooter>
-                      </Card>
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectLabel>Role</SelectLabel>
+                                <SelectItem value="user">User</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="moderator">Moderator</SelectItem>
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => confirmDeleteUser(user.id)}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="error-reports" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Error Report Management</CardTitle>
+              <CardDescription>Review and manage error reports submitted by users.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-4">
+                <Card className="bg-green-50 dark:bg-green-950/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      Resolved
+                    </CardTitle>
+                    <CardDescription>Total resolved reports</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{errorReportStats?.resolved || 0}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-yellow-50 dark:bg-yellow-950/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-yellow-500" />
+                      In Progress
+                    </CardTitle>
+                    <CardDescription>Reports being investigated</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{errorReportStats?.in_progress || 0}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-red-50 dark:bg-red-950/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-500" />
+                      Rejected
+                    </CardTitle>
+                    <CardDescription>Invalid or irreproducible reports</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{errorReportStats?.rejected || 0}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gray-50 dark:bg-gray-950/20">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CircleDashed className="h-4 w-4 text-gray-500" />
+                      Pending
+                    </CardTitle>
+                    <CardDescription>Reports awaiting review</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{errorReportStats?.pending || 0}</div>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle>Recent Error Reports</CardTitle>
+              <div className="flex items-center space-x-2">
+                <Input
+                  type="text"
+                  placeholder="Search reports..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <Button variant="outline" size="icon" onClick={() => setIsFilterOpen(!isFilterOpen)}>
+                  <Filter className="h-4 w-4" />
+                </Button>
+                <Button variant="secondary" size="icon" onClick={() => refetchErrorStats()}>
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {isFilterOpen && (
+                <div className="mb-4 flex items-center space-x-4">
+                  <Label htmlFor="status">Filter by Status:</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {loadingReports ? (
+                <LoadingSpinner />
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Reported At</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {currentReports.map((report) => (
+                          <TableRow key={report.id}>
+                            <TableCell>{report.title}</TableCell>
+                            <TableCell>
+                              <CustomBadge variant={
+                                report.status === 'pending' ? 'info' :
+                                report.status === 'in_progress' ? 'warning' :
+                                report.status === 'resolved' ? 'success' :
+                                'destructive'
+                              }>
+                                {report.status}
+                              </CustomBadge>
+                            </TableCell>
+                            <TableCell>{new Date(report.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setSelectedReport(report)}>
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => navigator.clipboard.writeText(
+                                    `${window.location.origin}/error-report/${report.id}`
+                                  )}>
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    Copy Report Link
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No error reports found
-                </div>
+                  <div className="flex justify-between items-center mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {indexOfFirstReport + 1} - {Math.min(indexOfLastReport, filteredReports.length)} of {filteredReports.length} reports
+                    </p>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        className="mr-2"
+                        onClick={() => handlePageChange(page - 1)}
+                        disabled={page === 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => handlePageChange(page + 1)}
+                        disabled={page * reportsPerPage >= filteredReports.length}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Uploads Tab */}
-        <TabsContent value="uploads" className="space-y-4">
+        <TabsContent value="analytics" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Content Upload Requests</CardTitle>
-              <CardDescription>Review and approve user uploads</CardDescription>
+              <CardTitle>System Analytics</CardTitle>
+              <CardDescription>Visualize system usage and performance metrics.</CardDescription>
             </CardHeader>
-            <CardContent>
-              {isLoadingUploads ? (
-                <div className="flex justify-center p-8">
-                  <LoadingSpinner />
-                </div>
-              ) : uploadRequests && uploadRequests.length > 0 ? (
-                <div className="space-y-4">
-                  {uploadRequests.map((upload) => (
-                    <Card key={upload.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <CustomBadge variant={
-                                upload.status === 'approved' ? 'success' : 
-                                upload.status === 'pending' ? 'warning' : 'destructive'
-                              }>
-                                {upload.status}
-                              </CustomBadge>
-                              <CardTitle className="text-lg truncate">{upload.file_name}</CardTitle>
-                            </div>
-                            <CardDescription>
-                              Uploaded by {upload.profiles?.username || 'Unknown'} 
-                              on {format(new Date(upload.created_at), 'MMM d, yyyy')}
-                            </CardDescription>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CustomBadge variant="outline">
-                              {(upload.file_size / 1024 / 1024).toFixed(2)} MB
-                            </CustomBadge>
-                            <CustomBadge variant="outline">
-                              {upload.file_type}
-                            </CustomBadge>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <div className="flex-1">
-                            <p className="text-sm">{upload.description || 'No description provided'}</p>
-                          </div>
-                          <div className="shrink-0">
-                            {upload.file_type.startsWith('image/') && upload.url && (
-                              <div className="w-24 h-24 relative rounded-md overflow-hidden">
-                                <img 
-                                  src={upload.url} 
-                                  alt={upload.file_name} 
-                                  className="object-cover w-full h-full"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-end gap-2">
-                        {upload.status === 'pending' && (
-                          <>
-                            <Button 
-                              variant="outline"
-                              onClick={() => updateUploadStatus.mutate({
-                                requestId: upload.id,
-                                newStatus: 'rejected'
-                              })}
-                            >
-                              <XCircle className="mr-2 h-4 w-4" />
-                              Reject
-                            </Button>
-                            <Button
-                              onClick={() => updateUploadStatus.mutate({
-                                requestId: upload.id,
-                                newStatus: 'approved'
-                              })}
-                            >
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Approve
-                            </Button>
-                          </>
-                        )}
-                        {upload.url && (
-                          <Button variant="outline" asChild>
-                            <a href={upload.url} target="_blank" rel="noopener noreferrer">
-                              <Eye className="mr-2 h-4 w-4" />
-                              View File
-                            </a>
-                          </Button>
-                        )}
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No upload requests found
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Job Applications</CardTitle>
-              <CardDescription>Review work with us applications</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingApplications ? (
-                <div className="flex justify-center p-8">
-                  <LoadingSpinner />
-                </div>
-              ) : jobApplications && jobApplications.length > 0 ? (
-                <div className="space-y-4">
-                  {jobApplications.map((application) => (
-                    <Card key={application.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <CustomBadge variant={
-                                application.status === 'approved' ? 'success' : 
-                                application.status === 'pending' ? 'warning' : 'destructive'
-                              }>
-                                {application.status}
-                              </CustomBadge>
-                              <CardTitle className="text-lg">{application.position}</CardTitle>
-                            </div>
-                            <CardDescription>
-                              Applied by {application.profiles?.username || 'Unknown'} 
-                              on {format(new Date(application.created_at), 'MMM d, yyyy')}
-                            </CardDescription>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <h4 className="text-sm font-medium">Contact Information:</h4>
-                              <p className="text-sm">{application.profiles?.email || 'No email'}</p>
-                              <p className="text-sm">{application.phone || 'No phone'}</p>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-medium">Experience:</h4>
-                              <p className="text-sm">{application.experience} years</p>
-                            </div>
-                          </div>
-                          <div className="mt-4">
-                            <h4 className="text-sm font-medium">Cover Letter:</h4>
-                            <p className="text-sm">{application.cover_letter || 'No cover letter provided'}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-end gap-2">
-                        {application.status === 'pending' && (
-                          <>
-                            <Button 
-                              variant="outline"
-                              onClick={() => updateApplicationStatus.mutate({
-                                applicationId: application.id,
-                                newStatus: 'rejected'
-                              })}
-                            >
-                              <XCircle className="mr-2 h-4 w-4" />
-                              Reject
-                            </Button>
-                            <Button
-                              onClick={() => updateApplicationStatus.mutate({
-                                applicationId: application.id,
-                                newStatus: 'approved'
-                              })}
-                            >
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Approve
-                            </Button>
-                          </>
-                        )}
-                        {application.resume_url && (
-                          <Button variant="outline" asChild>
-                            <a href={application.resume_url} target="_blank" rel="noopener noreferrer">
-                              <FileText className="mr-2 h-4 w-4" />
-                              View Resume
-                            </a>
-                          </Button>
-                        )}
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No job applications found
-                </div>
-              )}
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Engagement</CardTitle>
+                  <CardDescription>Track user activity over time.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <LineChart data={[
+                    { name: 'Jan', value: 4000 },
+                    { name: 'Feb', value: 3000 },
+                    { name: 'Mar', value: 2000 },
+                    { name: 'Apr', value: 2780 },
+                    { name: 'May', value: 1890 },
+                    { name: 'Jun', value: 2390 },
+                    { name: 'Jul', value: 3490 },
+                  ]} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Role Distribution</CardTitle>
+                  <CardDescription>See the distribution of user roles.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PieChart data={[
+                    { name: 'Admin', value: 30 },
+                    { name: 'User', value: 400 },
+                    { name: 'Moderator', value: 50 },
+                  ]} />
+                </CardContent>
+              </Card>
+
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Error Report Trends</CardTitle>
+                  <CardDescription>Analyze error report submissions over time.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BarChart data={[
+                    { name: 'Jan', value: 20 },
+                    { name: 'Feb', value: 30 },
+                    { name: 'Mar', value: 40 },
+                    { name: 'Apr', value: 20 },
+                    { name: 'May', value: 35 },
+                    { name: 'Jun', value: 40 },
+                    { name: 'Jul', value: 50 },
+                  ]} />
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>System Settings</CardTitle>
-              <CardDescription>Configure application-wide settings</CardDescription>
+              <CardDescription>Configure system-wide settings and preferences.</CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingSettings ? (
-                <div className="flex justify-center p-8">
-                  <LoadingSpinner />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="maintenanceMode">Maintenance Mode</Label>
+                  <Switch id="maintenanceMode" />
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex flex-col space-y-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="maintenance_mode" className="flex items-center">
-                        <span>Maintenance Mode</span>
-                        {systemSettings.maintenance_mode && (
-                          <CustomBadge variant="destructive" className="ml-2">
-                            Active
-                          </CustomBadge>
-                        )}
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        When enabled, only admins can access the application
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="maintenance_mode"
-                        checked={systemSettings.maintenance_mode}
-                        onCheckedChange={(checked) => 
-                          setSystemSettings({...systemSettings, maintenance_mode: !!checked})
-                        }
-                        disabled={!isEditingSettings}
-                      />
-                      <label
-                        htmlFor="maintenance_mode"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Enable maintenance mode
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col space-y-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="require_email_verification">Email Verification</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Require users to verify their email before accessing the application
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="require_email_verification"
-                        checked={systemSettings.require_email_verification}
-                        onCheckedChange={(checked) => 
-                          setSystemSettings({...systemSettings, require_email_verification: !!checked})
-                        }
-                        disabled={!isEditingSettings}
-                      />
-                      <label
-                        htmlFor="require_email_verification"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Require email verification
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col space-y-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="allow_social_login">Social Login</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Allow users to sign in with social media accounts
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="allow_social_login"
-                        checked={systemSettings.allow_social_login}
-                        onCheckedChange={(checked) => 
-                          setSystemSettings({...systemSettings, allow_social_login: !!checked})
-                        }
-                        disabled={!isEditingSettings}
-                      />
-                      <label
-                        htmlFor="allow_social_login"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Enable social login
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col space-y-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="max_upload_size">Maximum Upload Size (MB)</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Set the maximum file size users can upload
-                      </p>
-                    </div>
-                    <Input
-                      id="max_upload_size"
-                      type="number"
-                      value={systemSettings.max_upload_size_mb}
-                      onChange={(e) => 
-                        setSystemSettings({
-                          ...systemSettings, 
-                          max_upload_size_mb: parseInt(e.target.value) || 10
-                        })
-                      }
-                      disabled={!isEditingSettings}
-                      min={1}
-                      max={100}
-                    />
-                  </div>
-
-                  <div className="flex flex-col space-y-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="default_user_role">Default User Role</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Set the default role for new user registrations
-                      </p>
-                    </div>
-                    <Select
-                      value={systemSettings.default_user_role}
-                      onValueChange={(value) => 
-                        setSystemSettings({...systemSettings, default_user_role: value})
-                      }
-                      disabled={!isEditingSettings}
-                    >
-                      <SelectTrigger id="default_user_role">
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="member">Member</SelectItem>
-                        <SelectItem value="contributor">Contributor</SelectItem>
-                        <SelectItem value="moderator">Moderator</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex flex-col space-y-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="enable_analytics">Analytics</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Collect anonymous usage data to improve the application
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="enable_analytics"
-                        checked={systemSettings.enable_analytics}
-                        onCheckedChange={(checked) => 
-                          setSystemSettings({...systemSettings, enable_analytics: !!checked})
-                        }
-                        disabled={!isEditingSettings}
-                      />
-                      <label
-                        htmlFor="enable_analytics"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Enable analytics
-                      </label>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="allowSignups">Allow New Signups</Label>
+                  <Switch id="allowSignups" defaultChecked />
                 </div>
-              )}
+                <div>
+                  <Label htmlFor="systemDescription">System Description</Label>
+                  <Textarea
+                    id="systemDescription"
+                    placeholder="Description of the system"
+                    defaultValue="Multi Project Association (MPA) is a project management tool."
+                  />
+                </div>
+              </div>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              {isEditingSettings ? (
-                <>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setIsEditingSettings(false);
-                      // Reset to original values
-                      if (fetchedSettings) {
-                        setSystemSettings(fetchedSettings);
-                      }
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleSaveSettings}
-                    disabled={updateSystemSettings.isPending}
-                  >
-                    {updateSystemSettings.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                </>
-              ) : (
-                <Button 
-                  onClick={() => setIsEditingSettings(true)}
-                  className="ml-auto"
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Settings
-                </Button>
-              )}
+            <CardFooter>
+              <Button>Save Settings</Button>
             </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user account and all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Error Report Details Modal */}
+      {selectedReport && (
+        <AlertDialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Error Report Details</AlertDialogTitle>
+              <AlertDialogDescription>
+                View details of the selected error report and manage its status.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold">Report Title</h4>
+                <p className="text-muted-foreground">{selectedReport.title}</p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold">Description</h4>
+                <p className="text-muted-foreground">{selectedReport.description}</p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold">Steps to Reproduce</h4>
+                <p className="text-muted-foreground">{selectedReport.steps_to_reproduce || 'N/A'}</p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold">Status</h4>
+                <Select
+                  defaultValue={selectedReport.status}
+                  onValueChange={(status) => setReportStatus(status as 'pending' | 'in_progress' | 'resolved' | 'rejected')}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Status</SelectLabel>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+            <AlertDialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setSelectedReport(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (selectedReport) {
+                    handleReportStatusChange(selectedReport.id, reportStatus);
+                  }
+                }}
+              >
+                Update Status
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </PageLayout>
   );
 };
 

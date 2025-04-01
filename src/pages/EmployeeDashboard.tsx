@@ -1,22 +1,33 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { toast } from "sonner";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar, Check, Clock, FileText, Filter, Loader2, RefreshCw, ScrollText, Search, Upload, User2, XCircle } from "lucide-react";
-import { format } from "date-fns";
-import { EmployeeStatus } from "@/components/employee/EmployeeStatus";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { 
+  UserPlus, 
+  User, 
+  Mail, 
+  Calendar, 
+  Clock, 
+  Briefcase, 
+  Award, 
+  Check, 
+  X, 
+  Copy, 
+  Trash2,
+  MoreHorizontal,
+  Filter
+} from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CustomBadge } from "@/components/ui/custom-badge";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Employee {
   id: string;
