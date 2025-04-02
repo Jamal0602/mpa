@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -10,12 +11,50 @@ import { PaymentVerification } from "@/components/admin/PaymentVerification";
 import { RoleRequests } from "@/components/admin/RoleRequests";
 import { AdminControls } from "@/components/admin/AdminControls";
 import { AdminSetup } from "@/components/admin/AdminSetup";
-import { Database, FileText, BarChart3, UserCog, CreditCard, Users, Settings } from "lucide-react";
+import { 
+  Database, 
+  FileText, 
+  BarChart3, 
+  UserCog, 
+  CreditCard, 
+  Users, 
+  Settings,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  CircleDashed
+} from "lucide-react";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { LineChart, BarChart, PieChart } from "@/components/ui/charts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("users");
   const navigate = useNavigate();
   const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
+
+  // Query to fetch error report statistics
+  const { data: errorReportStats } = useQuery({
+    queryKey: ["error-report-stats"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.rpc("get_error_report_stats");
+        if (error) throw error;
+        return data;
+      } catch (err) {
+        console.error("Failed to fetch error report stats:", err);
+        return { total: 0, pending: 0, in_progress: 0, resolved: 0, rejected: 0 };
+      }
+    },
+    enabled: !!isAdmin
+  });
 
   useEffect(() => {
     if (!isAdmin && !isAdminLoading) {

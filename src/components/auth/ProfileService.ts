@@ -57,7 +57,9 @@ export const createUserProfile = async (session: Session): Promise<ProfileCreati
         role: role,
         theme_preference: 'system',
         referral_code: referralCode,
-        custom_email: session.user.email
+        mpa_id: mpaId,
+        custom_email: session.user.email,
+        display_name: fullName
       })
       .select()
       .single();
@@ -67,15 +69,20 @@ export const createUserProfile = async (session: Session): Promise<ProfileCreati
       throw new Error(`Failed to create profile: ${insertError.message}`);
     }
     
-    // Create a welcome notification
-    await supabase
-      .from("notifications")
-      .insert({
-        user_id: session.user.id,
-        title: "Welcome to MPA!",
-        message: "Your account has been created successfully. Start exploring our services.",
-        type: "success"
-      });
+    try {
+      // Create a welcome notification
+      await supabase
+        .from("notifications")
+        .insert({
+          user_id: session.user.id,
+          title: "Welcome to MPA!",
+          message: "Your account has been created successfully. Start exploring our services.",
+          type: "success"
+        });
+    } catch (err) {
+      console.error("Failed to create welcome notification:", err);
+      // We don't want to fail the whole process just because of a notification error
+    }
       
     toast.success("Your account has been created successfully!");
     

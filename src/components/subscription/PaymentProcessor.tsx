@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PaymentConfirmationModal } from '@/components/payment/PaymentConfirmationModal';
+import { PaymentVerificationModal } from '@/components/payment/PaymentVerificationModal';
 import { Alert } from '@/components/ui/alert';
 
 interface PaymentProcessorProps {
@@ -56,6 +56,8 @@ export const PaymentProcessor = ({
 }: PaymentProcessorProps) => {
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [transactionId, setTransactionId] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(PAYMENT_METHODS[0].id);
   
   const getAmount = () => selectedPlan ? selectedPlan.price : Number(customAmount);
@@ -84,20 +86,18 @@ export const PaymentProcessor = ({
     setIsPaymentProcessing(true);
     
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       const amount = getPoints();
       const price = getAmount();
       const planName = getPlanName();
       const requiresVerification = currentPaymentMethod?.requiresVerification || false;
       
-      // Record transaction in database
+      // Record transaction in payment_transactions table
       const { data: paymentTx, error: txError } = await supabase
-        .from("payment_transactions")
+        .from('payment_transactions')
         .insert({
           user_id: userId,
           amount: price,
+          currency: 'INR',
           spark_points: amount,
           payment_method: selectedPaymentMethod,
           status: requiresVerification ? 'pending' : 'completed',
@@ -108,43 +108,65 @@ export const PaymentProcessor = ({
         
       if (txError) throw txError;
       
-      // For methods without verification, update user points immediately
-      if (!requiresVerification) {
+      // For methods requiring verification, show verification modal
+      if (requiresVerification) {
+        setTransactionId(paymentTx.id);
+        setShowVerificationModal(true);
+        toast.info("Please complete payment verification to receive Spark Points");
+      } else {
+        // For instant payment methods like credit cards
         // Update user's key points
         const { error: pointsError } = await supabase
-          .from("profiles")
+          .from('profiles')
           .update({ 
             key_points: (currentPoints || 0) + amount 
           })
-          .eq("id", userId);
+          .eq('id', userId);
         
         if (pointsError) throw pointsError;
         
-        // Record transaction
+        // Record point transaction
         await supabase
-          .from("key_points_transactions")
+          .from('key_points_transactions')
           .insert({
             user_id: userId,
             amount: amount,
             description: `Purchased ${planName} plan (₹${price})`,
             transaction_type: 'earn'
           });
+          
+        toast.success(`Successfully purchased ${amount} Spark Points!`);
+        onPaymentComplete();
       }
-      
-      const message = requiresVerification 
-        ? "Payment recorded! Points will be credited after verification."
-        : `Successfully purchased ${amount} Spark Points!`;
-      
-      toast.success(message);
-      onPaymentComplete();
-      
     } catch (error: any) {
       toast.error(`Purchase failed: ${error.message}`);
-      throw error;
     } finally {
       setIsPaymentProcessing(false);
       setShowPaymentConfirmation(false);
     }
+  };
+  
+  const handleVerificationComplete = (reference: string) => {
+    setShowVerificationModal(false);
+    
+    // Update payment reference
+    if (transactionId) {
+      supabase
+        .from('payment_transactions')
+        .update({
+          payment_reference: reference
+        })
+        .eq('id', transactionId)
+        .then(() => {
+          toast.success("Payment verification submitted successfully");
+          toast.info("Your payment will be verified by an administrator shortly");
+        })
+        .catch(error => {
+          toast.error(`Error updating reference: ${error.message}`);
+        });
+    }
+    
+    onPaymentComplete();
   };
   
   return (
@@ -175,7 +197,7 @@ export const PaymentProcessor = ({
         </div>
         
         {currentPaymentMethod?.requiresVerification && (
-          <Alert variant="warning" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-900 dark:text-yellow-500">
+          <Alert variant="default" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-900 dark:text-yellow-500">
             <AlertCircle className="h-4 w-4" />
             <div>
               <h4 className="font-medium">Verification Required</h4>
@@ -215,6 +237,13 @@ export const PaymentProcessor = ({
         description="Please confirm your Spark Points purchase"
         amount={getAmount()}
         itemName={`${getPlanName()} Plan (${getPoints()} Spark Points)`}
+      />
+      
+      <PaymentVerificationModal
+        open={showVerificationModal}
+        onClose={() => setShowVerificationModal(false)}
+        onConfirm={handleVerificationComplete}
+        paymentMethod={selectedPaymentMethod}
       />
     </>
   );

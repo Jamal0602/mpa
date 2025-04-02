@@ -1,3 +1,4 @@
+
 import { Routes, Route, useLocation } from "react-router-dom";
 import "./App.css";
 import Index from "@/pages/Index";
@@ -25,7 +26,7 @@ import { useEffect } from "react";
 import AdminPanel from "@/pages/AdminPanel";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { AnimatePresence, motion } from "framer-motion";
-import { LoadingPageCGT } from "@/components/ui/loading-cgt";
+import LoadingRoute from "@/components/layout/LoadingRoute";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -93,7 +94,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       >
         {children}
       </motion.main>
-      <Footer />
+      <Footer showPoweredBy={true} />
     </div>
   );
 };
@@ -125,8 +126,18 @@ function App() {
                     </MainLayout>
                   } 
                 />
-                <Route path="/auth" element={<AuthForm />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route 
+                  path="/auth" 
+                  element={
+                    <AuthForm />
+                  } 
+                />
+                <Route 
+                  path="/auth/callback" 
+                  element={
+                    <AuthCallback />
+                  } 
+                />
 
                 {/* Protected routes */}
                 <Route 
@@ -210,6 +221,14 @@ function App() {
                       <Analytics />
                     </MainLayout>
                   } 
+                />
+                
+                {/* Loading route for transitions */}
+                <Route 
+                  path="/loading" 
+                  element={
+                    <LoadingRoute message="Please wait..." showPoweredBy={true} />
+                  }
                 />
                 
                 {/* 404 route - always keep this last */}

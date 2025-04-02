@@ -1,393 +1,348 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Save, Edit, AlertTriangle, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-
-interface LocationData {
-  country: string;
-  state: string;
-  district: string;
-  place: string;
-}
+import { Loading } from "@/components/ui/loading";
+import { useNavigate } from "react-router-dom";
+import { PageLayout } from "@/components/layout/PageLayout";
+import { ProfilePictureUpload } from "@/components/profile/ProfilePictureUpload"; 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Check, UserCog, MapPin, Shield, Settings } from "lucide-react";
 
 const AccountSettings = () => {
-  const { user } = useAuth();
-  const { data: isAdmin } = useIsAdmin();
-  const [uploading, setUploading] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const [locationData, setLocationData] = useState<LocationData>({
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    display_name: "",
+    custom_email: "",
     country: "",
     state: "",
     district: "",
-    place: "",
+    place: ""
   });
-  const [displayName, setDisplayName] = useState("");
-  const [customEmail, setCustomEmail] = useState("");
+  const [activeTab, setActiveTab] = useState("profile");
 
   useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+      toast.error("Please login to access account settings");
+      return;
+    }
+    
+    if (profile) {
+      setFormData({
+        display_name: profile.display_name || profile.full_name || "",
+        custom_email: profile.custom_email || user.email || "",
+        country: profile.country || "",
+        state: profile.state || "",
+        district: profile.district || "",
+        place: profile.place || ""
+      });
+    }
+  }, [profile, user, navigate]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+  };
+
+  const handleSaveProfile = async () => {
     if (!user) return;
-
-    const fetchProfileData = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("country, state, district, place, display_name, custom_email")
-          .eq("id", user.id)
-          .single();
-
-        if (error) throw error;
-        if (data) {
-          setLocationData({
-            country: data.country || "",
-            state: data.state || "",
-            district: data.district || "",
-            place: data.place || "",
-          });
-          setDisplayName(data.display_name || "");
-          setCustomEmail(data.custom_email || "");
-        }
-      } catch (error: any) {
-        toast.error("Error loading profile data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfileData();
-
-    const channel = supabase
-      .channel("profile-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "profiles",
-          filter: `id=eq.${user.id}`,
-        },
-        (payload: any) => {
-          if (payload.new) {
-            setLocationData({
-              country: payload.new.country || "",
-              state: payload.new.state || "",
-              district: payload.new.district || "",
-              place: payload.new.place || "",
-            });
-            setDisplayName(payload.new.display_name || "");
-            setCustomEmail(payload.new.custom_email || "");
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  const handleSaveChanges = async () => {
+    
+    setIsLoading(true);
     try {
-      const updates = {
-        ...locationData,
-        display_name: displayName,
-        custom_email: customEmail,
-      };
-
       const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", user?.id);
-
+        .from('profiles')
+        .update({
+          display_name: formData.display_name,
+          custom_email: formData.custom_email,
+          country: formData.country,
+          state: formData.state,
+          district: formData.district,
+          place: formData.place,
+        })
+        .eq('id', user.id);
+        
       if (error) throw error;
-      toast.success("Profile updated successfully!");
-      setEditing(false);
-    } catch (error: any) {
-      toast.error("Error updating profile");
-    }
-  };
-
-  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      setUploading(true);
       
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error("You must select an image to upload.");
+      toast.success("Profile updated successfully");
+      refreshProfile();
+      
+      // Add notification for user
+      try {
+        await supabase
+          .from("notifications")
+          .insert({
+            user_id: user.id,
+            title: "Profile Updated",
+            message: "Your account information has been updated successfully.",
+            type: "success"
+          });
+      } catch (error) {
+        console.error("Failed to add notification:", error);
       }
-
-      const file = event.target.files[0];
-      const fileExt = file.name.split(".").pop();
-      const filePath = `${user?.id}-${Math.random()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ avatar_url: filePath })
-        .eq("id", user?.id);
-
-      if (updateError) throw updateError;
-
-      toast.success("Avatar updated successfully!");
+      
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Error updating profile:", error);
+      toast.error(`Failed to update profile: ${error.message}`);
     } finally {
-      setUploading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteAccount = async () => {
-    try {
-      // First create a notification about account deletion
-      const { error: notificationError } = await supabase
-        .from("notifications")
-        .insert([
-          {
-            user_id: user?.id,
-            title: "Account Deletion Initiated",
-            message: "Your account deletion has been requested. All data including Spark Points will be permanently removed.",
-            type: "warning"
-          }
-        ]);
-
-      if (notificationError) throw notificationError;
-
-      // Delete the user account
-      const { error } = await supabase.auth.admin.deleteUser(user?.id as string);
-      
-      if (error) throw error;
-      
-      // Sign out the user
-      await supabase.auth.signOut();
-      
-      toast.success("Your account has been deleted successfully");
-      navigate("/");
-    } catch (error: any) {
-      console.error("Error deleting account:", error);
-      toast.error("Failed to delete your account. Please try again or contact support.");
-      setShowDeleteDialog(false);
-    }
-  };
-
-  if (!user) {
-    navigate("/auth");
-    return null;
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="relative">
-          <Loader2 className="h-12 w-12 animate-[spin_2s_linear_infinite]" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="h-4 w-4 bg-primary rounded-full animate-[ping_1s_ease-in-out_infinite]" />
-          </div>
-        </div>
-      </div>
-    );
+  if (!user || !profile) {
+    return <Loading />;
   }
 
   return (
-    <div className="container max-w-2xl py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold">Account Settings</h1>
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Badge variant="secondary" className="animate-fade-in">
-              Admin
-            </Badge>
-          )}
-          {editing ? (
-            <Button onClick={handleSaveChanges} className="gap-2">
-              <Save className="h-4 w-4" />
-              Save Changes
-            </Button>
-          ) : (
-            <Button onClick={() => setEditing(true)} className="gap-2">
-              <Edit className="h-4 w-4" />
-              Edit Profile
-            </Button>
-          )}
-        </div>
-      </div>
-      
-      <div className="grid gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="w-20 h-20">
-                <AvatarImage src={user.user_metadata.avatar_url} />
-                <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="space-y-2">
-                <Label htmlFor="avatar">Profile Picture</Label>
-                <Input
-                  id="avatar"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  disabled={uploading || !editing}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Display Name</Label>
-              <Input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                disabled={!editing}
-                placeholder="Enter your display name"
+    <PageLayout title="Account Settings" requireAuth={true}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid grid-cols-3 md:grid-cols-4 w-full mb-4">
+          <TabsTrigger value="profile">
+            <UserCog className="mr-2 h-4 w-4" />
+            Profile
+          </TabsTrigger>
+          <TabsTrigger value="location">
+            <MapPin className="mr-2 h-4 w-4" />
+            Location
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Shield className="mr-2 h-4 w-4" />
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="preferences">
+            <Settings className="mr-2 h-4 w-4" />
+            Preferences
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="profile" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Picture</CardTitle>
+              <CardDescription>
+                Update your profile picture. This will be visible to other users.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <ProfilePictureUpload
+                currentAvatarUrl={profile.avatar_url}
+                username={profile.username}
+                onUploadComplete={refreshProfile}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                value={customEmail || user.email}
-                onChange={(e) => setCustomEmail(e.target.value)}
-                disabled={!editing}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>MPA ID</Label>
-              <Input value={`${user.user_metadata.username}@mpa`} disabled />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Location Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Country</Label>
-              <Input
-                value={locationData.country}
-                onChange={(e) => setLocationData({ ...locationData, country: e.target.value })}
-                disabled={!editing}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>State</Label>
-              <Input
-                value={locationData.state}
-                onChange={(e) => setLocationData({ ...locationData, state: e.target.value })}
-                disabled={!editing}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>District</Label>
-              <Input
-                value={locationData.district}
-                onChange={(e) => setLocationData({ ...locationData, district: e.target.value })}
-                disabled={!editing}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Place</Label>
-              <Input
-                value={locationData.place}
-                onChange={(e) => setLocationData({ ...locationData, place: e.target.value })}
-                disabled={!editing}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-red-200 dark:border-red-900">
-          <CardHeader>
-            <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border border-red-200 p-4 dark:border-red-900">
-              <div className="flex items-start gap-4">
-                <AlertTriangle className="mt-1 h-5 w-5 text-red-600 dark:text-red-400" />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+              <CardDescription>
+                Update your personal information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <h3 className="font-medium text-red-600 dark:text-red-400">Delete Account</h3>
-                  <p className="text-sm text-muted-foreground">
-                    This action is irreversible. All your data, including Spark Points, will be permanently deleted.
-                    If you sign up again with the same email, your account will be treated as new.
-                  </p>
-                  <Button 
-                    variant="destructive" 
-                    className="gap-2 mt-2" 
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete Account
-                  </Button>
+                  <Label htmlFor="display_name">Display Name</Label>
+                  <Input
+                    id="display_name"
+                    name="display_name"
+                    value={formData.display_name}
+                    onChange={handleInputChange}
+                    placeholder="Your display name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="custom_email">Email Address</Label>
+                  <Input
+                    id="custom_email"
+                    name="custom_email"
+                    value={formData.custom_email}
+                    onChange={handleInputChange}
+                    placeholder="Your email address"
+                  />
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {uploading && (
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Uploading...</span>
-          </div>
-        )}
-      </div>
-
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your account and remove all associated data, including your Spark Points.
-              <br /><br />
-              <span className="font-semibold text-red-600">Warning:</span> All your Spark Points will be lost and cannot be recovered. If you sign up again with the same email, you will start with a fresh account.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteAccount}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
-              Delete Account
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+              
+              <div className="mt-2">
+                <div className="flex items-center space-x-2 mb-2 text-sm text-muted-foreground">
+                  <Check className="h-4 w-4" />
+                  <span>MPA ID: {profile.mpa_id || `${profile.username}@mpa`}</span>
+                </div>
+                
+                <div className="flex items-center space-x-2 mb-2 text-sm text-muted-foreground">
+                  <Check className="h-4 w-4" />
+                  <span>Referral Code: {profile.referral_code || "Not set"}</span>
+                </div>
+                
+                {profile.referred_by && (
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <Check className="h-4 w-4" />
+                    <span>Referred by: {profile.referred_by}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="location" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Location Information</CardTitle>
+              <CardDescription>
+                Update your location details. This information helps us tailor services to your location.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="country">Country</Label>
+                  <Select 
+                    value={formData.country}
+                    onValueChange={(value) => handleSelectChange("country", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="india">India</SelectItem>
+                      <SelectItem value="usa">United States</SelectItem>
+                      <SelectItem value="uk">United Kingdom</SelectItem>
+                      <SelectItem value="canada">Canada</SelectItem>
+                      <SelectItem value="australia">Australia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="state">State/Province</Label>
+                  <Input
+                    id="state"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    placeholder="Your state or province"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="district">District</Label>
+                  <Input
+                    id="district"
+                    name="district"
+                    value={formData.district}
+                    onChange={handleInputChange}
+                    placeholder="Your district"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="place">Place</Label>
+                  <Input
+                    id="place"
+                    name="place"
+                    value={formData.place}
+                    onChange={handleInputChange}
+                    placeholder="Your place"
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                onClick={handleSaveProfile} 
+                disabled={isLoading}
+              >
+                {isLoading ? "Saving..." : "Save Changes"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Security Settings</CardTitle>
+              <CardDescription>
+                Manage your password and account security.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button variant="outline">Change Password</Button>
+              <div>
+                <h4 className="font-medium mb-2">Two-Factor Authentication</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Add an extra layer of security to your account by enabling two-factor authentication.
+                </p>
+                <Button variant="secondary">Enable 2FA</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="preferences" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Theme Preference</CardTitle>
+              <CardDescription>
+                Customize your app appearance
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label>Theme</Label>
+                <Select 
+                  value={profile.theme_preference || "system"}
+                  onValueChange={async (value) => {
+                    try {
+                      await supabase
+                        .from('profiles')
+                        .update({ theme_preference: value })
+                        .eq('id', user.id);
+                      
+                      toast.success("Theme updated");
+                      refreshProfile();
+                    } catch (error) {
+                      toast.error("Failed to update theme");
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select theme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">Light</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="system">System</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </PageLayout>
   );
 };
 

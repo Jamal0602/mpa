@@ -15,9 +15,14 @@ const LoadingRoute = ({ message = "Loading Your Experience", showPoweredBy = tru
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 bg-background z-50 flex items-center justify-center"
+      className="fixed inset-0 bg-background z-50 flex items-center justify-center flex-col"
     >
       <LoadingPageCGT text={message} showPoweredBy={showPoweredBy} />
+      {showPoweredBy && (
+        <div className="mt-8 text-sm text-muted-foreground">
+          Powered by <span className="font-bold text-primary">CGT</span>
+        </div>
+      )}
     </motion.div>
   );
 };

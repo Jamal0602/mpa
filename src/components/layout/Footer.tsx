@@ -1,6 +1,6 @@
 
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Pencil, Save, Github, Twitter, Instagram, Facebook, Mail } from 'lucide-react';
+import { Pencil, Save, Github, Twitter, Instagram, Facebook, Mail, Loader2 } from 'lucide-react';
 
 interface FooterContent {
   id: string;
@@ -26,7 +26,11 @@ interface FooterContent {
   updated_at: string;
 }
 
-export const Footer = () => {
+interface FooterProps {
+  showPoweredBy?: boolean;
+}
+
+export const Footer = ({ showPoweredBy = true }: FooterProps) => {
   const { data: isAdmin } = useIsAdmin();
   const [isEditing, setIsEditing] = useState(false);
   const [aboutText, setAboutText] = useState('');
@@ -40,21 +44,55 @@ export const Footer = () => {
     facebook: ''
   });
 
+  // Fetch footer content data
   const { data: footerContent, isLoading, refetch } = useQuery({
     queryKey: ['footer-content'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('footer_content')
-        .select('*')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('footer_content')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+          
+        if (error) {
+          throw error;
+        }
         
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+        return data as FooterContent | null;
+      } catch (err) {
+        console.error("Error fetching footer content:", err);
+        return null;
       }
-      
-      return data as FooterContent || null;
+    }
+  });
+
+  // Mutation to save footer content
+  const saveMutation = useMutation({
+    mutationFn: async (data: Omit<FooterContent, 'id' | 'created_at'>) => {
+      if (footerContent?.id) {
+        const { error } = await supabase
+          .from('footer_content')
+          .update(data)
+          .eq('id', footerContent.id);
+          
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('footer_content')
+          .insert([data]);
+          
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success('Footer content updated successfully');
+      setIsEditing(false);
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(`Error updating footer content: ${error.message}`);
     }
   });
 
@@ -78,7 +116,7 @@ export const Footer = () => {
       setPrivacyText('Your privacy is important to us. We collect minimal data and use it only for service improvement.');
       setTermsText('By using MPA, you agree to our terms of service.');
       setSocialLinks({
-        github: 'https://github.com/Jamal0602/MPA',
+        github: 'https://github.com',
         twitter: '',
         instagram: '',
         facebook: ''
@@ -86,40 +124,15 @@ export const Footer = () => {
     }
   }, [footerContent, isLoading]);
 
-  const handleSave = async () => {
-    try {
-      const updateData = {
-        about_text: aboutText,
-        contact_email: contactEmail,
-        privacy_text: privacyText,
-        terms_text: termsText,
-        social_links: socialLinks,
-        updated_at: new Date().toISOString()
-      };
-
-      if (footerContent?.id) {
-        // Update existing record
-        const { error } = await supabase
-          .from('footer_content')
-          .update(updateData)
-          .eq('id', footerContent.id);
-          
-        if (error) throw error;
-      } else {
-        // Insert new record
-        const { error } = await supabase
-          .from('footer_content')
-          .insert([updateData]);
-          
-        if (error) throw error;
-      }
-      
-      toast.success('Footer content updated successfully');
-      setIsEditing(false);
-      refetch();
-    } catch (error: any) {
-      toast.error(`Error updating footer content: ${error.message}`);
-    }
+  const handleSave = () => {
+    saveMutation.mutate({
+      about_text: aboutText,
+      contact_email: contactEmail,
+      privacy_text: privacyText,
+      terms_text: termsText,
+      social_links: socialLinks,
+      updated_at: new Date().toISOString()
+    });
   };
 
   return (
@@ -234,9 +247,22 @@ export const Footer = () => {
         {isAdmin && (
           <div className="mt-8 flex justify-end">
             {isEditing ? (
-              <Button onClick={handleSave} className="flex items-center gap-2">
-                <Save className="h-4 w-4" />
-                Save Changes
+              <Button 
+                onClick={handleSave} 
+                className="flex items-center gap-2"
+                disabled={saveMutation.isPending}
+              >
+                {saveMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
               </Button>
             ) : (
               <Button onClick={() => setIsEditing(true)} variant="outline" className="flex items-center gap-2">
@@ -254,6 +280,11 @@ export const Footer = () => {
             <a href="/privacy" className="hover:text-primary ml-2">Privacy</a> · 
             <a href="/cookies" className="hover:text-primary ml-2">Cookies</a>
           </p>
+          {showPoweredBy && (
+            <div className="mt-4 text-xs font-semibold">
+              Powered by <span className="text-primary">CGT</span>
+            </div>
+          )}
           <div className="mt-2 text-xs">
             <Link to="/report-error" className="text-primary hover:underline">Report an Issue</Link>
           </div>
