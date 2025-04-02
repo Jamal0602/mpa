@@ -27,9 +27,14 @@ export const deductUserPoints = async (
 ): Promise<boolean> => {
   try {
     // Update profile with new point balance
-    const { data: profile, error: profileError } = await supabase
+    const { error: profileError } = await supabase
       .from("profiles")
-      .update({ key_points: supabase.rpc('decrement_points', { user_id: userId, amount_to_deduct: amount }) })
+      .update({ 
+        key_points: supabase.rpc('decrement_points', { 
+          user_id: userId, 
+          amount_to_deduct: amount 
+        }) 
+      })
       .eq("id", userId)
       .select("key_points");
     
