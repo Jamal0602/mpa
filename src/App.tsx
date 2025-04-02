@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import "./App.css";
 import Index from "@/pages/Index";
 import Features from "@/pages/Features";
@@ -24,6 +24,8 @@ import { ThemeProvider } from "next-themes";
 import { useEffect } from "react";
 import AdminPanel from "@/pages/AdminPanel";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { AnimatePresence, motion } from "framer-motion";
+import { LoadingPageCGT } from "@/components/ui/loading-cgt";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -34,6 +36,28 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Page transition variants
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    y: 10,
+  },
+  in: {
+    opacity: 1,
+    y: 0,
+  },
+  out: {
+    opacity: 0,
+    y: -10,
+  },
+};
+
+const pageTransition = {
+  type: "tween",
+  ease: "easeInOut",
+  duration: 0.3,
+};
 
 // Layout component that wraps our pages with common elements
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
@@ -59,128 +83,139 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="container mx-auto px-4 py-8 flex-grow">
+      <motion.main
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="container mx-auto px-4 py-8 flex-grow"
+      >
         {children}
-      </main>
+      </motion.main>
       <Footer />
     </div>
   );
 };
 
 function App() {
+  const location = useLocation();
+  
   return (
     <ThemeProvider defaultTheme="system" enableSystem>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <NotificationProvider>
-            <Routes>
-              {/* Public routes */}
-              <Route 
-                path="/" 
-                element={
-                  <MainLayout>
-                    <Index />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/features" 
-                element={
-                  <MainLayout>
-                    <Features />
-                  </MainLayout>
-                } 
-              />
-              <Route path="/auth" element={<AuthForm />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
+            <AnimatePresence mode="wait">
+              <Routes location={location} key={location.pathname}>
+                {/* Public routes */}
+                <Route 
+                  path="/" 
+                  element={
+                    <MainLayout>
+                      <Index />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/features" 
+                  element={
+                    <MainLayout>
+                      <Features />
+                    </MainLayout>
+                  } 
+                />
+                <Route path="/auth" element={<AuthForm />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
 
-              {/* Protected routes */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <MainLayout>
-                    <Dashboard />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/admin" 
-                element={
-                  <MainLayout>
-                    <PageLayout requireAuth={true} title="Admin Panel">
-                      <AdminPanel />
-                    </PageLayout>
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/account" 
-                element={
-                  <MainLayout>
-                    <AccountSettings />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/upload" 
-                element={
-                  <MainLayout>
-                    <UploadPage />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/subscription" 
-                element={
-                  <MainLayout>
-                    <Subscription />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/help" 
-                element={
-                  <MainLayout>
-                    <Help />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/work-with-us" 
-                element={
-                  <MainLayout>
-                    <WorkWithUs />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/referral" 
-                element={
-                  <MainLayout>
-                    <Referral />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/report-error" 
-                element={
-                  <MainLayout>
-                    <ErrorReport />
-                  </MainLayout>
-                } 
-              />
-              <Route 
-                path="/analytics" 
-                element={
-                  <MainLayout>
-                    <Analytics />
-                  </MainLayout>
-                } 
-              />
-              
-              {/* 404 route - always keep this last */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* Protected routes */}
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <MainLayout>
+                      <Dashboard />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/admin" 
+                  element={
+                    <MainLayout>
+                      <PageLayout requireAuth={true} title="Admin Panel">
+                        <AdminPanel />
+                      </PageLayout>
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/account" 
+                  element={
+                    <MainLayout>
+                      <AccountSettings />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/upload" 
+                  element={
+                    <MainLayout>
+                      <UploadPage />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/subscription" 
+                  element={
+                    <MainLayout>
+                      <Subscription />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/help" 
+                  element={
+                    <MainLayout>
+                      <Help />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/work-with-us" 
+                  element={
+                    <MainLayout>
+                      <WorkWithUs />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/referral" 
+                  element={
+                    <MainLayout>
+                      <Referral />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/report-error" 
+                  element={
+                    <MainLayout>
+                      <ErrorReport />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/analytics" 
+                  element={
+                    <MainLayout>
+                      <Analytics />
+                    </MainLayout>
+                  } 
+                />
+                
+                {/* 404 route - always keep this last */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AnimatePresence>
             <Toaster />
           </NotificationProvider>
         </AuthProvider>

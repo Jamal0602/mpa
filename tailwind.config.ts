@@ -56,6 +56,28 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // New color variants
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        // Custom CGT colors
+        cgt: {
+          blue: "hsl(var(--cgt-blue))",
+          purple: "hsl(var(--cgt-purple))",
+          pink: "hsl(var(--cgt-pink))",
+          green: "hsl(var(--cgt-green))",
+          yellow: "hsl(var(--cgt-yellow))",
+          orange: "hsl(var(--cgt-orange))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
