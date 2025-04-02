@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { LoadingPage } from '@/components/ui/loading';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';

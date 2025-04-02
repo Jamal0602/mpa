@@ -1,4 +1,3 @@
-
 import { Routes, Route } from "react-router-dom";
 import "./App.css";
 import Index from "@/pages/Index";
@@ -27,7 +26,14 @@ import AdminPanel from "@/pages/AdminPanel";
 import { PageLayout } from "@/components/layout/PageLayout";
 
 // Create a client
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30000,
+    },
+  },
+});
 
 // Layout component that wraps our pages with common elements
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
@@ -68,6 +74,7 @@ function App() {
         <AuthProvider>
           <NotificationProvider>
             <Routes>
+              {/* Public routes */}
               <Route 
                 path="/" 
                 element={
@@ -84,6 +91,10 @@ function App() {
                   </MainLayout>
                 } 
               />
+              <Route path="/auth" element={<AuthForm />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+
+              {/* Protected routes */}
               <Route 
                 path="/dashboard" 
                 element={
@@ -102,8 +113,6 @@ function App() {
                   </MainLayout>
                 } 
               />
-              <Route path="/auth" element={<AuthForm />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route 
                 path="/account" 
                 element={
@@ -168,6 +177,8 @@ function App() {
                   </MainLayout>
                 } 
               />
+              
+              {/* 404 route - always keep this last */}
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Toaster />

@@ -1,6 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const useIsAdmin = () => {
@@ -11,17 +11,13 @@ export const useIsAdmin = () => {
     queryFn: async () => {
       if (!user) return false;
       
-      // First try to use the RPC function if available
-      try {
-        const { data: isAdminRPC, error: rpcError } = await supabase.rpc('is_admin', {
-          user_id: user.id
-        });
-        
-        if (!rpcError && typeof isAdminRPC === 'boolean') {
-          return isAdminRPC;
-        }
-      } catch (e) {
-        console.log("RPC is_admin not available, falling back to direct query");
+      // Call the is_admin function we created in the SQL migration
+      const { data: isAdminResult, error: funcError } = await supabase.rpc('is_admin', {
+        user_id: user.id
+      });
+      
+      if (!funcError && typeof isAdminResult === 'boolean') {
+        return isAdminResult;
       }
       
       // Fallback to direct query

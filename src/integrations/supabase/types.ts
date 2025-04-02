@@ -9,13 +9,95 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      error_reports: {
+        Row: {
+          browser_info: string | null
+          created_at: string | null
+          error_details: Json | null
+          error_message: string
+          error_type: string
+          id: string
+          page_url: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          browser_info?: string | null
+          created_at?: string | null
+          error_details?: Json | null
+          error_message: string
+          error_type: string
+          id?: string
+          page_url?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          browser_info?: string | null
+          created_at?: string | null
+          error_details?: Json | null
+          error_message?: string
+          error_type?: string
+          id?: string
+          page_url?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          key_points: number | null
+          role: string | null
+          theme_preference: string | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          key_points?: number | null
+          role?: string | null
+          theme_preference?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          key_points?: number | null
+          role?: string | null
+          theme_preference?: string | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: {
+          user_id?: string
+        }
+        Returns: boolean
+      }
+      user_daily_error_reports: {
+        Args: {
+          user_id: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

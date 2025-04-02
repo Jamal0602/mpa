@@ -1,85 +1,109 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  // Handle CORS preflight request
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Create a Supabase client with the Auth admin key
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase credentials not available');
+    }
+
+    // Initialize Supabase client with the service role key (admin privileges)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get request body
     const { operation, email, password } = await req.json();
 
-    // Process different operations
-    if (operation === "create_admin") {
-      // Create user
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-      });
+    switch (operation) {
+      case 'create_admin': {
+        if (!email || !password) {
+          throw new Error('Email and password are required');
+        }
 
-      if (userError) throw userError;
+        // 1. Create the user in auth.users
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+        });
 
-      // Update profile to admin role
-      if (userData.user) {
-        const { error: profileError } = await supabaseAdmin
-          .from("profiles")
-          .update({ role: "admin" })
-          .eq("id", userData.user.id);
+        if (authError) {
+          throw authError;
+        }
 
-        if (profileError) throw profileError;
+        if (!authData.user) {
+          throw new Error('Failed to create user');
+        }
+
+        // 2. Update the profile to make the user an admin
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ role: 'admin', key_points: 1000 })
+          .eq('id', authData.user.id);
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Admin user created successfully',
+            user: authData.user,
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
       }
-
-      return new Response(
-        JSON.stringify({ success: true, message: "Admin user created successfully" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } 
-    else if (operation === "delete_all_users") {
-      // Get all users
-      const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-      
-      if (usersError) throw usersError;
-      
-      // Delete each user
-      for (const user of usersData.users) {
-        await supabaseAdmin.auth.admin.deleteUser(user.id);
+      case 'delete_all_users': {
+        // Call the public.delete_all_users() function
+        const { data, error } = await supabase.rpc('delete_all_users');
+        
+        if (error) {
+          throw error;
+        }
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'All users deleted successfully',
+            result: data,
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
       }
-      
-      return new Response(
-        JSON.stringify({ success: true, message: "All users deleted successfully" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    else {
-      throw new Error("Invalid operation");
+      default:
+        throw new Error('Unknown operation');
     }
   } catch (error) {
-    console.error("Error:", error.message);
+    console.error('Error in admin-operations function:', error);
+    
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      JSON.stringify({
+        success: false,
+        message: error.message || 'An unexpected error occurred',
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
       }
     );
   }

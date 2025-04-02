@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Shield, UserX } from 'lucide-react';
 
 export const AdminSetup = () => {
@@ -16,12 +16,20 @@ export const AdminSetup = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   
   const handleCreateAdmin = async () => {
+    if (!email || !password) {
+      toast.error('Email and password are required');
+      return;
+    }
+    
+    // Ensure email has a valid format
+    const fixedEmail = email.includes('@') ? email : `${email}@example.com`;
+    
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { 
           operation: 'create_admin', 
-          email, 
+          email: fixedEmail,
           password 
         },
       });
@@ -32,9 +40,12 @@ export const AdminSetup = () => {
         toast.success('Admin user created successfully!');
         // Auto-login
         await supabase.auth.signInWithPassword({
-          email,
+          email: fixedEmail,
           password
         });
+        
+        // Navigate to admin page after successful login
+        window.location.href = '/admin';
       } else {
         throw new Error(data.message || 'Failed to create admin user');
       }
@@ -57,6 +68,14 @@ export const AdminSetup = () => {
       
       if (data.success) {
         toast.success('All users deleted successfully!');
+        
+        // Sign out the current user since they were just deleted
+        await supabase.auth.signOut();
+        
+        // Reload the page after a brief delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
         throw new Error(data.message || 'Failed to delete users');
       }
@@ -83,6 +102,9 @@ export const AdminSetup = () => {
             onChange={(e) => setEmail(e.target.value)} 
             placeholder="admin@example.com" 
           />
+          <p className="text-xs text-muted-foreground">
+            Domain will be automatically added if missing
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">Password</Label>
@@ -98,7 +120,7 @@ export const AdminSetup = () => {
       <CardFooter className="flex justify-between">
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" disabled={deleteLoading}>
+            <Button variant="destructive" disabled={deleteLoading || loading}>
               {deleteLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -128,7 +150,7 @@ export const AdminSetup = () => {
           </AlertDialogContent>
         </AlertDialog>
         
-        <Button onClick={handleCreateAdmin} disabled={loading}>
+        <Button onClick={handleCreateAdmin} disabled={loading || deleteLoading}>
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

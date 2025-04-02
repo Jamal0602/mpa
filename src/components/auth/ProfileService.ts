@@ -1,6 +1,6 @@
 
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
 
 export interface ProfileCreationResult {
@@ -38,14 +38,9 @@ export const createUserProfile = async (session: Session): Promise<ProfileCreati
         username: username,
         avatar_url: avatarUrl,
         full_name: fullName,
-        mpa_id: mpaId,
         key_points: 10, // Starting points
         role: 'user',
-        theme_preference: 'system',
-        country: '',
-        state: '',
-        district: '',
-        place: ''
+        theme_preference: 'system'
       })
       .select()
       .single();

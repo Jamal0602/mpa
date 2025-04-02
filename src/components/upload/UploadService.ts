@@ -1,5 +1,5 @@
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export const verifyUserBalance = async (userId: string, requiredPoints: number): Promise<boolean> => {
@@ -26,14 +26,14 @@ export const deductUserPoints = async (
   description: string
 ): Promise<boolean> => {
   try {
-    // Call the decrement_points function which will update the profile
-    const { data, error } = await supabase
-      .rpc('decrement_points', { 
-        user_id: userId,
-        amount_to_deduct: amount 
-      });
+    // Update profile with new point balance
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .update({ key_points: supabase.rpc('decrement_points', { user_id: userId, amount_to_deduct: amount }) })
+      .eq("id", userId)
+      .select("key_points");
     
-    if (error) throw error;
+    if (profileError) throw profileError;
     
     // Record the transaction
     const { error: transactionError } = await supabase
