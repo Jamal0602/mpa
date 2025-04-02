@@ -2,6 +2,7 @@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface ProfileCreationResult {
   success: boolean;
@@ -24,11 +25,25 @@ export const createUserProfile = async (session: Session): Promise<ProfileCreati
     // Create a unique MPA ID
     const mpaId = username.toLowerCase() + '@mpa';
     
+    // Generate unique referral code
+    const referralCode = generateReferralCode(username);
+    
     // Get user metadata
     const avatarUrl = session.user.user_metadata?.avatar_url || null;
     const fullName = session.user.user_metadata?.full_name || 
                      session.user.user_metadata?.name || 
                      username;
+    
+    // Special case for admin user
+    let role = 'user';
+    let initialPoints = 10;
+    
+    if (session.user.email === 'ja.jamalasraf@example.com' || 
+        session.user.email === 'ja.jamalasraf@gmail.com') {
+      role = 'admin';
+      initialPoints = 1000;
+      console.log("Creating admin user account!");
+    }
     
     // Insert the profile with default values
     const { data: profile, error: insertError } = await supabase
@@ -38,9 +53,11 @@ export const createUserProfile = async (session: Session): Promise<ProfileCreati
         username: username,
         avatar_url: avatarUrl,
         full_name: fullName,
-        key_points: 10, // Starting points
-        role: 'user',
-        theme_preference: 'system'
+        key_points: initialPoints,
+        role: role,
+        theme_preference: 'system',
+        referral_code: referralCode,
+        custom_email: session.user.email
       })
       .select()
       .single();
@@ -118,4 +135,11 @@ export const updateUserProfile = async (userId: string, updates: any): Promise<P
       error: new Error(`Failed to update profile: ${error.message}`)
     };
   }
+};
+
+// Helper function to generate a referral code
+const generateReferralCode = (username: string): string => {
+  const prefix = username.substring(0, 3).toUpperCase();
+  const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `${prefix}-${randomPart}`;
 };

@@ -45,39 +45,213 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_methods: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean | null
+          payment_details: Json
+          payment_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          payment_details: Json
+          payment_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          payment_details?: Json
+          payment_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          payment_method: string
+          payment_reference: string | null
+          spark_points: number
+          status: string
+          updated_at: string
+          user_id: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          payment_method: string
+          payment_reference?: string | null
+          spark_points: number
+          status?: string
+          updated_at?: string
+          user_id: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          payment_method?: string
+          payment_reference?: string | null
+          spark_points?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          country: string | null
           created_at: string | null
+          custom_email: string | null
+          display_name: string | null
+          district: string | null
           full_name: string | null
           id: string
           key_points: number | null
+          place: string | null
+          referral_code: string | null
+          referred_by: string | null
           role: string | null
+          state: string | null
           theme_preference: string | null
           updated_at: string | null
           username: string | null
         }
         Insert: {
           avatar_url?: string | null
+          country?: string | null
           created_at?: string | null
+          custom_email?: string | null
+          display_name?: string | null
+          district?: string | null
           full_name?: string | null
           id: string
           key_points?: number | null
+          place?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           role?: string | null
+          state?: string | null
           theme_preference?: string | null
           updated_at?: string | null
           username?: string | null
         }
         Update: {
           avatar_url?: string | null
+          country?: string | null
           created_at?: string | null
+          custom_email?: string | null
+          display_name?: string | null
+          district?: string | null
           full_name?: string | null
           id?: string
           key_points?: number | null
+          place?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           role?: string | null
+          state?: string | null
           theme_preference?: string | null
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      role_requests: {
+        Row: {
+          approved_at: string | null
+          approver_id: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          requested_role: string
+          requester_id: string
+          status: string
+          target_user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_role: string
+          requester_id: string
+          status?: string
+          target_user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approver_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_role?: string
+          requester_id?: string
+          status?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
+      service_offers: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_percentage: number | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          point_cost: number
+          start_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_percentage?: number | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          point_cost: number
+          start_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_percentage?: number | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          point_cost?: number
+          start_date?: string | null
         }
         Relationships: []
       }
@@ -86,6 +260,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_error_report_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       is_admin: {
         Args: {
           user_id?: string
