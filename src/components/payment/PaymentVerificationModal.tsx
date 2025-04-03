@@ -23,27 +23,8 @@ interface PaymentVerificationModalProps {
   paymentMethod: string;
 }
 
-interface BankDetails {
-  accountName: string;
-  accountNumber: string;
-  ifsc: string;
-  bankName: string;
-}
-
-interface UpiDetails {
-  upiId: string;
-  qrCode: string;
-}
-
-const BANK_DETAILS: BankDetails = {
-  accountName: "Multi Project Association",
-  accountNumber: "1234567890123456",
-  ifsc: "SBIN0000123",
-  bankName: "State Bank of India"
-};
-
-const UPI_DETAILS: UpiDetails = {
-  upiId: "mpa@ybl",
+const UPI_DETAILS = {
+  upiId: "ja.jamalasraf@fam",
   qrCode: "/placeholder.svg"
 };
 
@@ -66,7 +47,6 @@ export function PaymentVerificationModal({
     setIsSubmitting(true);
     
     try {
-      // In a real implementation, this might include uploading receipt images etc.
       setTimeout(() => {
         onConfirm(transactionId);
         resetForm();
@@ -94,112 +74,47 @@ export function PaymentVerificationModal({
     }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Payment Verification</DialogTitle>
+          <DialogTitle>UPI Payment Verification</DialogTitle>
           <DialogDescription>
-            Complete your payment using the details below, then provide your transaction reference ID.
+            Pay the exact amount to the UPI ID below, then provide your transaction reference ID.
           </DialogDescription>
         </DialogHeader>
         
-        {paymentMethod === 'bank_transfer' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Bank Transfer Details</CardTitle>
-              <CardDescription>Transfer the exact amount to this account</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="text-sm font-medium">Account Name</div>
-                <div className="flex justify-between">
-                  <div className="text-sm">{BANK_DETAILS.accountName}</div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0"
-                    onClick={() => copyToClipboard(BANK_DETAILS.accountName, "Account name")}
-                  >
-                    <Copy className="h-3 w-3" />
-                    <span className="sr-only">Copy</span>
-                  </Button>
-                </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>UPI Payment Details</CardTitle>
+            <CardDescription>Scan the QR code or pay using the UPI ID</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center space-y-4">
+            <div className="w-48 h-48 bg-gray-200 flex items-center justify-center rounded-lg">
+              <img src={UPI_DETAILS.qrCode} alt="UPI QR Code" className="w-40 h-40" />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <div className="text-sm font-medium">UPI ID</div>
+              <div className="flex justify-between">
+                <div className="text-sm">{UPI_DETAILS.upiId}</div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0"
+                  onClick={() => copyToClipboard(UPI_DETAILS.upiId, "UPI ID")}
+                >
+                  <Copy className="h-3 w-3" />
+                  <span className="sr-only">Copy</span>
+                </Button>
               </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="text-sm font-medium">Account Number</div>
-                <div className="flex justify-between">
-                  <div className="text-sm">{BANK_DETAILS.accountNumber}</div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0"
-                    onClick={() => copyToClipboard(BANK_DETAILS.accountNumber, "Account number")}
-                  >
-                    <Copy className="h-3 w-3" />
-                    <span className="sr-only">Copy</span>
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="text-sm font-medium">IFSC Code</div>
-                <div className="flex justify-between">
-                  <div className="text-sm">{BANK_DETAILS.ifsc}</div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0"
-                    onClick={() => copyToClipboard(BANK_DETAILS.ifsc, "IFSC code")}
-                  >
-                    <Copy className="h-3 w-3" />
-                    <span className="sr-only">Copy</span>
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="text-sm font-medium">Bank Name</div>
-                <div className="text-sm">{BANK_DETAILS.bankName}</div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {paymentMethod === 'upi' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>UPI Payment Details</CardTitle>
-              <CardDescription>Scan the QR code or pay using the UPI ID</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center space-y-4">
-              <div className="w-48 h-48 bg-gray-200 flex items-center justify-center rounded-lg">
-                <img src={UPI_DETAILS.qrCode} alt="UPI QR Code" className="w-40 h-40" />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2 w-full">
-                <div className="text-sm font-medium">UPI ID</div>
-                <div className="flex justify-between">
-                  <div className="text-sm">{UPI_DETAILS.upiId}</div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0"
-                    onClick={() => copyToClipboard(UPI_DETAILS.upiId, "UPI ID")}
-                  >
-                    <Copy className="h-3 w-3" />
-                    <span className="sr-only">Copy</span>
-                  </Button>
-                </div>
-              </div>
-              
-              <Button 
-                className="w-full flex items-center justify-center" 
-                size="sm"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download QR Code
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+            
+            <Button 
+              className="w-full flex items-center justify-center" 
+              size="sm"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download QR Code
+            </Button>
+          </CardContent>
+        </Card>
         
         <div className="grid gap-4 py-4">
           <div className="space-y-2">

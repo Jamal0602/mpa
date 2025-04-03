@@ -25,28 +25,6 @@ interface PaymentProcessorProps {
   onPaymentComplete: () => void;
 }
 
-// Payment method options
-const PAYMENT_METHODS = [
-  {
-    id: 'credit_card',
-    name: 'Credit Card',
-    icon: <CreditCard className="h-4 w-4" />,
-    requiresVerification: false
-  },
-  {
-    id: 'bank_transfer',
-    name: 'Bank Transfer',
-    icon: <Download className="h-4 w-4" />,
-    requiresVerification: true
-  },
-  {
-    id: 'upi',
-    name: 'UPI',
-    icon: <CreditCard className="h-4 w-4" />,
-    requiresVerification: true
-  }
-];
-
 export const PaymentProcessor = ({
   userId,
   selectedPlan,
@@ -58,7 +36,8 @@ export const PaymentProcessor = ({
   const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(PAYMENT_METHODS[0].id);
+  // Only UPI is allowed as per requirements
+  const selectedPaymentMethod = 'upi';
   
   const getAmount = () => selectedPlan ? selectedPlan.price : Number(customAmount);
   const getPoints = () => selectedPlan 
@@ -66,16 +45,9 @@ export const PaymentProcessor = ({
     : calculateCustomPoints(Number(customAmount));
   const getPlanName = () => selectedPlan ? selectedPlan.name : "Custom";
   
-  const currentPaymentMethod = PAYMENT_METHODS.find(m => m.id === selectedPaymentMethod);
-  
   const handlePurchase = () => {
     if (!selectedPlan && (!customAmount || customAmount < 1)) {
       toast.error("Please select a plan or enter a custom amount");
-      return;
-    }
-    
-    if (!selectedPaymentMethod) {
-      toast.error("Please select a payment method");
       return;
     }
     
@@ -89,7 +61,6 @@ export const PaymentProcessor = ({
       const amount = getPoints();
       const price = getAmount();
       const planName = getPlanName();
-      const requiresVerification = currentPaymentMethod?.requiresVerification || false;
       
       // Record transaction in payment_transactions table
       const { data: paymentTx, error: txError } = await supabase
@@ -100,44 +71,18 @@ export const PaymentProcessor = ({
           currency: 'INR',
           spark_points: amount,
           payment_method: selectedPaymentMethod,
-          status: requiresVerification ? 'pending' : 'completed',
-          verification_status: requiresVerification ? 'unverified' : 'verified'
+          status: 'pending',
+          verification_status: 'unverified'
         })
         .select()
         .single();
         
       if (txError) throw txError;
       
-      // For methods requiring verification, show verification modal
-      if (requiresVerification) {
-        setTransactionId(paymentTx.id);
-        setShowVerificationModal(true);
-        toast.info("Please complete payment verification to receive Spark Points");
-      } else {
-        // For instant payment methods like credit cards
-        // Update user's key points
-        const { error: pointsError } = await supabase
-          .from('profiles')
-          .update({ 
-            key_points: (currentPoints || 0) + amount 
-          })
-          .eq('id', userId);
-        
-        if (pointsError) throw pointsError;
-        
-        // Record point transaction
-        await supabase
-          .from('key_points_transactions')
-          .insert({
-            user_id: userId,
-            amount: amount,
-            description: `Purchased ${planName} plan (₹${price})`,
-            transaction_type: 'earn'
-          });
-          
-        toast.success(`Successfully purchased ${amount} Spark Points!`);
-        onPaymentComplete();
-      }
+      setTransactionId(paymentTx.id);
+      setShowVerificationModal(true);
+      toast.info("Please complete payment verification to receive Spark Points");
+      
     } catch (error: any) {
       toast.error(`Purchase failed: ${error.message}`);
     } finally {
@@ -172,43 +117,17 @@ export const PaymentProcessor = ({
   return (
     <>
       <div className="mb-6 space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="payment-method" className="text-sm font-medium">
-            Payment Method
-          </label>
-          <Select
-            value={selectedPaymentMethod}
-            onValueChange={setSelectedPaymentMethod}
-          >
-            <SelectTrigger id="payment-method" className="w-full">
-              <SelectValue placeholder="Select payment method" />
-            </SelectTrigger>
-            <SelectContent>
-              {PAYMENT_METHODS.map((method) => (
-                <SelectItem key={method.id} value={method.id} className="flex items-center">
-                  <div className="flex items-center gap-2">
-                    {method.icon}
-                    <span>{method.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {currentPaymentMethod?.requiresVerification && (
-          <Alert variant="default" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-900 dark:text-yellow-500">
-            <AlertCircle className="h-4 w-4" />
-            <div>
-              <h4 className="font-medium">Verification Required</h4>
-              <p className="text-sm">
-                This payment method requires verification. After completing your purchase, 
-                you'll need to provide payment details for verification. 
-                Spark Points will be credited after admin verification.
-              </p>
-            </div>
-          </Alert>
-        )}
+        <Alert variant="default" className="bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-900 dark:text-yellow-500">
+          <AlertCircle className="h-4 w-4" />
+          <div>
+            <h4 className="font-medium">Payment Instructions</h4>
+            <p className="text-sm">
+              UPI payments only. Please make payment to <strong>ja.jamalasraf@fam</strong> 
+              using Google Pay or any UPI platform. After payment, submit your transaction
+              reference ID for verification.
+            </p>
+          </div>
+        </Alert>
       </div>
       
       <div className="flex justify-center mb-4">
@@ -223,7 +142,7 @@ export const PaymentProcessor = ({
           ) : (
             <>
               <CreditCard className="mr-2 h-4 w-4" />
-              Complete Purchase
+              Pay ₹{getAmount()} with UPI
             </>
           )}
         </Button>

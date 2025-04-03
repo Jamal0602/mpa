@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -178,7 +177,7 @@ const Index = () => {
             >
               <div className="rounded-lg overflow-hidden shadow-xl border">
                 <img
-                  src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh2vaeSTqyaRdxZ45LLBPuaAv3HOKvEDVo6b058eKipRykV5vMsmLFoTJvGHbqutb36YZf-sqf3WmnHnVV-zDST-QYkYwackC6vQDyu_VVD_fOzzV6QuTMOQlAr0k8SfasI8tkbh5MubXOkuq9cTgPRO6l8m9r6WZgc0r_pVi-BCjQ3SmKDN0l41-K2Kpk/s320/dashboard.jpg"
+                  src="/mpa-dashboard.jpg"
                   alt="MPA Dashboard Preview"
                   className="w-full h-auto object-cover"
                 />
