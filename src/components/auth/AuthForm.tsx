@@ -82,7 +82,7 @@ const AuthForm = () => {
     }
   };
 
-  // Handle OAuth sign-in
+  // Handle OAuth sign-in with external browser support
   const handleOAuthSignIn = async (provider: "github" | "google") => {
     try {
       const redirectUrl = `${window.location.origin}/auth/callback`;
@@ -90,18 +90,31 @@ const AuthForm = () => {
         provider,
         options: {
           redirectTo: redirectUrl,
-          skipBrowserRedirect: true, // We'll handle the redirect ourselves
         },
       });
 
       if (error) throw error;
       
       if (data && data.url) {
-        // Open OAuth in a new tab
-        window.open(data.url, "_blank", "noopener,noreferrer");
-        // Show loading state in current tab
+        // For mobile apps, open in external browser
+        if (window.navigator && (window.navigator as any).app) {
+          // Use Capacitor or Cordova API if available to open external browser
+          if ((window as any).cordova && (window as any).cordova.InAppBrowser) {
+            (window as any).cordova.InAppBrowser.open(data.url, '_system');
+          } else if ((window as any).open) {
+            // Fallback to window.open with _system or _blank
+            (window as any).open(data.url, '_system');
+          } else {
+            // Last resort - normal redirect
+            window.location.href = data.url;
+          }
+        } else {
+          // For web, open in new tab
+          window.open(data.url, "_blank", "noopener,noreferrer");
+        }
+        
         setIsLoading(true);
-        toast.info("Please complete authentication in the new tab");
+        toast.info("Please complete authentication in the browser");
       }
     } catch (error: any) {
       toast.error(`OAuth error: ${error.message}`);

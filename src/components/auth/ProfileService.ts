@@ -10,6 +10,18 @@ export interface ProfileCreationResult {
   profile?: any;
 }
 
+// Helper function to generate a unique MPA ID
+const generateMpaId = (username: string): string => {
+  return username.toLowerCase().replace(/[^a-z0-9]/g, '') + '@mpa';
+};
+
+// Helper function to generate a referral code
+const generateReferralCode = (username: string): string => {
+  const prefix = username.substring(0, 3).toUpperCase();
+  const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `${prefix}-${randomPart}`;
+};
+
 export const createUserProfile = async (session: Session): Promise<ProfileCreationResult> => {
   try {
     console.log("No profile found, creating one...");
@@ -22,8 +34,8 @@ export const createUserProfile = async (session: Session): Promise<ProfileCreati
       username = `user_${Date.now()}`;
     }
     
-    // Create a unique MPA ID
-    const mpaId = username.toLowerCase() + '@mpa';
+    // Generate unique MPA ID
+    const mpaId = generateMpaId(username);
     
     // Generate unique referral code
     const referralCode = generateReferralCode(username);
@@ -31,8 +43,8 @@ export const createUserProfile = async (session: Session): Promise<ProfileCreati
     // Get user metadata
     const avatarUrl = session.user.user_metadata?.avatar_url || null;
     const fullName = session.user.user_metadata?.full_name || 
-                     session.user.user_metadata?.name || 
-                     username;
+                   session.user.user_metadata?.name || 
+                   username;
     
     // Special case for admin user
     let role = 'user';
@@ -121,6 +133,7 @@ export const checkUserProfile = async (userId: string) => {
   }
 };
 
+// Update an existing user profile
 export const updateUserProfile = async (userId: string, updates: any): Promise<ProfileCreationResult> => {
   try {
     const { data: profile, error } = await supabase
@@ -144,9 +157,48 @@ export const updateUserProfile = async (userId: string, updates: any): Promise<P
   }
 };
 
-// Helper function to generate a referral code
-const generateReferralCode = (username: string): string => {
-  const prefix = username.substring(0, 3).toUpperCase();
-  const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `${prefix}-${randomPart}`;
+// Fix missing MPA ID and referral code for existing users
+export const ensureProfileHasReferralAndMpaId = async (userId: string, username: string): Promise<boolean> => {
+  try {
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("referral_code, mpa_id")
+      .eq("id", userId)
+      .single();
+      
+    if (error) {
+      console.error("Error checking profile:", error);
+      return false;
+    }
+    
+    // If profile is missing either referral code or MPA ID, update it
+    if (!profile.referral_code || !profile.mpa_id) {
+      const updates: Record<string, string> = {};
+      
+      if (!profile.referral_code) {
+        updates.referral_code = generateReferralCode(username);
+      }
+      
+      if (!profile.mpa_id) {
+        updates.mpa_id = generateMpaId(username);
+      }
+      
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", userId);
+        
+      if (updateError) {
+        console.error("Error updating profile:", updateError);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    return true; // Already has both fields
+  } catch (error) {
+    console.error("Error in ensureProfileHasReferralAndMpaId:", error);
+    return false;
+  }
 };

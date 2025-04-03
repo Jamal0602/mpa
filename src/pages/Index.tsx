@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -102,6 +103,30 @@ const Index = () => {
       navigator.clipboard.writeText(window.location.href)
         .then(() => toast.success('Link copied to clipboard!'))
         .catch(() => toast.error('Failed to copy link'));
+    }
+  };
+  
+  // Function to handle external links in mobile apps
+  const handleExternalLink = (url: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+    }
+    
+    // Check if in mobile app environment
+    if (window.navigator && (window.navigator as any).app) {
+      // Use Capacitor or Cordova API if available
+      if ((window as any).cordova && (window as any).cordova.InAppBrowser) {
+        (window as any).cordova.InAppBrowser.open(url, '_system');
+      } else if ((window as any).open) {
+        // Fallback to window.open with _system
+        (window as any).open(url, '_system');
+      } else {
+        // Last resort - normal location change
+        window.location.href = url;
+      }
+    } else {
+      // Normal browser behavior - open in new tab
+      window.open(url, '_blank');
     }
   };
 
@@ -291,11 +316,14 @@ const Index = () => {
                   </Link>
                 </Button>
               )}
-              <Button variant="outline" size="lg" asChild className="gap-2">
-                <Link to="/features">
-                  Explore Features
-                  <ExternalLink className="h-4 w-4" />
-                </Link>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="gap-2"
+                onClick={(e) => handleExternalLink("/features", e)}
+              >
+                Explore Features
+                <ExternalLink className="h-4 w-4" />
               </Button>
             </div>
           </motion.div>

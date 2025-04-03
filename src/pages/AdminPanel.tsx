@@ -35,6 +35,15 @@ import { LineChart, BarChart, PieChart } from "@/components/ui/charts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
+// Define the proper type for the error report stats response
+interface ErrorReportStats {
+  total: number;
+  pending: number;
+  in_progress: number;
+  resolved: number;
+  rejected: number;
+}
+
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("users");
   const navigate = useNavigate();
@@ -47,10 +56,10 @@ const AdminPanel = () => {
       try {
         const { data, error } = await supabase.rpc("get_error_report_stats");
         if (error) throw error;
-        return data;
+        return data as ErrorReportStats;
       } catch (err) {
         console.error("Failed to fetch error report stats:", err);
-        return { total: 0, pending: 0, in_progress: 0, resolved: 0, rejected: 0 };
+        return { total: 0, pending: 0, in_progress: 0, resolved: 0, rejected: 0 } as ErrorReportStats;
       }
     },
     enabled: !!isAdmin

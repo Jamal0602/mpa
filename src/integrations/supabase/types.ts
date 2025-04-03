@@ -45,6 +45,69 @@ export type Database = {
         }
         Relationships: []
       }
+      footer_content: {
+        Row: {
+          about_text: string
+          contact_email: string
+          created_at: string
+          id: string
+          privacy_text: string
+          social_links: Json
+          terms_text: string
+          updated_at: string
+        }
+        Insert: {
+          about_text: string
+          contact_email: string
+          created_at?: string
+          id?: string
+          privacy_text: string
+          social_links?: Json
+          terms_text: string
+          updated_at?: string
+        }
+        Update: {
+          about_text?: string
+          contact_email?: string
+          created_at?: string
+          id?: string
+          privacy_text?: string
+          social_links?: Json
+          terms_text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_methods: {
         Row: {
           created_at: string
@@ -134,6 +197,7 @@ export type Database = {
           full_name: string | null
           id: string
           key_points: number | null
+          mpa_id: string | null
           place: string | null
           referral_code: string | null
           referred_by: string | null
@@ -153,6 +217,7 @@ export type Database = {
           full_name?: string | null
           id: string
           key_points?: number | null
+          mpa_id?: string | null
           place?: string | null
           referral_code?: string | null
           referred_by?: string | null
@@ -172,6 +237,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           key_points?: number | null
+          mpa_id?: string | null
           place?: string | null
           referral_code?: string | null
           referred_by?: string | null
@@ -180,6 +246,36 @@ export type Database = {
           theme_preference?: string | null
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          bonus_earned: number | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          referred_id: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          bonus_earned?: number | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_id: string
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          bonus_earned?: number | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          referred_id?: string
+          referrer_id?: string
+          status?: string
         }
         Relationships: []
       }
@@ -267,6 +363,13 @@ export type Database = {
       is_admin: {
         Args: {
           user_id?: string
+        }
+        Returns: boolean
+      }
+      process_referral_bonus: {
+        Args: {
+          referred_user_id: string
+          referrer_code: string
         }
         Returns: boolean
       }

@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
+import { ensureProfileHasReferralAndMpaId } from '@/components/auth/ProfileService';
 
 interface UserProfile {
   id: string;
@@ -13,6 +14,15 @@ interface UserProfile {
   key_points: number;
   role: string;
   theme_preference?: string;
+  mpa_id?: string;
+  referral_code?: string;
+  referred_by?: string;
+  country?: string;
+  state?: string;
+  district?: string;
+  place?: string;
+  display_name?: string;
+  custom_email?: string;
 }
 
 interface AuthContextType {
@@ -54,6 +64,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // If user has a theme preference, apply it
       if (data?.theme_preference && data.theme_preference !== 'system') {
         setTheme(data.theme_preference);
+      }
+      
+      // Ensure the profile has MPA ID and referral code
+      if (data && data.username) {
+        await ensureProfileHasReferralAndMpaId(userId, data.username);
       }
       
       return data as UserProfile;
