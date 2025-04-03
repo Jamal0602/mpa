@@ -10,7 +10,13 @@ CREATE TABLE IF NOT EXISTS error_reports (
   status text NOT NULL DEFAULT 'pending',
   created_at timestamp with time zone DEFAULT now(),
   resolved_at timestamp with time zone,
-  resolution_notes text
+  resolution_notes text,
+  title text,
+  error_message text,
+  page_url text,
+  browser_info text,
+  steps_to_reproduce text,
+  error_details jsonb
 );
 
 -- Set up RLS policies for error_reports

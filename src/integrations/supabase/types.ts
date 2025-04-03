@@ -12,6 +12,7 @@ export type Database = {
       error_reports: {
         Row: {
           browser_info: string | null
+          contact_email: string | null
           created_at: string | null
           error_details: Json | null
           error_message: string
@@ -19,10 +20,13 @@ export type Database = {
           id: string
           page_url: string | null
           status: string | null
+          steps_to_reproduce: string | null
+          title: string | null
           user_id: string | null
         }
         Insert: {
           browser_info?: string | null
+          contact_email?: string | null
           created_at?: string | null
           error_details?: Json | null
           error_message: string
@@ -30,10 +34,13 @@ export type Database = {
           id?: string
           page_url?: string | null
           status?: string | null
+          steps_to_reproduce?: string | null
+          title?: string | null
           user_id?: string | null
         }
         Update: {
           browser_info?: string | null
+          contact_email?: string | null
           created_at?: string | null
           error_details?: Json | null
           error_message?: string
@@ -41,6 +48,8 @@ export type Database = {
           id?: string
           page_url?: string | null
           status?: string | null
+          steps_to_reproduce?: string | null
+          title?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -78,6 +87,33 @@ export type Database = {
         }
         Relationships: []
       }
+      key_points_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -110,30 +146,45 @@ export type Database = {
       }
       payment_methods: {
         Row: {
+          account_holder: string | null
+          account_number: string | null
+          bank_name: string | null
           created_at: string
           id: string
+          ifsc_code: string | null
           is_default: boolean | null
           payment_details: Json
           payment_type: string
           updated_at: string
+          upi_id: string | null
           user_id: string
         }
         Insert: {
+          account_holder?: string | null
+          account_number?: string | null
+          bank_name?: string | null
           created_at?: string
           id?: string
+          ifsc_code?: string | null
           is_default?: boolean | null
           payment_details: Json
           payment_type: string
           updated_at?: string
+          upi_id?: string | null
           user_id: string
         }
         Update: {
+          account_holder?: string | null
+          account_number?: string | null
+          bank_name?: string | null
           created_at?: string
           id?: string
+          ifsc_code?: string | null
           is_default?: boolean | null
           payment_details?: Json
           payment_type?: string
           updated_at?: string
+          upi_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -356,6 +407,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_points: {
+        Args: {
+          user_id: string
+          amount_to_deduct: number
+        }
+        Returns: number
+      }
       get_error_report_stats: {
         Args: Record<PropertyKey, never>
         Returns: Json
