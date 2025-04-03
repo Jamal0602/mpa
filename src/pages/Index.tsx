@@ -177,7 +177,7 @@ const Index = () => {
             >
               <div className="rounded-lg overflow-hidden shadow-xl border">
                 <img
-                  src="/mpa-dashboard.jpg"
+                  src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEij_8C9_qMdECGZa0UUncGrqMM9n6tv-UBDGiM07gzf5URWbreQHVl_O0LE1GualqnA0AD80ytin-LXUdNUVLYuYr5fumesM5GMcz1s7MqThZTT2GoTHcPCm38nO7bIABwLh9GVHqT5X1sae44ZRxXom3EnFAw6aNLOljYsZ4WRomr5Eg/s1600/dashboard.jpg"
                   alt="MPA Dashboard Preview"
                   className="w-full h-auto object-cover"
                 />
