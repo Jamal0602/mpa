@@ -4,10 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { Github } from "lucide-react";
 
 interface LimitReachedDisplayProps {
-  timeUntilReset: string;
+  maxReports: number;
 }
 
-export const LimitReachedDisplay = ({ timeUntilReset }: LimitReachedDisplayProps) => {
+export const LimitReachedDisplay = ({ maxReports }: LimitReachedDisplayProps) => {
   const navigate = useNavigate();
   
   const openGitHubIssues = () => {
@@ -21,7 +21,7 @@ export const LimitReachedDisplay = ({ timeUntilReset }: LimitReachedDisplayProps
         You've submitted the maximum number of error reports for today. Please try again tomorrow.
       </p>
       <p className="text-lg mb-6">
-        Time until reset: <span className="font-bold">{timeUntilReset}</span>
+        You've used all {maxReports} of your daily report allowance.
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <Button 

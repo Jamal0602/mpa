@@ -42,3 +42,69 @@ USING (
     WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
   )
 );
+
+-- Only admins can delete reports
+CREATE POLICY "Admins can delete reports"
+ON error_reports FOR DELETE
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+  )
+);
+
+-- Create function to get error report statistics
+CREATE OR REPLACE FUNCTION get_error_report_stats()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  total_count INTEGER;
+  pending_count INTEGER;
+  in_progress_count INTEGER;
+  resolved_count INTEGER;
+  rejected_count INTEGER;
+BEGIN
+  -- Get counts for each status
+  SELECT 
+    COUNT(*),
+    COUNT(*) FILTER (WHERE status = 'pending'),
+    COUNT(*) FILTER (WHERE status = 'in_progress'),
+    COUNT(*) FILTER (WHERE status = 'resolved'),
+    COUNT(*) FILTER (WHERE status = 'rejected')
+  INTO
+    total_count,
+    pending_count,
+    in_progress_count,
+    resolved_count,
+    rejected_count
+  FROM error_reports;
+  
+  RETURN json_build_object(
+    'total', total_count,
+    'pending', pending_count,
+    'in_progress', in_progress_count,
+    'resolved', resolved_count,
+    'rejected', rejected_count
+  );
+END;
+$$;
+
+-- Create function to count daily error reports by user
+CREATE OR REPLACE FUNCTION user_daily_error_reports(user_id UUID)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  report_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO report_count
+  FROM error_reports
+  WHERE error_reports.user_id = user_daily_error_reports.user_id
+  AND created_at >= date_trunc('day', now());
+  
+  RETURN report_count;
+END;
+$$;

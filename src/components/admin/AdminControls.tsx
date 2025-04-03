@@ -12,8 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { Badge } from "@/components/ui/badge";
 
 export const AdminControls = () => {
+  const { user } = useAuth();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newPost, setNewPost] = useState({ title: "", content: "" });
   const [newWidget, setNewWidget] = useState({ 
@@ -54,10 +58,14 @@ export const AdminControls = () => {
         throw new Error("Please fill in all required fields");
       }
 
+      if (!user) {
+        throw new Error("You must be logged in to create posts");
+      }
+
       const { error } = await supabase.from("posts").insert({
         title: newPost.title,
         content: newPost.content,
-        user_id: (await supabase.auth.getUser()).data.user?.id
+        user_id: user.id
       });
       if (error) throw error;
       toast.success("Post created successfully");
@@ -75,6 +83,10 @@ export const AdminControls = () => {
         throw new Error("Please fill in all required fields");
       }
 
+      if (!user) {
+        throw new Error("You must be logged in to create widgets");
+      }
+
       if (["html", "javascript"].includes(newWidget.type) && !newWidget.code) {
         throw new Error("Code is required for HTML and JavaScript widgets");
       }
@@ -85,7 +97,7 @@ export const AdminControls = () => {
         type: newWidget.type,
         code: newWidget.code,
         settings: newWidget.settings,
-        created_by: (await supabase.auth.getUser()).data.user?.id
+        created_by: user.id
       });
       if (error) throw error;
       toast.success("Widget created successfully");
@@ -110,6 +122,11 @@ export const AdminControls = () => {
     } catch (error: any) {
       toast.error(error.message);
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
   };
 
   return (
@@ -192,7 +209,7 @@ export const AdminControls = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {["html", "javascript"].includes(newWidget.type) && (
+                {["html", "javascript", "iframe"].includes(newWidget.type) && (
                   <div className="space-y-2">
                     <Label>Code</Label>
                     <Textarea
@@ -215,63 +232,111 @@ export const AdminControls = () => {
         <div className="space-y-4">
           <h3 className="text-xl font-semibold">Posts</h3>
           {isLoadingPosts ? (
-            <LoadingSpinner />
-          ) : (
-            posts?.map((post) => (
-              <div key={post.id} className="p-4 border rounded-lg hover:border-primary/50 transition-all animate-fade-in">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium">{post.title}</h4>
-                    <p className="text-sm text-muted-foreground">{post.content}</p>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(post.created_at).toLocaleString()}
-                    </span>
+            <div className="flex justify-center p-8">
+              <LoadingSpinner />
+            </div>
+          ) : posts && posts.length > 0 ? (
+            <div className="space-y-3">
+              {posts.map((post) => (
+                <Card key={post.id} className="p-4 hover:border-primary/50 transition-all">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">{post.title}</h4>
+                        {post.published ? (
+                          <Badge variant="outline" className="bg-green-50 text-green-700">Published</Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-50 text-gray-700">Draft</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{post.content}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{formatDate(post.created_at)}</span>
+                        <span>•</span>
+                        <span>{post.likes || 0} likes</span>
+                        <span>•</span>
+                        <span>{post.comments || 0} comments</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 self-start">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Edit functionality would go here
+                          toast.info("Edit functionality coming soon");
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete("post", post.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete("post", post.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No posts found. Create your first post!
+            </div>
           )}
         </div>
 
         <div className="space-y-4">
           <h3 className="text-xl font-semibold">Widgets</h3>
           {isLoadingWidgets ? (
-            <LoadingSpinner />
-          ) : (
-            widgets?.map((widget) => (
-              <div key={widget.id} className="p-4 border rounded-lg hover:border-primary/50 transition-all animate-fade-in">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium">{widget.title}</h4>
-                    <p className="text-sm text-muted-foreground">{widget.description}</p>
-                    <div className="flex gap-2 mt-1">
-                      <span className="text-xs bg-secondary px-2 py-1 rounded-full">
-                        {widget.type}
-                      </span>
-                      {widget.code && (
-                        <span className="text-xs bg-primary/10 px-2 py-1 rounded-full">
-                          Has Code
-                        </span>
-                      )}
+            <div className="flex justify-center p-8">
+              <LoadingSpinner />
+            </div>
+          ) : widgets && widgets.length > 0 ? (
+            <div className="space-y-3">
+              {widgets.map((widget) => (
+                <Card key={widget.id} className="p-4 hover:border-primary/50 transition-all">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
+                    <div className="space-y-1 flex-1">
+                      <h4 className="font-medium">{widget.title}</h4>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{widget.description}</p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <Badge variant="secondary">{widget.type}</Badge>
+                        {widget.code && (
+                          <Badge variant="outline">Has Custom Code</Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground">Created: {formatDate(widget.created_at)}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 self-start">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Edit functionality would go here
+                          toast.info("Edit functionality coming soon");
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete("widget", widget.id)}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete("widget", widget.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No widgets found. Create your first widget!
+            </div>
           )}
         </div>
       </div>

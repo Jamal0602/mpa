@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          project_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_reports: {
         Row: {
           browser_info: string | null
@@ -84,6 +119,42 @@ export type Database = {
           social_links?: Json
           terms_text?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      job_applications: {
+        Row: {
+          cover_letter: string | null
+          created_at: string
+          email: string
+          id: string
+          position: string
+          resume_url: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_letter?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          position: string
+          resume_url?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_letter?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          position?: string
+          resume_url?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -237,6 +308,42 @@ export type Database = {
         }
         Relationships: []
       }
+      posts: {
+        Row: {
+          comments: number | null
+          content: string
+          created_at: string
+          id: string
+          likes: number | null
+          published: boolean | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comments?: number | null
+          content: string
+          created_at?: string
+          id?: string
+          likes?: number | null
+          published?: boolean | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comments?: number | null
+          content?: string
+          created_at?: string
+          id?: string
+          likes?: number | null
+          published?: boolean | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -297,6 +404,51 @@ export type Database = {
           theme_preference?: string | null
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          file_path: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          status: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          file_path?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          status?: string | null
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          file_path?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          status?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -399,6 +551,42 @@ export type Database = {
           name?: string
           point_cost?: number
           start_date?: string | null
+        }
+        Relationships: []
+      }
+      widgets: {
+        Row: {
+          code: string | null
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          settings: Json | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          created_by: string
+          description: string
+          id?: string
+          settings?: Json | null
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          settings?: Json | null
+          title?: string
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }

@@ -41,6 +41,10 @@ const errorReportSchema = z.object({
   priority: z.string().optional(),
   category: z.string().optional(),
   platform: z.string().optional(),
+  title: z.string().min(5, "Title must be at least 5 characters").optional(),
+  error_message: z.string().optional(),
+  steps_to_reproduce: z.string().optional(),
+  page_url: z.string().optional()
 });
 
 type ErrorReportFormValues = z.infer<typeof errorReportSchema>;
@@ -64,6 +68,10 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
       priority: "medium",
       category: "general",
       platform: "web",
+      title: "",
+      error_message: "",
+      steps_to_reproduce: "",
+      page_url: window.location.href
     },
   });
 
@@ -101,6 +109,9 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
         screenSize: `${window.screen.width}x${window.screen.height}`,
       };
 
+      // Generate a title if none was provided
+      const title = data.title || `${data.error_type} Issue: ${data.description.slice(0, 30)}...`;
+
       // Submit the report
       const { error } = await supabase.from("error_reports").insert({
         user_id: user.id,
@@ -111,7 +122,12 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
         priority: data.priority,
         category: data.category,
         platform: data.platform,
-        browser_info: browserInfo,
+        browser_info: JSON.stringify(browserInfo),
+        title: title,
+        error_message: data.error_message || "Not specified",
+        page_url: data.page_url,
+        steps_to_reproduce: data.steps_to_reproduce,
+        status: "pending"
       });
 
       if (error) throw error;
@@ -157,7 +173,7 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
               name="error_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Error Type</FormLabel>
+                  <FormLabel>Error Type*</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -275,6 +291,48 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
 
           <FormField
             control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Report Title</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Brief title describing the issue"
+                    {...field}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <FormDescription>
+                  A concise summary of the issue you're experiencing
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="error_message"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Error Message (if any)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Paste any error message you received"
+                    {...field}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Copy any error message exactly as it appears
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="transaction_id"
             render={({ field }) => (
               <FormItem>
@@ -299,7 +357,7 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Description</FormLabel>
+                <FormLabel>Description*</FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Please describe the error in detail. Include what you were doing when it occurred."
@@ -318,10 +376,32 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
 
           <FormField
             control={form.control}
+            name="steps_to_reproduce"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Steps to Reproduce</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Step 1: Login&#10;Step 2: Navigate to...&#10;Step 3: Click on..."
+                    className="min-h-[120px]"
+                    {...field}
+                    disabled={isSubmitting}
+                  />
+                </FormControl>
+                <FormDescription>
+                  List the steps someone would need to follow to experience the same issue
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="contact_email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact Email</FormLabel>
+                <FormLabel>Contact Email*</FormLabel>
                 <FormControl>
                   <Input
                     type="email"
@@ -360,4 +440,4 @@ export const ErrorReportForm = ({ onSuccess }: ErrorReportFormProps) => {
       </Form>
     </div>
   );
-};
+}
