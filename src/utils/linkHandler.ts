@@ -46,20 +46,3 @@ export const getLinkTarget = (): string => {
 export const isMobileApp = (): boolean => {
   return !!(window.navigator && (window.navigator as any).app);
 };
-
-/**
- * Utility to handle opening OAuth provider links in external browser when in mobile app
- */
-export const handleOAuthLink = (provider: string) => {
-  // This function will be used by OAuth buttons to open in external browser when in mobile app
-  const baseUrl = window.location.origin;
-  const authUrl = `${baseUrl}/auth?provider=${provider}`;
-  
-  if (isMobileApp()) {
-    return openExternalLink(authUrl);
-  }
-  
-  // Let the normal auth flow handle it in regular browsers
-  window.location.href = authUrl;
-  return true;
-};

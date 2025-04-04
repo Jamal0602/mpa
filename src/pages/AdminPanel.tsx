@@ -412,7 +412,7 @@ const AdminPanel = () => {
                                     className="text-green-600"
                                   >
                                     <CheckCircle className="mr-2 h-4 w-4" /> Mark Resolved
-                                  </DropdownMenuItem>
+                                  </DropdownDropdownMenuItem>
                                   <DropdownMenuItem 
                                     onClick={() => updateReportStatus(report.id, "rejected")}
                                     className="text-red-600"
