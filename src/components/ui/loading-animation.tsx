@@ -42,6 +42,7 @@ export function LoadingAnimation({
   return (
     <div className="flex flex-col items-center justify-center">
       <div className={cn("relative", containerSize[size])}>
+        {/* Outer spinning circle */}
         <motion.div
           className={cn(
             "absolute border-2 border-transparent border-t-primary border-r-primary rounded-full",
@@ -55,6 +56,7 @@ export function LoadingAnimation({
           }}
         />
         
+        {/* Inner counter-spinning circle */}
         <motion.div
           className={cn(
             "absolute border-2 border-transparent border-b-secondary border-l-secondary rounded-full",
@@ -68,6 +70,7 @@ export function LoadingAnimation({
           }}
         />
         
+        {/* Pulsing center logo */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0.5 }}
           animate={{ 
