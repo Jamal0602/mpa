@@ -1,74 +1,64 @@
 
 import React from "react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface LoadingAnimationProps {
   text?: string;
   showPoweredBy?: boolean;
-  className?: string;
   size?: "sm" | "md" | "lg";
-  color?: string;
 }
 
 export function LoadingAnimation({
   text = "Loading...",
   showPoweredBy = true,
-  className,
   size = "md",
-  color = "primary",
 }: LoadingAnimationProps) {
-  const sizes = {
-    sm: { dot: "h-1.5 w-1.5", container: "gap-1" },
-    md: { dot: "h-2.5 w-2.5", container: "gap-2" },
-    lg: { dot: "h-3.5 w-3.5", container: "gap-3" },
+  // Size mapping for different elements
+  const containerSize = {
+    sm: "w-24 h-24",
+    md: "w-32 h-32", 
+    lg: "w-40 h-40",
   };
-
-  const dotVariants = {
-    initial: { y: 0 },
-    animate: { y: -10 },
+  
+  const textSize = {
+    sm: "text-xs",
+    md: "text-sm",
+    lg: "text-base",
   };
-
-  const containerVariants = {
-    initial: { opacity: 0 },
-    animate: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2,
-      },
-    },
+  
+  const poweredBySize = {
+    sm: "text-[8px]",
+    md: "text-xs",
+    lg: "text-sm",
+  };
+  
+  const imageSize = {
+    sm: "w-16 h-16",
+    md: "w-24 h-24",
+    lg: "w-32 h-32",
   };
 
   return (
-    <div className={cn("flex flex-col items-center justify-center", className)}>
-      <motion.div
-        className={cn("flex items-center justify-center", sizes[size].container)}
-        variants={containerVariants}
-        initial="initial"
-        animate="animate"
-      >
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
-            className={cn(`rounded-full bg-${color}`, sizes[size].dot)}
-            variants={dotVariants}
-            animate="animate"
-            initial="initial"
-            transition={{
-              repeat: Infinity,
-              repeatType: "reverse",
-              duration: 0.6,
-              delay: i * 0.2,
-            }}
-          />
-        ))}
-      </motion.div>
+    <div className="flex flex-col items-center justify-center">
+      <div className={cn("relative flex items-center justify-center", containerSize[size])}>
+        {/* Use the provided GIF animation */}
+        <img 
+          src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhfCR-xdQKQeuroa8EDEszVZu84skuUlkpicjOdba-FuYcL5HSi0wNy0Wf5IZRdyqo2rPny12PrezvdDYsLK0drip35c0bogEro9cWI1OZGyMQNcizdBdKWpBhF0t9kO6jM5OuFyUWn9budhg67PU__b1tpCFvE96dMhEZCr6dw3-bpGA/s1600/Animation%20-%201743734436715.gif"
+          alt="Loading animation"
+          className={cn("rounded-full", imageSize[size])}
+        />
+      </div>
       
-      <p className="mt-4 text-center font-medium">{text}</p>
+      {text && (
+        <div className={cn("mt-4 text-center", textSize[size])}>
+          <p className="animate-pulse font-medium">{text}</p>
+        </div>
+      )}
       
       {showPoweredBy && (
-        <div className="mt-8 text-xs text-muted-foreground">
-          Powered by <span className="font-semibold text-primary">CGT</span>
+        <div className={cn("mt-1 opacity-70", poweredBySize[size])}>
+          <p>Powered by [CGT]</p>
         </div>
       )}
     </div>
