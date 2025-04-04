@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -142,10 +143,8 @@ const UploadPage = () => {
         
       if (projectError) throw projectError;
       
-      toast({
-        title: "Service purchased successfully",
-        description: `You've purchased ${selectedService.name} for ${selectedService.point_cost} Spark Points.`,
-        variant: "default"
+      toast.success("Service purchased successfully", {
+        description: `You've purchased ${selectedService.name} for ${selectedService.point_cost} Spark Points.`
       });
       
       // Update user's points

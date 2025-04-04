@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -7,24 +8,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Label,
-  Input,
-  Textarea,
-  Check,
-  Download,
-  Copy,
-  Loader2,
-  AlertCircle,
-  AlertTriangle,
-  Alert,
-  Link,
-} from '@/components/ui';
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Check, Download, Copy, Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Link } from 'react-router-dom';
 
 interface PaymentVerificationModalProps {
   open: boolean;
@@ -34,12 +26,12 @@ interface PaymentVerificationModalProps {
 }
 
 interface PaymentDetails {
-  accountNumber: string;
-  ifscCode: string;
-  bankName: string;
-  accountHolder: string;
-  qrCode: string;
   upiId: string;
+  qrCode: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  bankName?: string;
+  accountHolder?: string;
 }
 
 const PAYMENT_DETAILS: Record<string, PaymentDetails> = {
@@ -68,6 +60,7 @@ export function PaymentVerificationModal({
   const [error, setError] = useState<string | null>(null);
   const [paymentSubmitted, setPaymentSubmitted] = useState(false);
   
+  // Get the appropriate payment details based on the selected method
   const paymentDetails = PAYMENT_DETAILS[paymentMethod] || PAYMENT_DETAILS.upi;
   const isUpi = paymentMethod === 'upi';
   
@@ -148,10 +141,12 @@ export function PaymentVerificationModal({
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center space-y-4">
+                {/* QR Code */}
                 <div className="w-48 h-48 bg-gray-200 flex items-center justify-center rounded-lg">
                   <img src={paymentDetails.qrCode} alt="Payment QR Code" className="w-40 h-40" />
                 </div>
                 
+                {/* Payment Details */}
                 <div className="grid grid-cols-2 gap-2 w-full">
                   {isUpi && (
                     <>
@@ -210,6 +205,7 @@ export function PaymentVerificationModal({
                   )}
                 </div>
                 
+                {/* Download QR Code button */}
                 <Button 
                   className="w-full flex items-center justify-center" 
                   size="sm"

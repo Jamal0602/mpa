@@ -1,481 +1,417 @@
-import React, { useState, useRef } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { UploadCloud, FilePlus, Loader2, AlertTriangle, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/lib/supabase";
-import { Link } from "react-router-dom";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Upload, FileType, Calendar, Clock, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+import { useNavigate } from "react-router-dom";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { addDays, format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { PaymentConfirmation } from "@/components/payment/PaymentConfirmation";
+import { verifyUserBalance, deductUserPoints, simulateUploadProgress } from "./UploadService";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export interface UploadFormProps {
+interface UploadFormProps {
   userId: string;
   userPoints: number;
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
 export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) => {
-  const [projectTitle, setProjectTitle] = useState("");
+  const navigate = useNavigate();
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string>("");
-  const [isDragging, setIsDragging] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const COST_PER_UPLOAD = 5;
-  const { toast } = useToast();
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [terms, setTerms] = useState(false);
-  const MINIMUM_DESC_LENGTH = 50;
+  const [projectType, setProjectType] = useState("idea");
+  const [file, setFile] = useState<File | null>(null);
+  const [deadline, setDeadline] = useState<Date | undefined>(addDays(new Date(), 3));
+  const [expeditedService, setExpeditedService] = useState(false);
+  const [expeditedDays, setExpeditedDays] = useState(0);
+  const [projectCategory, setProjectCategory] = useState("general");
+  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+  const [insufficientFunds, setInsufficientFunds] = useState(false);
   
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  const BASE_PRICE = 20;
+  const EXPEDITED_DISCOUNT_PERCENT = 25;
+  
+  const calculatePrice = () => {
+    if (!expeditedService) return BASE_PRICE;
+    
+    const expeditedPrice = BASE_PRICE * (1 + (expeditedDays * EXPEDITED_DISCOUNT_PERCENT / 100));
+    return expeditedPrice;
   };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFile = e.target.files[0];
+      if (selectedFile.size > 100 * 1024 * 1024) {
+        toast.error("File size exceeds 100MB limit. Please select a smaller file.");
+        return;
+      }
+      setFile(selectedFile);
     }
   };
   
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const getFileTypeIcon = (fileType: string) => {
+    if (fileType.startsWith("image/")) return "Image";
+    if (fileType.startsWith("video/")) return "Video";
+    if (fileType.startsWith("audio/")) return "Audio";
+    if (fileType === "application/pdf") return "PDF";
+    if (fileType.includes("document") || fileType.includes("sheet")) return "Document";
+    return "Other";
   };
   
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-  
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
-  };
-  
-  const handleFileSelect = (file: File) => {
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File size too large",
-        description: "Maximum file size is 10MB",
-        variant: "destructive",
-      });
+  const handleUpload = async () => {
+    if (!file || !title) {
+      toast.error("Please provide a title and select a file");
       return;
     }
     
-    setSelectedFile(file);
-    setErrorMsg("");
+    const price = calculatePrice();
     
-    // Preview the image if it's an image file
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFilePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setFilePreview("file"); // Set a generic file preview
+    const hasEnoughPoints = await verifyUserBalance(userId, price);
+    
+    if (!hasEnoughPoints) {
+      setInsufficientFunds(true);
+      return;
     }
+    
+    setShowPaymentConfirmation(true);
   };
   
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setFilePreview("");
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset the file input
-    }
-  };
-  
-  // Modified project submission
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setErrorMsg("");
-    
-    // Validate form fields
-    if (!selectedFile) {
-      setErrorMsg("Please select a file to upload");
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (description.length < MINIMUM_DESC_LENGTH) {
-      setErrorMsg(`Description must be at least ${MINIMUM_DESC_LENGTH} characters long`);
-      setIsSubmitting(false);
-      return;
-    }
-    
-    if (!terms) {
-      setErrorMsg("You must accept the terms and conditions");
-      setIsSubmitting(false);
-      return;
-    }
-    
-    if (userPoints < COST_PER_UPLOAD) {
-      setErrorMsg(`Insufficient Spark Points. You need ${COST_PER_UPLOAD} SP for this upload.`);
-      setIsSubmitting(false);
-      return;
-    }
-
+  const processUpload = async () => {
     try {
-      // File upload to Supabase Storage
-      const fileExt = selectedFile.name.split('.').pop();
-      const filePath = `${userId}/${Math.random().toString(36).slice(2)}.${fileExt}`;
+      setUploading(true);
+      const cleanStop = simulateUploadProgress(setProgress);
       
-      // Upload the file
-      const { error: uploadError } = await supabase.storage
+      const fileExt = file!.name.split(".").pop();
+      const fileName = `${userId}-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError, data: storageData } = await supabase.storage
         .from("projects")
-        .upload(filePath, selectedFile);
-      
-      if (uploadError) {
-        throw new Error(uploadError.message);
-      }
-      
-      // Get the public URL
-      const { data: publicURL } = supabase.storage
-        .from("projects")
-        .getPublicUrl(filePath);
+        .upload(fileName, file!);
         
-      if (!publicURL) {
-        throw new Error("Failed to get public URL for the uploaded file");
+      if (uploadError) {
+        cleanStop();
+        setUploading(false);
+        setProgress(0);
+        toast.error(`Upload failed: ${uploadError.message}`);
+        return;
       }
       
-      // Create a project record
+      const { data: publicUrlData } = supabase.storage
+        .from("projects")
+        .getPublicUrl(fileName);
+      
+      const fileUrl = publicUrlData?.publicUrl || '';
+      
+      const price = calculatePrice();
+      
+      const deductSuccessful = await deductUserPoints(
+        userId, 
+        price, 
+        `Service charge for project: ${title}`
+      );
+      
+      if (!deductSuccessful) {
+        throw new Error("Failed to process payment");
+      }
+      
       const { error: projectError } = await supabase
         .from("projects")
         .insert({
-          title: projectTitle,
+          title,
           description,
-          user_id: userId,
-          file_url: publicURL.publicUrl,
-          file_path: filePath,
-          file_type: selectedFile.type,
-          category: selectedCategory,
-          type: "upload",
-          status: "pending"
+          type: projectType,
+          category: projectCategory,
+          file_path: fileName,
+          file_type: file!.type,
+          file_size: file!.size,
+          file_url: fileUrl,
+          owner_id: userId,
+          status: 'pending',
+          deadline: deadline?.toISOString(),
+          expedited: expeditedService,
+          expedited_days: expeditedDays,
+          price
         });
         
-      if (projectError) {
-        throw new Error(projectError.message);
-      }
+      if (projectError) throw projectError;
       
-      // Deduct key points
-      const { error: pointsError } = await supabase.rpc('decrement_points', {
-        user_id: userId,
-        amount_to_deduct: COST_PER_UPLOAD
-      });
-      
-      if (pointsError) throw new Error(pointsError.message);
-      
-      // Record the transaction
-      const { error: transactionError } = await supabase
-        .from("key_points_transactions")
+      await supabase
+        .from("notifications")
         .insert({
           user_id: userId,
-          amount: -COST_PER_UPLOAD,
-          description: `Project upload: ${projectTitle}`,
-          transaction_type: 'spend'
+          title: "Project Uploaded",
+          message: `Your project "${title}" has been uploaded successfully and is pending review. ${expeditedService ? 'Expedited processing requested.' : ''}`,
+          type: "success"
         });
+        
+      cleanStop();
+      setProgress(100);
       
-      if (transactionError) throw new Error(transactionError.message);
+      toast.success("Project uploaded successfully!");
       
-      toast.success("Project submitted successfully", {
-        description: "Your project has been submitted for review"
-      });
-      
-      // Reset form and close dialog
-      setProjectTitle("");
-      setDescription("");
-      setSelectedCategory("");
-      setSelectedFile(null);
-      setFilePreview("");
-      setUploadDialogOpen(false);
-      setTerms(false);
-      
-      // Call the onSuccess callback to refresh parent component
-      if (onSuccess) onSuccess();
+      setTimeout(() => {
+        setTitle("");
+        setDescription("");
+        setProjectType("idea");
+        setProjectCategory("general");
+        setFile(null);
+        setDeadline(addDays(new Date(), 3));
+        setExpeditedService(false);
+        setExpeditedDays(0);
+        setProgress(0);
+        setUploading(false);
+        onSuccess();
+        navigate("/");
+      }, 1500);
       
     } catch (error: any) {
-      console.error("Upload error:", error);
-      setErrorMsg(`Error: ${error.message}`);
-      toast.error("Upload failed", {
-        description: error.message
-      });
-    } finally {
-      setIsSubmitting(false);
+      toast.error(`Upload failed: ${error.message}`);
+      setUploading(false);
+      setProgress(0);
     }
   };
-  
+
   return (
-    <div className="md:col-span-2">
-      <Card>
+    <>
+      <Card className="md:col-span-2">
         <CardHeader>
-          <CardTitle>Upload Project</CardTitle>
+          <CardTitle>Project Details</CardTitle>
           <CardDescription>
-            Submit your project for processing. Each upload costs {COST_PER_UPLOAD} Spark Points.
+            Share your ideas, files, or projects with the MPA community
           </CardDescription>
         </CardHeader>
-        
-        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="mx-6 mb-4" 
-              disabled={userPoints < COST_PER_UPLOAD}
-            >
-              Start New Upload
-            </Button>
-          </DialogTrigger>
+        <CardContent className="space-y-4">
+          {insufficientFunds && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Insufficient Spark Points</AlertTitle>
+              <AlertDescription>
+                You don't have enough Spark Points for this service. 
+                Required: {calculatePrice()} points. Your balance: {userPoints} points.
+                <Button
+                  variant="link"
+                  className="p-0 h-auto font-normal"
+                  onClick={() => navigate('/subscription')}
+                >
+                  Add more points
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
           
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Submit Your Project</DialogTitle>
-              <DialogDescription>
-                This will use {COST_PER_UPLOAD} Spark Points from your account. Make sure all details are correct.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="projectTitle">Project Title</Label>
-                  <Input
-                    id="projectTitle"
-                    value={projectTitle}
-                    onChange={(e) => setProjectTitle(e.target.value)}
-                    placeholder="Enter project title"
-                    required
+          <div className="space-y-2">
+            <Label htmlFor="title">Project Title</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter a title for your project"
+              disabled={uploading}
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe your project"
+              disabled={uploading}
+              rows={4}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="category">Project Category</Label>
+            <Select
+              value={projectCategory}
+              onValueChange={setProjectCategory}
+              disabled={uploading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="design">Design</SelectItem>
+                <SelectItem value="development">Development</SelectItem>
+                <SelectItem value="content">Content</SelectItem>
+                <SelectItem value="marketing">Marketing</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="type">Project Type</Label>
+            <Select
+              value={projectType}
+              onValueChange={setProjectType}
+              disabled={uploading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="idea">Idea</SelectItem>
+                <SelectItem value="prototype">Prototype</SelectItem>
+                <SelectItem value="documentation">Documentation</SelectItem>
+                <SelectItem value="resource">Resource</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Deadline</Label>
+            <div className="flex flex-col space-y-4">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !deadline && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {deadline ? format(deadline, "PPP") : "Select a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                    mode="single"
+                    selected={deadline}
+                    onSelect={setDeadline}
+                    initialFocus
+                    disabled={(date) => date < new Date()}
                   />
-                </div>
-                
+                </PopoverContent>
+              </Popover>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="expedited"
+                  checked={expeditedService}
+                  onCheckedChange={(checked) => {
+                    setExpeditedService(!!checked);
+                    if (!checked) setExpeditedDays(0);
+                  }}
+                />
+                <label 
+                  htmlFor="expedited" 
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Expedited service (+{EXPEDITED_DISCOUNT_PERCENT}% per day)
+                </label>
+              </div>
+              
+              {expeditedService && (
                 <div className="space-y-2">
-                  <Label htmlFor="description">
-                    Description ({description.length}/{MINIMUM_DESC_LENGTH}+ characters)
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Provide detailed information about your project..."
-                    className={`min-h-[100px] ${description.length < MINIMUM_DESC_LENGTH ? 'border-red-300' : ''}`}
-                    required
-                  />
-                  {description.length < MINIMUM_DESC_LENGTH && (
-                    <p className="text-xs text-red-500">
-                      Description must be at least {MINIMUM_DESC_LENGTH} characters long
-                    </p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="category">File Format</Label>
-                  <Select 
-                    value={selectedCategory} 
-                    onValueChange={setSelectedCategory}
-                    required
+                  <Label htmlFor="expeditedDays">Days to reduce</Label>
+                  <Select
+                    value={expeditedDays.toString()}
+                    onValueChange={(value) => setExpeditedDays(parseInt(value))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select file format" />
+                      <SelectValue placeholder="Select days" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="document">Document (PDF, DOCX)</SelectItem>
-                      <SelectItem value="image">Image (JPG, PNG)</SelectItem>
-                      <SelectItem value="video">Video (MP4, MOV)</SelectItem>
-                      <SelectItem value="audio">Audio (MP3, WAV)</SelectItem>
-                      <SelectItem value="archive">Archive (ZIP, RAR)</SelectItem>
-                      <SelectItem value="presentation">Presentation (PPT, PPTX)</SelectItem>
-                      <SelectItem value="spreadsheet">Spreadsheet (XLS, XLSX)</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="1">1 day (-24h)</SelectItem>
+                      <SelectItem value="2">2 days (-48h)</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="file">Upload File</Label>
-                  <div className="flex flex-col space-y-2">
-                    <div
-                      className={`border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center cursor-pointer ${
-                        isDragging
-                          ? "border-primary bg-primary/10"
-                          : "border-muted-foreground/25"
-                      }`}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {filePreview ? (
-                        <div className="w-full flex flex-col items-center">
-                          {selectedFile?.type.startsWith("image/") ? (
-                            <div className="relative w-full max-w-xs h-32 mb-2">
-                              <img
-                                src={filePreview}
-                                alt="Preview"
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                          ) : (
-                            <div className="p-4 bg-muted/50 rounded-md">
-                              <FilePlus className="h-12 w-12 text-muted-foreground" />
-                            </div>
-                          )}
-                          <p className="text-sm mt-2 text-center">
-                            {selectedFile?.name} ({formatFileSize(selectedFile?.size || 0)})
-                          </p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="mt-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveFile();
-                            }}
-                          >
-                            Change file
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <UploadCloud className="h-10 w-10 text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground text-center">
-                            Drag & drop your file here, or click to browse
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1 text-center">
-                            Maximum file size: 10MB
-                          </p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      onChange={handleFileChange}
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.mov,.mp3,.wav,.zip,.rar,.ppt,.pptx,.xls,.xlsx"
-                    />
+                  
+                  <div className="mt-2 text-sm font-medium">
+                    Total price: ${calculatePrice().toFixed(2)}
                   </div>
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="terms" 
-                    checked={terms}
-                    onCheckedChange={(checked) => setTerms(checked === true)}
-                  />
-                  <label
-                    htmlFor="terms"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    I confirm that all submission details are correct and understand that uploads with incorrect information may be rejected
-                  </label>
-                </div>
-
-                {errorMsg && (
-                  <div className="bg-destructive/10 p-3 rounded-md flex items-start gap-2">
-                    <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-destructive">{errorMsg}</p>
-                  </div>
-                )}
-              </div>
-              
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button type="button" variant="outline" onClick={() => setUploadDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={isSubmitting || !selectedFile || description.length < MINIMUM_DESC_LENGTH || !terms || userPoints < COST_PER_UPLOAD}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Submit Project"
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-        
-        <CardContent>
-          <div className="space-y-4">
-            <div className="bg-muted/40 rounded-md p-4">
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                How it works
-              </h3>
-              
-              <ol className="space-y-2 text-sm list-decimal list-inside">
-                <li>Submit your project with all required details</li>
-                <li>Our team reviews your submission (typically 24-48 hours)</li>
-                <li>You'll receive a notification once processing is complete</li>
-                <li>Results will be available in your dashboard</li>
-              </ol>
+              )}
             </div>
-            
-            <div className="bg-muted/40 rounded-md p-4">
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                Important Notes
-              </h3>
-              
-              <ul className="space-y-2 text-sm">
-                <li>Each upload costs {COST_PER_UPLOAD} Spark Points</li>
-                <li>Maximum file size: 10MB</li>
-                <li>Supported formats: PDF, DOC, DOCX, JPG, PNG, MP4, MP3, and more</li>
-                <li>Incomplete or incorrect submissions may be rejected</li>
-                <li>Need help? <Link to="/help" className="text-primary underline">Contact support</Link></li>
-              </ul>
-            </div>
-            
-            {userPoints < COST_PER_UPLOAD && (
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-md p-4">
-                <h3 className="font-semibold mb-2 text-yellow-500 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Insufficient Points
-                </h3>
-                
-                <p className="text-sm mb-3">
-                  You don't have enough Spark Points for this upload. You need {COST_PER_UPLOAD} SP.
-                </p>
-                
-                <Link to="/subscription">
-                  <Button variant="outline" className="w-full">
-                    Get More Spark Points
-                  </Button>
-                </Link>
-              </div>
-            )}
           </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="file">File</Label>
+            <div className="border rounded-md p-4 bg-background">
+              {file ? (
+                <div className="flex items-center gap-3">
+                  <FileType className="h-10 w-10 text-primary" />
+                  <div className="flex-1">
+                    <p className="font-medium">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / (1024 * 1024)).toFixed(2)} MB • {getFileTypeIcon(file.type)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFile(null)}
+                    disabled={uploading}
+                  >
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <Input
+                  id="file"
+                  type="file"
+                  onChange={handleFileChange}
+                  disabled={uploading}
+                />
+              )}
+            </div>
+          </div>
+          
+          {uploading && (
+            <div className="space-y-2">
+              <Label>Upload Progress</Label>
+              <Progress value={progress} className="h-2" />
+              <p className="text-xs text-center text-muted-foreground">
+                {progress < 100 ? "Uploading..." : "Upload Complete!"}
+              </p>
+            </div>
+          )}
         </CardContent>
+        <CardFooter>
+          <Button 
+            onClick={handleUpload} 
+            disabled={uploading || !title || !file}
+            className="w-full"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {uploading ? "Uploading..." : "Upload Project"}
+          </Button>
+        </CardFooter>
       </Card>
-    </div>
+      
+      <PaymentConfirmation
+        open={showPaymentConfirmation}
+        onClose={() => setShowPaymentConfirmation(false)}
+        onConfirm={processUpload}
+        title="Confirm Service Payment"
+        description="Please confirm the payment for your project upload service."
+        amount={calculatePrice()}
+        currency="SP"
+        itemName={`Project Upload Service${expeditedService ? ' (Expedited)' : ''}`}
+      />
+    </>
   );
 };
