@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { BellRing, Check, Info, AlertTriangle, AlertCircle, X, MoreHorizontal } from "lucide-react";
+import { BellRing, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -12,7 +12,6 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
 
 export function NotificationCenter() {
   const {
@@ -27,142 +26,105 @@ export function NotificationCenter() {
   const [open, setOpen] = React.useState(false);
 
   const handleMarkAsRead = async (id: string) => {
-    try {
-      await markAsRead(id);
-    } catch (error) {
-      toast.error("Failed to mark notification as read");
-    }
+    await markAsRead(id);
   };
 
   const handleDelete = async (id: string) => {
-    try {
-      await deleteNotification(id);
-    } catch (error) {
-      toast.error("Failed to delete notification");
-    }
+    await deleteNotification(id);
   };
-  
-  const handleMarkAllAsRead = async () => {
-    try {
-      await markAllAsRead();
-      toast.success("All notifications marked as read");
-    } catch (error) {
-      toast.error("Failed to mark all notifications as read");
-    }
-  };
-  
-  const handleDeleteAll = async () => {
-    try {
-      await deleteAllNotifications();
-      toast.success("All notifications cleared");
-    } catch (error) {
-      toast.error("Failed to clear notifications");
-    }
-  };
-
-  // Group notifications by type for better organization
-  const groupedNotifications = React.useMemo(() => {
-    const groups: Record<string, typeof notifications> = {
-      unread: notifications.filter(n => !n.is_read),
-      read: notifications.filter(n => n.is_read),
-    };
-    return groups;
-  }, [notifications]);
 
   return (
-    <div className="w-full">
-      <h3 className="font-medium mb-2 flex items-center gap-2">
-        <BellRing className="h-4 w-4" />
-        Notifications
-        {unreadCount > 0 && (
-          <Badge className="ml-1" variant="secondary">
-            {unreadCount} unread
-          </Badge>
-        )}
-      </h3>
-      
-      {loading ? (
-        <div className="flex items-center justify-center p-6">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
-        </div>
-      ) : notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-6 text-center">
-          <BellRing className="h-10 w-10 text-muted-foreground/60" />
-          <h3 className="mt-2 text-sm font-medium">No notifications</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            You're all caught up! We'll notify you when something new arrives.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="relative"
+          aria-label="Notifications"
+        >
+          <BellRing className="h-5 w-5" />
           {unreadCount > 0 && (
-            <div className="flex justify-between items-center mb-2">
+            <Badge
+              className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary p-0 text-[10px] text-primary-foreground"
+              aria-label={`${unreadCount} unread notifications`}
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[380px] p-0">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-2">
+            <BellRing className="h-5 w-5" />
+            <h3 className="font-medium">Notifications</h3>
+            {unreadCount > 0 && (
+              <Badge className="ml-1" variant="secondary">
+                {unreadCount} unread
+              </Badge>
+            )}
+          </div>
+          <div className="flex gap-1">
+            {unreadCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 text-xs"
-                onClick={handleMarkAllAsRead}
+                className="h-8 gap-1"
+                onClick={markAllAsRead}
               >
-                <Check className="h-3.5 w-3.5 mr-1" />
-                Mark all as read
+                <Check className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                  Mark all as read
+                </span>
               </Button>
-              
+            )}
+            {notifications.length > 0 && (
               <Button
-                variant="ghost" 
+                variant="ghost"
                 size="sm"
-                className="h-8 text-xs text-destructive hover:text-destructive"
-                onClick={handleDeleteAll}
+                className="h-8 gap-1 text-destructive hover:text-destructive"
+                onClick={deleteAllNotifications}
               >
-                <X className="h-3.5 w-3.5 mr-1" />
-                Clear all
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                  Clear all
+                </span>
               </Button>
-            </div>
-          )}
-          
-          <ScrollArea className="h-[250px] pr-4">
-            {groupedNotifications.unread.length > 0 && (
-              <>
-                {groupedNotifications.unread.map((notification) => (
-                  <Notification
-                    key={notification.id}
-                    title={notification.title}
-                    message={notification.message}
-                    type={notification.type}
-                    read={notification.is_read}
-                    time={notification.created_at}
-                    onMarkAsRead={() => handleMarkAsRead(notification.id)}
-                    onDelete={() => handleDelete(notification.id)}
-                  />
-                ))}
-              </>
             )}
-            
-            {groupedNotifications.read.length > 0 && (
-              <>
-                {groupedNotifications.unread.length > 0 && groupedNotifications.read.length > 0 && (
-                  <div className="flex items-center gap-2 my-2">
-                    <Separator className="flex-1" />
-                    <span className="text-xs text-muted-foreground">Read</span>
-                    <Separator className="flex-1" />
-                  </div>
-                )}
-                {groupedNotifications.read.map((notification) => (
-                  <Notification
-                    key={notification.id}
-                    title={notification.title}
-                    message={notification.message}
-                    type={notification.type}
-                    read={notification.is_read}
-                    time={notification.created_at}
-                    onMarkAsRead={() => handleMarkAsRead(notification.id)}
-                    onDelete={() => handleDelete(notification.id)}
-                  />
-                ))}
-              </>
-            )}
-          </ScrollArea>
+          </div>
         </div>
-      )}
-    </div>
+        <Separator />
+        {loading ? (
+          <div className="flex items-center justify-center p-6">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-6 text-center">
+            <BellRing className="h-10 w-10 text-muted-foreground/60" />
+            <h3 className="mt-2 text-sm font-medium">No notifications</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              You're all caught up! We'll notify you when something new arrives.
+            </p>
+          </div>
+        ) : (
+          <ScrollArea className="h-[350px]">
+            <div className="space-y-1 p-2">
+              {notifications.map((notification) => (
+                <Notification
+                  key={notification.id}
+                  title={notification.title}
+                  message={notification.message}
+                  type={notification.type}
+                  read={notification.is_read}
+                  time={notification.created_at}
+                  onMarkAsRead={() => handleMarkAsRead(notification.id)}
+                  onDelete={() => handleDelete(notification.id)}
+                />
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

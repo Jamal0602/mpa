@@ -1,99 +1,74 @@
 
 import React from "react";
-import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface LoadingAnimationProps {
   text?: string;
   showPoweredBy?: boolean;
+  className?: string;
   size?: "sm" | "md" | "lg";
+  color?: string;
 }
 
 export function LoadingAnimation({
   text = "Loading...",
   showPoweredBy = true,
+  className,
   size = "md",
+  color = "primary",
 }: LoadingAnimationProps) {
-  // Size mapping for different elements
-  const containerSize = {
-    sm: "w-24 h-24",
-    md: "w-32 h-32", 
-    lg: "w-40 h-40",
+  const sizes = {
+    sm: { dot: "h-1.5 w-1.5", container: "gap-1" },
+    md: { dot: "h-2.5 w-2.5", container: "gap-2" },
+    lg: { dot: "h-3.5 w-3.5", container: "gap-3" },
   };
-  
-  const circleSize = {
-    sm: "w-16 h-16",
-    md: "w-24 h-24",
-    lg: "w-32 h-32",
+
+  const dotVariants = {
+    initial: { y: 0 },
+    animate: { y: -10 },
   };
-  
-  const textSize = {
-    sm: "text-xs",
-    md: "text-sm",
-    lg: "text-base",
-  };
-  
-  const poweredBySize = {
-    sm: "text-[8px]",
-    md: "text-xs",
-    lg: "text-sm",
+
+  const containerVariants = {
+    initial: { opacity: 0 },
+    animate: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+      },
+    },
   };
 
   return (
-    <div className="flex flex-col items-center justify-center">
-      <div className={cn("relative", containerSize[size])}>
-        <motion.div
-          className={cn(
-            "absolute border-2 border-transparent border-t-primary border-r-primary rounded-full",
-            circleSize[size]
-          )}
-          animate={{ rotate: 360 }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-        />
-        
-        <motion.div
-          className={cn(
-            "absolute border-2 border-transparent border-b-secondary border-l-secondary rounded-full",
-            circleSize[size]
-          )}
-          animate={{ rotate: -360 }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-        />
-        
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0.5 }}
-          animate={{ 
-            scale: [0.8, 1, 0.8],
-            opacity: [0.5, 1, 0.5],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="absolute inset-0 flex items-center justify-center"
-        >
-          <div className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">CGT</div>
-        </motion.div>
-      </div>
+    <div className={cn("flex flex-col items-center justify-center", className)}>
+      <motion.div
+        className={cn("flex items-center justify-center", sizes[size].container)}
+        variants={containerVariants}
+        initial="initial"
+        animate="animate"
+      >
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            className={cn(`rounded-full bg-${color}`, sizes[size].dot)}
+            variants={dotVariants}
+            animate="animate"
+            initial="initial"
+            transition={{
+              repeat: Infinity,
+              repeatType: "reverse",
+              duration: 0.6,
+              delay: i * 0.2,
+            }}
+          />
+        ))}
+      </motion.div>
       
-      {text && (
-        <div className={cn("mt-4 text-center", textSize[size])}>
-          <p className="animate-pulse font-medium">{text}</p>
-        </div>
-      )}
+      <p className="mt-4 text-center font-medium">{text}</p>
       
       {showPoweredBy && (
-        <div className={cn("mt-1 opacity-70", poweredBySize[size])}>
-          <p>Powered by [CGT]</p>
+        <div className="mt-8 text-xs text-muted-foreground">
+          Powered by <span className="font-semibold text-primary">CGT</span>
         </div>
       )}
     </div>
