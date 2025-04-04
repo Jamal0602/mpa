@@ -1,4 +1,3 @@
-
 import { Routes, Route, useLocation } from "react-router-dom";
 import "./App.css";
 import Index from "@/pages/Index";
@@ -30,8 +29,9 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { AnimatePresence, motion } from "framer-motion";
 import LoadingRoute from "@/components/layout/LoadingRoute";
 import { FloatingTab } from "@/components/ui/floating-tab";
+import PasswordResetForm from "@/components/auth/PasswordResetForm";
+import PasswordResetCallback from "@/components/auth/PasswordResetCallback";
 
-// Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -41,7 +41,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// Page transition variants
 const pageVariants = {
   initial: {
     opacity: 0,
@@ -63,14 +62,9 @@ const pageTransition = {
   duration: 0.3,
 };
 
-// Layout component that wraps our pages with common elements
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
-  // Google Tag Manager script setup
   useEffect(() => {
-    // Initialize dataLayer for GTM
     window.dataLayer = window.dataLayer || [];
-    
-    // AdSense setup
     const adsenseScript = document.createElement('script');
     adsenseScript.async = true;
     adsenseScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7483780622360467';
@@ -83,7 +77,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       }
     };
   }, []);
-  
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
@@ -113,7 +107,6 @@ function App() {
           <NotificationProvider>
             <AnimatePresence mode="wait">
               <Routes location={location} key={location.pathname}>
-                {/* Public routes */}
                 <Route 
                   path="/" 
                   element={
@@ -158,8 +151,19 @@ function App() {
                     <AuthCallback />
                   } 
                 />
+                <Route 
+                  path="/auth/reset" 
+                  element={
+                    <PasswordResetForm />
+                  } 
+                />
+                <Route 
+                  path="/auth/reset-callback" 
+                  element={
+                    <PasswordResetCallback />
+                  } 
+                />
 
-                {/* Protected routes */}
                 <Route 
                   path="/dashboard" 
                   element={
@@ -243,7 +247,6 @@ function App() {
                   } 
                 />
                 
-                {/* Loading route for transitions */}
                 <Route 
                   path="/loading" 
                   element={
@@ -251,7 +254,6 @@ function App() {
                   }
                 />
                 
-                {/* 404 route - always keep this last */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AnimatePresence>
@@ -263,7 +265,6 @@ function App() {
   );
 }
 
-// Add type definitions for global dataLayer
 declare global {
   interface Window {
     dataLayer: any[];
