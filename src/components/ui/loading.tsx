@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { LoadingAnimation } from './loading-animation';
 
 export const LoadingSpinner = () => {
   return (
@@ -13,9 +14,7 @@ export const LoadingSpinner = () => {
 export const LoadingPage = ({ message = "Loading..." }: { message?: string }) => {
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center bg-background z-50">
-      <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-      <p className="text-lg font-medium">{message}</p>
-      <p className="text-sm text-muted-foreground mt-4">Powered by CGT</p>
+      <LoadingAnimation text={message} showPoweredBy={true} size="lg" />
     </div>
   );
 };
@@ -23,8 +22,7 @@ export const LoadingPage = ({ message = "Loading..." }: { message?: string }) =>
 export const LoadingSpinnerCGT = () => {
   return (
     <div className="flex flex-col items-center justify-center p-4">
-      <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-      <p className="text-xs text-muted-foreground">Powered by CGT</p>
+      <LoadingAnimation text="" showPoweredBy={true} size="sm" />
     </div>
   );
 };

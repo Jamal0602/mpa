@@ -10,6 +10,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { FloatingTab } from "@/components/ui/floating-tab";
 import { useTheme } from "next-themes";
+import { FeaturedPosts } from "@/components/home/FeaturedPosts";
+import { WidgetRenderer } from "@/components/widgets/WidgetRenderer";
 
 const featureItems = [
   {
@@ -187,6 +189,34 @@ const Index = () => {
               </div>
             </motion.div>
           </div>
+        </div>
+      </section>
+
+      <section className="py-16 bg-muted/30">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col items-center text-center space-y-4 mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold">Featured Posts</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl">
+              Stay updated with our latest featured articles
+            </p>
+          </div>
+
+          <FeaturedPosts />
+          
+          <div className="flex justify-center mt-10">
+            <Button asChild variant="outline">
+              <Link to="/blog" className="gap-2">
+                View All Posts
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+      
+      <section className="py-10">
+        <div className="container px-4 md:px-6">
+          <WidgetRenderer location="homepage" />
         </div>
       </section>
 

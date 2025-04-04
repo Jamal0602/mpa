@@ -15,6 +15,8 @@ import WorkWithUs from "@/pages/WorkWithUs";
 import Referral from "@/pages/Referral";
 import ErrorReport from "@/pages/ErrorReport";
 import Analytics from "@/pages/Analytics";
+import Blog from "@/pages/Blog";
+import PostDetail from "@/pages/PostDetail";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -125,6 +127,22 @@ function App() {
                   element={
                     <MainLayout>
                       <Features />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/blog" 
+                  element={
+                    <MainLayout>
+                      <Blog />
+                    </MainLayout>
+                  } 
+                />
+                <Route 
+                  path="/post/:id" 
+                  element={
+                    <MainLayout>
+                      <PostDetail />
                     </MainLayout>
                   } 
                 />

@@ -38,6 +38,10 @@ export interface Database {
           likes: number;
           comments: number;
           published: boolean;
+          featured?: boolean;
+          excerpt?: string;
+          thumbnail_url?: string;
+          category?: string;
         }
       };
       widgets: {
@@ -51,6 +55,9 @@ export interface Database {
           created_by: string;
           created_at: string;
           updated_at: string;
+          location?: string;
+          active?: boolean;
+          priority?: number;
         }
       };
       job_applications: {
@@ -64,6 +71,9 @@ export interface Database {
           status: string;
           created_at: string;
           updated_at: string;
+          experience?: string;
+          phone?: string;
+          skills?: string[];
         }
       };
       projects: {
@@ -120,6 +130,63 @@ export interface Database {
           steps_to_reproduce: string;
           priority: string;
           category: string;
+          resolution_notes?: string;
+          resolved_by?: string;
+          resolved_at?: string;
+        }
+      };
+      services: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          price_in_points: number;
+          category: string;
+          image_url: string;
+          created_at: string;
+          updated_at: string;
+          created_by: string;
+          active: boolean;
+          featured: boolean;
+          details: any;
+          requirements: string[];
+        }
+      };
+      service_purchases: {
+        Row: {
+          id: string;
+          service_id: string;
+          user_id: string;
+          points_spent: number;
+          status: string;
+          project_details: any;
+          created_at: string;
+          updated_at: string;
+        }
+      };
+      key_points_transactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          amount: number;
+          description: string;
+          transaction_type: string;
+          created_at: string;
+        }
+      };
+      payment_details: {
+        Row: {
+          id: string;
+          user_id: string;
+          account_number: string;
+          ifsc_code: string;
+          bank_name: string;
+          account_holder: string;
+          upi_id: string;
+          qr_code: string;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
         }
       };
       // Define all other tables needed for the application

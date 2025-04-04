@@ -1,7 +1,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { LoadingPageCGT } from "@/components/ui/loading-cgt";
+import { LoadingAnimation } from "@/components/ui/loading-animation";
 
 interface LoadingRouteProps {
   message?: string;
@@ -17,12 +17,7 @@ const LoadingRoute = ({ message = "Loading Your Experience", showPoweredBy = tru
       transition={{ duration: 0.3 }}
       className="fixed inset-0 bg-background z-50 flex items-center justify-center flex-col"
     >
-      <LoadingPageCGT text={message} showPoweredBy={showPoweredBy} />
-      {showPoweredBy && (
-        <div className="mt-8 text-sm text-muted-foreground">
-          Powered by <span className="font-bold text-primary">CGT</span>
-        </div>
-      )}
+      <LoadingAnimation text={message} showPoweredBy={showPoweredBy} size="lg" />
     </motion.div>
   );
 };
