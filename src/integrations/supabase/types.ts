@@ -47,13 +47,15 @@ export type Database = {
       error_reports: {
         Row: {
           browser_info: string | null
+          category: string | null
           contact_email: string | null
           created_at: string | null
+          description: string | null
           error_details: Json | null
-          error_message: string
-          error_type: string
+          error_message: string | null
           id: string
           page_url: string | null
+          priority: string | null
           status: string | null
           steps_to_reproduce: string | null
           title: string | null
@@ -61,13 +63,15 @@ export type Database = {
         }
         Insert: {
           browser_info?: string | null
+          category?: string | null
           contact_email?: string | null
           created_at?: string | null
+          description?: string | null
           error_details?: Json | null
-          error_message: string
-          error_type: string
+          error_message?: string | null
           id?: string
           page_url?: string | null
+          priority?: string | null
           status?: string | null
           steps_to_reproduce?: string | null
           title?: string | null
@@ -75,13 +79,15 @@ export type Database = {
         }
         Update: {
           browser_info?: string | null
+          category?: string | null
           contact_email?: string | null
           created_at?: string | null
+          description?: string | null
           error_details?: Json | null
-          error_message?: string
-          error_type?: string
+          error_message?: string | null
           id?: string
           page_url?: string | null
+          priority?: string | null
           status?: string | null
           steps_to_reproduce?: string | null
           title?: string | null

@@ -11,6 +11,8 @@ import { PaymentVerification } from "@/components/admin/PaymentVerification";
 import { RoleRequests } from "@/components/admin/RoleRequests";
 import { AdminControls } from "@/components/admin/AdminControls";
 import { AdminSetup } from "@/components/admin/AdminSetup";
+import { PostsManagement } from "@/components/admin/PostsManagement";
+import { WidgetsManagement } from "@/components/admin/WidgetsManagement";
 import { 
   Database, 
   FileText, 
@@ -26,7 +28,10 @@ import {
   MessageSquare,
   Edit,
   Trash2,
-  List
+  List,
+  FileEdit,
+  Layers,
+  Loader2
 } from "lucide-react";
 import { 
   Card, 
@@ -38,7 +43,7 @@ import {
 } from "@/components/ui/card";
 import { LineChart, BarChart, PieChart } from "@/components/ui/charts";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   DropdownMenu,
@@ -86,9 +91,9 @@ const AdminPanel = () => {
     queryKey: ["error-report-stats"],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.rpc("get_error_report_stats");
-        if (error) throw error;
-        return data as ErrorReportStats;
+        const response = await supabase.rpc("get_error_report_stats");
+        if (response.error) throw response.error;
+        return response.data as ErrorReportStats;
       } catch (err) {
         console.error("Failed to fetch error report stats:", err);
         return { total: 0, pending: 0, in_progress: 0, resolved: 0, rejected: 0 } as ErrorReportStats;
@@ -212,7 +217,7 @@ const AdminPanel = () => {
       requireAuth={true}
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-7">
+        <TabsList className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-9">
           <TabsTrigger value="users">
             <Users className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Users</span>
@@ -232,6 +237,14 @@ const AdminPanel = () => {
           <TabsTrigger value="reports">
             <FileText className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Reports</span>
+          </TabsTrigger>
+          <TabsTrigger value="posts">
+            <FileEdit className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Posts</span>
+          </TabsTrigger>
+          <TabsTrigger value="widgets">
+            <Layers className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Widgets</span>
           </TabsTrigger>
           <TabsTrigger value="analytics">
             <BarChart3 className="mr-2 h-4 w-4" />
@@ -403,6 +416,14 @@ const AdminPanel = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="posts">
+          <PostsManagement />
+        </TabsContent>
+
+        <TabsContent value="widgets">
+          <WidgetsManagement />
+        </TabsContent>
+
         <TabsContent value="analytics">
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
@@ -529,11 +550,17 @@ const AdminPanel = () => {
                   onClick={() => updateReportStatus(selectedReport.id, "resolved")}
                   disabled={updatingStatus}
                 >
-                  {updatingStatus ? 
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : 
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                  }
-                  Mark Resolved
+                  {updatingStatus ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Mark Resolved
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

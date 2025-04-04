@@ -8,6 +8,8 @@ import { BarChart3, FileText, Gift, Layout, Shield, Upload, Users, ArrowRight, E
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import { FloatingTab } from "@/components/ui/floating-tab";
+import { useTheme } from "next-themes";
 
 const featureItems = [
   {
@@ -84,9 +86,11 @@ const staggerContainer = {
 
 const Index = () => {
   const { user } = useAuth();
+  const { setTheme } = useTheme();
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    setTheme("dark");
   }, []);
 
   const handleShare = () => {
@@ -105,33 +109,26 @@ const Index = () => {
     }
   };
   
-  // Function to handle external links in mobile apps
   const handleExternalLink = (url: string, event?: React.MouseEvent) => {
     if (event) {
       event.preventDefault();
     }
     
-    // Check if in mobile app environment
     if (window.navigator && (window.navigator as any).app) {
-      // Use Capacitor or Cordova API if available
       if ((window as any).cordova && (window as any).cordova.InAppBrowser) {
         (window as any).cordova.InAppBrowser.open(url, '_system');
       } else if ((window as any).open) {
-        // Fallback to window.open with _system
         (window as any).open(url, '_system');
       } else {
-        // Last resort - normal location change
         window.location.href = url;
       }
     } else {
-      // Normal browser behavior - open in new tab
       window.open(url, '_blank');
     }
   };
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Hero Section */}
       <section className="py-20 md:py-28">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center text-center space-y-10">
@@ -193,7 +190,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features Section */}
       <section className="py-20 bg-muted/50">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center text-center space-y-4 mb-12">
@@ -231,7 +227,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Social Proof Section */}
       <section className="py-20">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center text-center space-y-4 mb-12">
@@ -282,7 +277,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-20 bg-primary/5">
         <div className="container px-4 md:px-6">
           <motion.div
@@ -328,6 +322,8 @@ const Index = () => {
           </motion.div>
         </div>
       </section>
+      
+      <FloatingTab />
     </div>
   );
 };

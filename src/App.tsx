@@ -27,6 +27,7 @@ import AdminPanel from "@/pages/AdminPanel";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { AnimatePresence, motion } from "framer-motion";
 import LoadingRoute from "@/components/layout/LoadingRoute";
+import { FloatingTab } from "@/components/ui/floating-tab";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -94,6 +95,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       >
         {children}
       </motion.main>
+      <FloatingTab />
       <Footer showPoweredBy={true} />
     </div>
   );
@@ -103,7 +105,7 @@ function App() {
   const location = useLocation();
   
   return (
-    <ThemeProvider defaultTheme="system" enableSystem>
+    <ThemeProvider defaultTheme="dark" enableSystem>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <NotificationProvider>
