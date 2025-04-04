@@ -21,12 +21,6 @@ export function LoadingAnimation({
     lg: "w-40 h-40",
   };
   
-  const circleSize = {
-    sm: "w-16 h-16",
-    md: "w-24 h-24",
-    lg: "w-32 h-32",
-  };
-  
   const textSize = {
     sm: "text-xs",
     md: "text-sm",
@@ -38,54 +32,22 @@ export function LoadingAnimation({
     md: "text-xs",
     lg: "text-sm",
   };
+  
+  const imageSize = {
+    sm: "w-16 h-16",
+    md: "w-24 h-24",
+    lg: "w-32 h-32",
+  };
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className={cn("relative", containerSize[size])}>
-        {/* Outer spinning circle */}
-        <motion.div
-          className={cn(
-            "absolute border-2 border-transparent border-t-primary border-r-primary rounded-full",
-            circleSize[size]
-          )}
-          animate={{ rotate: 360 }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: "linear",
-          }}
+      <div className={cn("relative flex items-center justify-center", containerSize[size])}>
+        {/* Use the provided GIF animation */}
+        <img 
+          src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhfCR-xdQKQeuroa8EDEszVZu84skuUlkpicjOdba-FuYcL5HSi0wNy0Wf5IZRdyqo2rPny12PrezvdDYsLK0drip35c0bogEro9cWI1OZGyMQNcizdBdKWpBhF0t9kO6jM5OuFyUWn9budhg67PU__b1tpCFvE96dMhEZCr6dw3-bpGA/s1600/Animation%20-%201743734436715.gif"
+          alt="Loading animation"
+          className={cn("rounded-full", imageSize[size])}
         />
-        
-        {/* Inner counter-spinning circle */}
-        <motion.div
-          className={cn(
-            "absolute border-2 border-transparent border-b-secondary border-l-secondary rounded-full",
-            circleSize[size]
-          )}
-          animate={{ rotate: -360 }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-        />
-        
-        {/* Pulsing center logo */}
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0.5 }}
-          animate={{ 
-            scale: [0.8, 1, 0.8],
-            opacity: [0.5, 1, 0.5],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="absolute inset-0 flex items-center justify-center"
-        >
-          <div className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">CGT</div>
-        </motion.div>
       </div>
       
       {text && (

@@ -7,9 +7,13 @@ export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
 
   React.useEffect(() => {
+    // Check if force desktop mode is enabled
+    const forceDesktop = localStorage.getItem('force-desktop-mode') === 'true';
+    
     // Set initial value
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      // Only set as mobile if force desktop mode is not enabled
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT && !forceDesktop)
     }
     
     // Check immediately
