@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -57,7 +56,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
-// Define the proper type for the error report stats response
 interface ErrorReportStats {
   total: number;
   pending: number;
@@ -86,7 +84,6 @@ const AdminPanel = () => {
   const navigate = useNavigate();
   const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
 
-  // Query to fetch error report statistics
   const { data: errorReportStats, refetch: refetchStats } = useQuery({
     queryKey: ["error-report-stats"],
     queryFn: async () => {
@@ -102,7 +99,6 @@ const AdminPanel = () => {
     enabled: !!isAdmin
   });
 
-  // Query to fetch error reports
   const { data: errorReports, refetch: refetchReports, isLoading: isLoadingReports } = useQuery({
     queryKey: ["error-reports"],
     queryFn: async () => {
@@ -122,7 +118,25 @@ const AdminPanel = () => {
     enabled: !!isAdmin && activeTab === "reports"
   });
 
-  // Update error report status
+  const { data: posts, refetch: refetchPosts } = useQuery({
+    queryKey: ["posts"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from("posts")
+          .select("*")
+          .order("created_at", { ascending: false });
+          
+        if (error) throw error;
+        return data as any[];
+      } catch (err) {
+        console.error("Failed to fetch posts:", err);
+        return [] as any[];
+      }
+    },
+    enabled: !!isAdmin && activeTab === "posts"
+  });
+
   const updateReportStatus = async (id: string, status: string) => {
     if (!selectedReport) return;
     
@@ -177,6 +191,23 @@ const AdminPanel = () => {
     }
   };
 
+  const handleDeletePost = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast.success('Post deleted successfully');
+      refetchPosts();
+    } catch (error: any) {
+      console.error('Error deleting post:', error);
+      toast.error(`Failed to delete post: ${error.message}`);
+    }
+  };
+
   const handleViewDetails = (report: ErrorReport) => {
     setSelectedReport(report);
     setResolutionNotes("");
@@ -194,7 +225,6 @@ const AdminPanel = () => {
     return <LoadingSpinner />;
   }
 
-  // Function to get the status badge color
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -382,7 +412,7 @@ const AdminPanel = () => {
                                     className="text-green-600"
                                   >
                                     <CheckCircle className="mr-2 h-4 w-4" /> Mark Resolved
-                                  </DropdownMenuItem>
+                                  </DropdownDropdownMenuItem>
                                   <DropdownMenuItem 
                                     onClick={() => updateReportStatus(report.id, "rejected")}
                                     className="text-red-600"
@@ -483,7 +513,6 @@ const AdminPanel = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Report Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -38,6 +37,12 @@ interface Widget {
   location: string;
   active: boolean;
   priority: number;
+}
+
+interface WidgetSettings {
+  url?: string;
+  height?: number;
+  [key: string]: any;
 }
 
 export function AdvancedWidgetsManagement() {
@@ -532,7 +537,7 @@ export function AdvancedWidgetsManagement() {
                       id="height"
                       name="height"
                       placeholder="400px"
-                      value={formData.settings.height || '400px'}
+                      value={formData.settings.height || 300}
                       onChange={handleSettingsChange}
                     />
                   </div>
