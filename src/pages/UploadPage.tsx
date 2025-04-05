@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ interface ServiceOffer {
   is_active: boolean;
   start_date: string;
   end_date: string | null;
+  per_page_pricing: boolean;
 }
 
 const UploadPage = () => {
@@ -39,6 +41,8 @@ const UploadPage = () => {
   const { toast } = useToast();
   const [selectedService, setSelectedService] = useState<ServiceOffer | null>(null);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState<'select' | 'upload' | 'confirm'>('select');
+  const [pageCount, setPageCount] = useState(1);
   const UPLOAD_COST = 5;
   
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
@@ -91,15 +95,28 @@ const UploadPage = () => {
   
   const handlePurchaseClick = (service: ServiceOffer) => {
     setSelectedService(service);
+    setCurrentStep('select');
     setPurchaseDialogOpen(true);
+  };
+
+  const getTotalCost = () => {
+    if (!selectedService) return 0;
+    
+    if (selectedService.per_page_pricing) {
+      return selectedService.point_cost * pageCount;
+    }
+    
+    return selectedService.point_cost;
   };
   
   const handlePurchaseConfirm = async () => {
     if (!user || !selectedService) return;
     
     try {
+      const totalCost = getTotalCost();
+      
       // Check if user has enough points
-      if ((profile?.key_points || 0) < selectedService.point_cost) {
+      if ((profile?.key_points || 0) < totalCost) {
         toast({
           title: "Insufficient Spark Points",
           description: "You don't have enough Spark Points to purchase this service.",
@@ -111,7 +128,7 @@ const UploadPage = () => {
       // Create transaction and reduce points
       const { error: transactionError } = await supabase.rpc('decrement_points', {
         user_id: user.id,
-        amount_to_deduct: selectedService.point_cost
+        amount_to_deduct: totalCost
       });
       
       if (transactionError) throw transactionError;
@@ -121,8 +138,8 @@ const UploadPage = () => {
         .from("key_points_transactions")
         .insert({
           user_id: user.id,
-          amount: -selectedService.point_cost,
-          description: `Purchased service: ${selectedService.name}`,
+          amount: -totalCost,
+          description: `Purchased service: ${selectedService.name}${selectedService.per_page_pricing ? ` (${pageCount} pages)` : ''}`,
           transaction_type: 'spend'
         });
       
@@ -137,20 +154,24 @@ const UploadPage = () => {
           user_id: user.id,
           category: "service",
           type: "purchased",
-          status: "pending"
+          status: "pending",
+          file_format: "service",
+          page_count: selectedService.per_page_pricing ? pageCount : 1
         });
         
       if (projectError) throw projectError;
       
       toast({
         title: "Service purchased successfully",
-        description: `You've purchased ${selectedService.name} for ${selectedService.point_cost} Spark Points.`,
+        description: `You've purchased ${selectedService.name} for ${totalCost} Spark Points.`,
         variant: "default"
       });
       
       // Update user's points
       refetchProfile();
       setPurchaseDialogOpen(false);
+      setCurrentStep('select');
+      setPageCount(1);
     } catch (error: any) {
       console.error("Purchase error:", error);
       toast({
@@ -184,10 +205,9 @@ const UploadPage = () => {
       className="max-w-6xl"
     >
       <Tabs defaultValue="services" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full mb-6">
+        <TabsList className="grid grid-cols-2 w-full mb-6">
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="form">Request Custom Service</TabsTrigger>
-          <TabsTrigger value="upload">Direct Upload</TabsTrigger>
         </TabsList>
         
         <TabsContent value="services">
@@ -245,11 +265,16 @@ const UploadPage = () => {
                       <CheckCircle className="h-4 w-4 text-green-500" />
                       <span>Full support</span>
                     </div>
+                    {service.per_page_pricing && (
+                      <div className="mt-4 text-sm text-amber-600 dark:text-amber-400 font-medium">
+                        Pricing per page
+                      </div>
+                    )}
                   </CardContent>
                   <CardFooter className="flex flex-col items-stretch gap-3 border-t pt-4">
                     <div className="flex items-center justify-between">
                       <div className="font-bold text-xl">
-                        {service.point_cost} SP
+                        {service.point_cost} SP{service.per_page_pricing ? ' / page' : ''}
                       </div>
                       <div className="text-muted-foreground text-sm">
                         {service.end_date ? (
@@ -304,79 +329,159 @@ const UploadPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
-        <TabsContent value="upload">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {user && (
-              <UploadForm 
-                userId={user.id} 
-                userPoints={profile?.key_points || 0}
-                onSuccess={refetchProfile}
-              />
-            )}
-            
-            <Card className="md:col-span-1">
-              <CardHeader>
-                <CardTitle>Spark Points</CardTitle>
-                <CardDescription>
-                  Your available balance
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold mb-2">
-                  {profile?.key_points || 0} SP
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Each direct upload costs {UPLOAD_COST} Spark Points
-                </p>
-                <Link to="/subscription">
-                  <Button variant="outline" className="w-full">
-                    Get More Spark Points
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
       </Tabs>
       
-      {/* Purchase confirmation dialog */}
-      <Dialog open={purchaseDialogOpen} onOpenChange={setPurchaseDialogOpen}>
-        <DialogContent>
+      {/* Service purchase dialog with multi-step process */}
+      <Dialog open={purchaseDialogOpen} onOpenChange={(open) => {
+        setPurchaseDialogOpen(open);
+        if (!open) {
+          setCurrentStep('select');
+          setPageCount(1);
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Confirm Purchase</DialogTitle>
+            <DialogTitle>
+              {currentStep === 'select' && "Service Details"}
+              {currentStep === 'upload' && "Project Configuration"}
+              {currentStep === 'confirm' && "Confirm Purchase"}
+            </DialogTitle>
             <DialogDescription>
-              You're about to purchase this service using your Spark Points.
+              {currentStep === 'select' && "Review the service details before proceeding."}
+              {currentStep === 'upload' && "Configure your project requirements."}
+              {currentStep === 'confirm' && "Review your order details before confirming."}
             </DialogDescription>
           </DialogHeader>
           
           {selectedService && (
-            <div className="py-4">
-              <div className="flex justify-between items-center py-2 border-b">
-                <span className="font-medium">{selectedService.name}</span>
-                <span>{selectedService.point_cost} SP</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b">
-                <span className="text-muted-foreground">Your balance after purchase</span>
-                <span className="font-medium">{(profile?.key_points || 0) - selectedService.point_cost} SP</span>
-              </div>
-              <div className="mt-4 text-sm text-muted-foreground">
-                By confirming, you agree to our terms of service for purchased items.
-              </div>
-            </div>
+            <>
+              {currentStep === 'select' && (
+                <div className="py-4 space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="font-medium">{selectedService.name}</span>
+                    <span>{selectedService.point_cost} SP{selectedService.per_page_pricing ? ' / page' : ''}</span>
+                  </div>
+                  
+                  <div className="border rounded-md p-4">
+                    <h3 className="font-medium mb-2">Service Description</h3>
+                    <p className="text-sm text-muted-foreground">{selectedService.description}</p>
+                  </div>
+                  
+                  <div className="mt-4 flex justify-end">
+                    <Button variant="outline" onClick={() => setPurchaseDialogOpen(false)} className="mr-2">
+                      Cancel
+                    </Button>
+                    <Button onClick={() => setCurrentStep('upload')} className="gap-2">
+                      Next Step <ArrowRightIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {currentStep === 'upload' && (
+                <div className="py-4 space-y-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Project Configuration</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {selectedService.per_page_pricing && (
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Number of Pages</label>
+                          <div className="flex items-center">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setPageCount(Math.max(1, pageCount - 1))}
+                              disabled={pageCount <= 1}
+                            >-</Button>
+                            <span className="mx-4 font-medium">{pageCount}</span>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setPageCount(pageCount + 1)}
+                            >+</Button>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            Total cost: {selectedService.point_cost * pageCount} SP
+                          </p>
+                        </div>
+                      )}
+                      
+                      <div className="mb-4">
+                        <UploadForm 
+                          userId={user.id} 
+                          userPoints={profile?.key_points || 0}
+                          onSuccess={refetchProfile}
+                          serviceMode={true}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <div className="mt-4 flex justify-between">
+                    <Button variant="outline" onClick={() => setCurrentStep('select')}>
+                      Back
+                    </Button>
+                    <Button onClick={() => setCurrentStep('confirm')} className="gap-2">
+                      Review Order <ArrowRightIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+              {currentStep === 'confirm' && (
+                <div className="py-4">
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Order Summary</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex justify-between py-1 border-b">
+                          <span>Service:</span>
+                          <span className="font-medium">{selectedService.name}</span>
+                        </div>
+                        
+                        {selectedService.per_page_pricing && (
+                          <div className="flex justify-between py-1 border-b">
+                            <span>Pages:</span>
+                            <span>{pageCount}</span>
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between py-1 border-b font-medium">
+                          <span>Total Cost:</span>
+                          <span>{getTotalCost()} SP</span>
+                        </div>
+                        
+                        <div className="flex justify-between py-1 border-b">
+                          <span>Your Balance After Purchase:</span>
+                          <span className="font-medium">{(profile?.key_points || 0) - getTotalCost()} SP</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <div className="mt-6 text-sm text-muted-foreground">
+                    By confirming, you agree to our terms of service for purchased items.
+                  </div>
+                  
+                  <div className="mt-4 flex justify-between">
+                    <Button variant="outline" onClick={() => setCurrentStep('upload')}>
+                      Back
+                    </Button>
+                    <Button 
+                      onClick={handlePurchaseConfirm}
+                      disabled={(profile?.key_points || 0) < getTotalCost()}
+                    >
+                      Confirm Purchase
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPurchaseDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handlePurchaseConfirm}
-              disabled={!selectedService || (profile?.key_points || 0) < (selectedService?.point_cost || 0)}
-            >
-              Confirm Purchase
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </PageLayout>

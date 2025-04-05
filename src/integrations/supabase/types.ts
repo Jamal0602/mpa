@@ -430,10 +430,12 @@ export type Database = {
           category: string
           created_at: string
           description: string
+          file_format: string | null
           file_path: string | null
           file_type: string | null
           file_url: string | null
           id: string
+          page_count: number | null
           status: string | null
           title: string
           type: string
@@ -444,10 +446,12 @@ export type Database = {
           category: string
           created_at?: string
           description: string
+          file_format?: string | null
           file_path?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
+          page_count?: number | null
           status?: string | null
           title: string
           type: string
@@ -458,10 +462,12 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string
+          file_format?: string | null
           file_path?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
+          page_count?: number | null
           status?: string | null
           title?: string
           type?: string
@@ -545,6 +551,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          per_page_pricing: boolean | null
           point_cost: number
           start_date: string | null
         }
@@ -556,6 +563,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          per_page_pricing?: boolean | null
           point_cost: number
           start_date?: string | null
         }
@@ -567,6 +575,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          per_page_pricing?: boolean | null
           point_cost?: number
           start_date?: string | null
         }
@@ -623,6 +632,12 @@ export type Database = {
       get_error_report_stats: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      get_file_formats: {
+        Args: {
+          category: string
+        }
+        Returns: string[]
       }
       is_admin: {
         Args: {

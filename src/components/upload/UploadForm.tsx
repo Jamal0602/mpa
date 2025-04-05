@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from "react";
 import {
   Card,
@@ -19,17 +20,22 @@ import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 export interface UploadFormProps {
   userId: string;
   userPoints: number;
   onSuccess?: () => void;
+  serviceMode?: boolean;
+  selectedServiceCategory?: string;
 }
 
-export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) => {
+export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false, selectedServiceCategory }: UploadFormProps) => {
   const [projectTitle, setProjectTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(selectedServiceCategory || "");
+  const [selectedFileFormat, setSelectedFileFormat] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
@@ -41,6 +47,25 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [terms, setTerms] = useState(false);
   const MINIMUM_DESC_LENGTH = 50;
+  
+  const { data: fileFormats } = useQuery({
+    queryKey: ["file-formats", selectedCategory],
+    queryFn: async () => {
+      if (!selectedCategory) return [];
+      
+      const { data, error } = await supabase.rpc('get_file_formats', {
+        category: selectedCategory
+      });
+      
+      if (error) {
+        console.error("Error fetching file formats:", error);
+        return [];
+      }
+      
+      return data as string[];
+    },
+    enabled: !!selectedCategory,
+  });
   
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -135,7 +160,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
       return;
     }
     
-    if (userPoints < COST_PER_UPLOAD) {
+    if (!serviceMode && userPoints < COST_PER_UPLOAD) {
       setErrorMsg(`Insufficient Spark Points. You need ${COST_PER_UPLOAD} SP for this upload.`);
       setIsSubmitting(false);
       return;
@@ -175,7 +200,8 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
           file_path: filePath,
           file_type: selectedFile.type,
           category: selectedCategory,
-          type: "upload",
+          file_format: selectedFileFormat,
+          type: serviceMode ? "service_config" : "upload",
           status: "pending"
         });
         
@@ -183,25 +209,28 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
         throw new Error(projectError.message);
       }
       
-      // Deduct key points
-      const { error: pointsError } = await supabase.rpc('decrement_points', {
-        user_id: userId,
-        amount_to_deduct: COST_PER_UPLOAD
-      });
-      
-      if (pointsError) throw new Error(pointsError.message);
-      
-      // Record the transaction
-      const { error: transactionError } = await supabase
-        .from("key_points_transactions")
-        .insert({
+      // If not in service mode, deduct points
+      if (!serviceMode) {
+        // Deduct key points
+        const { error: pointsError } = await supabase.rpc('decrement_points', {
           user_id: userId,
-          amount: -COST_PER_UPLOAD,
-          description: `Project upload: ${projectTitle}`,
-          transaction_type: 'spend'
+          amount_to_deduct: COST_PER_UPLOAD
         });
-      
-      if (transactionError) throw new Error(transactionError.message);
+        
+        if (pointsError) throw new Error(pointsError.message);
+        
+        // Record the transaction
+        const { error: transactionError } = await supabase
+          .from("key_points_transactions")
+          .insert({
+            user_id: userId,
+            amount: -COST_PER_UPLOAD,
+            description: `Project upload: ${projectTitle}`,
+            transaction_type: 'spend'
+          });
+        
+        if (transactionError) throw new Error(transactionError.message);
+      }
       
       toast.success("Project submitted successfully", {
         description: "Your project has been submitted for review"
@@ -211,6 +240,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
       setProjectTitle("");
       setDescription("");
       setSelectedCategory("");
+      setSelectedFileFormat("");
       setSelectedFile(null);
       setFilePreview("");
       setUploadDialogOpen(false);
@@ -229,6 +259,193 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
       setIsSubmitting(false);
     }
   };
+  
+  // Render the form differently based on mode
+  if (serviceMode) {
+    return (
+      <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="projectTitle">Project Title</Label>
+              <Input
+                id="projectTitle"
+                value={projectTitle}
+                onChange={(e) => setProjectTitle(e.target.value)}
+                placeholder="Enter project title"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">
+                Description ({description.length}/{MINIMUM_DESC_LENGTH}+ characters)
+              </Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Provide detailed instructions for your service request..."
+                className={`min-h-[100px] ${description.length < MINIMUM_DESC_LENGTH ? 'border-red-300' : ''}`}
+                required
+              />
+              {description.length < MINIMUM_DESC_LENGTH && (
+                <p className="text-xs text-red-500">
+                  Description must be at least {MINIMUM_DESC_LENGTH} characters long
+                </p>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="category">File Format</Label>
+              <Select 
+                value={selectedCategory} 
+                onValueChange={setSelectedCategory}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select file category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="document">Document</SelectItem>
+                  <SelectItem value="image">Image</SelectItem>
+                  <SelectItem value="video">Video</SelectItem>
+                  <SelectItem value="audio">Audio</SelectItem>
+                  <SelectItem value="archive">Archive</SelectItem>
+                  <SelectItem value="presentation">Presentation</SelectItem>
+                  <SelectItem value="spreadsheet">Spreadsheet</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {selectedCategory && fileFormats && fileFormats.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="fileFormat">File Format</Label>
+                <Select 
+                  value={selectedFileFormat} 
+                  onValueChange={setSelectedFileFormat}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select file format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fileFormats.map((format) => (
+                      <SelectItem key={format} value={format}>{format.toUpperCase()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="file">Upload Reference File (optional)</Label>
+              <div className="flex flex-col space-y-2">
+                <div
+                  className={`border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center cursor-pointer ${
+                    isDragging
+                      ? "border-primary bg-primary/10"
+                      : "border-muted-foreground/25"
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {filePreview ? (
+                    <div className="w-full flex flex-col items-center">
+                      {selectedFile?.type.startsWith("image/") ? (
+                        <div className="relative w-full max-w-xs h-32 mb-2">
+                          <img
+                            src={filePreview}
+                            alt="Preview"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-muted/50 rounded-md">
+                          <FilePlus className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                      )}
+                      <p className="text-sm mt-2 text-center">
+                        {selectedFile?.name} ({formatFileSize(selectedFile?.size || 0)})
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFile();
+                        }}
+                      >
+                        Change file
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-10 w-10 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground text-center">
+                        Drag & drop your file here, or click to browse
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 text-center">
+                        Maximum file size: 10MB
+                      </p>
+                    </>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleFileChange}
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.mov,.mp3,.wav,.zip,.rar,.ppt,.pptx,.xls,.xlsx"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="terms" 
+                checked={terms}
+                onCheckedChange={(checked) => setTerms(checked === true)}
+              />
+              <label
+                htmlFor="terms"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                I confirm that all submission details are correct and understand that this information will be used to process my service request
+              </label>
+            </div>
+
+            {errorMsg && (
+              <div className="bg-destructive/10 p-3 rounded-md flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive">{errorMsg}</p>
+              </div>
+            )}
+          </div>
+          
+          <Button 
+            type="submit" 
+            className="w-full"
+            disabled={isSubmitting || description.length < MINIMUM_DESC_LENGTH || !terms || !selectedCategory}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              "Submit Project Configuration"
+            )}
+          </Button>
+        </form>
+      </div>
+    );
+  }
   
   return (
     <div className="md:col-span-2">
@@ -291,27 +508,47 @@ export const UploadForm = ({ userId, userPoints, onSuccess }: UploadFormProps) =
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="category">File Format</Label>
+                  <Label htmlFor="category">File Category</Label>
                   <Select 
                     value={selectedCategory} 
                     onValueChange={setSelectedCategory}
                     required
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select file format" />
+                      <SelectValue placeholder="Select file category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="document">Document (PDF, DOCX)</SelectItem>
-                      <SelectItem value="image">Image (JPG, PNG)</SelectItem>
-                      <SelectItem value="video">Video (MP4, MOV)</SelectItem>
-                      <SelectItem value="audio">Audio (MP3, WAV)</SelectItem>
-                      <SelectItem value="archive">Archive (ZIP, RAR)</SelectItem>
-                      <SelectItem value="presentation">Presentation (PPT, PPTX)</SelectItem>
-                      <SelectItem value="spreadsheet">Spreadsheet (XLS, XLSX)</SelectItem>
+                      <SelectItem value="document">Document</SelectItem>
+                      <SelectItem value="image">Image</SelectItem>
+                      <SelectItem value="video">Video</SelectItem>
+                      <SelectItem value="audio">Audio</SelectItem>
+                      <SelectItem value="archive">Archive</SelectItem>
+                      <SelectItem value="presentation">Presentation</SelectItem>
+                      <SelectItem value="spreadsheet">Spreadsheet</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {selectedCategory && fileFormats && fileFormats.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="fileFormat">File Format</Label>
+                    <Select 
+                      value={selectedFileFormat} 
+                      onValueChange={setSelectedFileFormat}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select file format" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fileFormats.map((format) => (
+                          <SelectItem key={format} value={format}>{format.toUpperCase()}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="file">Upload File</Label>
