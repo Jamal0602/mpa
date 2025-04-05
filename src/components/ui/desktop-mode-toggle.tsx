@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button";
 import { useForceDesktopMode } from "@/hooks/use-mobile";
 import { Monitor, Smartphone } from "lucide-react";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function DesktopModeToggle() {
   const { forceDesktop, toggleForceDesktop } = useForceDesktopMode();
@@ -17,24 +23,43 @@ export function DesktopModeToggle() {
   };
 
   return (
-    <Button 
-      variant="outline" 
-      size="sm" 
-      className="flex items-center gap-2" 
-      onClick={handleToggle}
-      aria-label={forceDesktop ? "Switch to mobile view" : "Switch to desktop view"}
-    >
-      {forceDesktop ? (
-        <>
-          <Smartphone className="h-4 w-4" />
-          <span className="hidden sm:inline">Mobile View</span>
-        </>
-      ) : (
-        <>
-          <Monitor className="h-4 w-4" />
-          <span className="hidden sm:inline">Desktop View</span>
-        </>
-      )}
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-2" 
+          aria-label={forceDesktop ? "Device view settings" : "Device view settings"}
+        >
+          {forceDesktop ? (
+            <>
+              <Monitor className="h-4 w-4" />
+              <span className="hidden sm:inline">View Mode</span>
+            </>
+          ) : (
+            <>
+              <Smartphone className="h-4 w-4" />
+              <span className="hidden sm:inline">View Mode</span>
+            </>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => {
+          if (forceDesktop) return;
+          handleToggle();
+        }}>
+          <Monitor className="mr-2 h-4 w-4" />
+          <span>Desktop View</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => {
+          if (!forceDesktop) return;
+          handleToggle();
+        }}>
+          <Smartphone className="mr-2 h-4 w-4" />
+          <span>Mobile View</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

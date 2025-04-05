@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/theme/theme-provider"
 
 // Check if AdBlock is enabled and warn users if it is
 const detectAdBlock = async () => {
@@ -38,10 +39,12 @@ const init = async () => {
   }
   
   createRoot(document.getElementById("root")!).render(
-    <BrowserRouter>
-      <App />
-      <Toaster position="top-right" richColors />
-    </BrowserRouter>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <BrowserRouter>
+        <App />
+        <Toaster position="top-right" richColors />
+      </BrowserRouter>
+    </ThemeProvider>
   );
 };
 
