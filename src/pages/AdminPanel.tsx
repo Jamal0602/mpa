@@ -1,617 +1,1040 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { PageLayout } from "@/components/layout/PageLayout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LoadingSpinner } from "@/components/ui/loading";
-import { toast } from "sonner";
-import { ServiceManagement } from "@/components/admin/ServiceManagement";
-import { PaymentVerification } from "@/components/admin/PaymentVerification";
-import { RoleRequests } from "@/components/admin/RoleRequests";
-import { AdminControls } from "@/components/admin/AdminControls";
-import { AdminSetup } from "@/components/admin/AdminSetup";
-import { PostsManagement } from "@/components/admin/PostsManagement";
-import { WidgetsManagement } from "@/components/admin/WidgetsManagement";
-import { 
-  Database, 
-  FileText, 
-  BarChart3, 
-  UserCog, 
-  CreditCard, 
-  Users, 
-  Settings,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  CircleDashed,
-  MessageSquare,
-  Edit,
-  Trash2,
-  List,
-  FileEdit,
-  Layers,
-  Loader2
-} from "lucide-react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle, 
-  CardFooter
-} from "@/components/ui/card";
-import { LineChart, BarChart, PieChart } from "@/components/ui/charts";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-
-interface ErrorReportStats {
-  total: number;
-  pending: number;
-  in_progress: number;
-  resolved: number;
-  rejected: number;
-}
-
-interface ErrorReport {
-  id: string;
-  error_type: string;
-  title: string | null;
-  description: string;
-  status: string;
-  created_at: string;
-  contact_email: string | null;
-  user_id: string | null;
-}
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { LoadingPage } from "@/components/ui/loading";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import { Copy, Check } from "lucide-react";
 
 const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState("reports");
-  const [selectedReport, setSelectedReport] = useState<ErrorReport | null>(null);
-  const [resolutionNotes, setResolutionNotes] = useState("");
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { data: isAdmin, isLoading: isAdminLoading } = useIsAdmin();
-
-  const { data: errorReportStats, refetch: refetchStats } = useQuery({
-    queryKey: ["error-report-stats"],
-    queryFn: async () => {
-      try {
-        const response = await supabase.rpc("get_error_report_stats");
-        if (response.error) throw response.error;
-        return response.data as ErrorReportStats;
-      } catch (err) {
-        console.error("Failed to fetch error report stats:", err);
-        return { total: 0, pending: 0, in_progress: 0, resolved: 0, rejected: 0 } as ErrorReportStats;
-      }
-    },
-    enabled: !!isAdmin
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [newRole, setNewRole] = useState("");
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [isRoleRequestModalOpen, setIsRoleRequestModalOpen] = useState(false);
+  const [roleRequests, setRoleRequests] = useState([]);
+  const [selectedRoleRequest, setSelectedRoleRequest] = useState(null);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isApiKeyCopied, setIsApiKeyCopied] = useState(false);
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+  const [services, setServices] = useState([]);
+  const [newService, setNewService] = useState({
+    name: "",
+    description: "",
+    price_in_points: 0,
+    category: "",
+    image_url: "",
+    details: {},
+    requirements: [],
   });
+  const [isWidgetModalOpen, setIsWidgetModalOpen] = useState(false);
+  const [widgets, setWidgets] = useState([]);
+  const [newWidget, setNewWidget] = useState({
+    title: "",
+    description: "",
+    type: "",
+    code: "",
+    settings: {},
+    location: "",
+    priority: 0,
+  });
+  const [isWidgetActive, setIsWidgetActive] = useState(false);
+  const [isWidgetPriority, setIsWidgetPriority] = useState(0);
+  const [isWidgetLocation, setIsWidgetLocation] = useState("");
+  const [isWidgetSettings, setIsWidgetSettings] = useState({});
+  const [isWidgetCode, setIsWidgetCode] = useState("");
+  const [isWidgetType, setIsWidgetType] = useState("");
+  const [isWidgetDescription, setIsWidgetDescription] = useState("");
+  const [isWidgetTitle, setIsWidgetTitle] = useState("");
+  const [isErrorReportModalOpen, setIsErrorReportModalOpen] = useState(false);
+  const [errorReports, setErrorReports] = useState([]);
+  const [selectedErrorReport, setSelectedErrorReport] = useState(null);
+  const [resolutionNotes, setResolutionNotes] = useState("");
+  const [isResolving, setIsResolving] = useState(false);
+  const [errorReportStats, setErrorReportStats] = useState({});
+  const [isServiceOfferModalOpen, setIsServiceOfferModalOpen] = useState(false);
+  const [serviceOffers, setServiceOffers] = useState([]);
+  const [newServiceOffer, setNewServiceOffer] = useState({
+    name: "",
+    description: "",
+    point_cost: 0,
+    discount_percentage: 0,
+    start_date: "",
+    end_date: "",
+    is_active: false,
+    per_page_pricing: false,
+  });
+  const [isFooterModalOpen, setIsFooterModalOpen] = useState(false);
+  const [footerContent, setFooterContent] = useState(null);
+  const [newFooterContent, setNewFooterContent] = useState({
+    about_text: "",
+    terms_text: "",
+    privacy_text: "",
+    contact_email: "",
+    social_links: {},
+  });
+  const [isSavingFooter, setIsSavingFooter] = useState(false);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [posts, setPosts] = useState([]);
+  const [newPost, setNewPost] = useState({
+    title: "",
+    content: "",
+    user_id: "",
+    published: false,
+    featured: false,
+    excerpt: "",
+    thumbnail_url: "",
+    category: "",
+  });
+  const [isPostPublished, setIsPostPublished] = useState(false);
+  const [isPostFeatured, setIsPostFeatured] = useState(false);
+  const [isSavingPost, setIsSavingPost] = useState(false);
+  const [isSavingService, setIsSavingService] = useState(false);
+  const [isSavingWidget, setIsSavingWidget] = useState(false);
+  const [isSavingServiceOffer, setIsSavingServiceOffer] = useState(false);
+  const [isApiKeyLoading, setIsApiKeyLoading] = useState(false);
+  const [isFetchingRoleRequests, setIsFetchingRoleRequests] = useState(false);
+  const [isFetchingErrorReports, setIsFetchingErrorReports] = useState(false);
+  const [isFetchingServices, setIsFetchingServices] = useState(false);
+  const [isFetchingWidgets, setIsFetchingWidgets] = useState(false);
+  const [isFetchingServiceOffers, setIsFetchingServiceOffers] = useState(false);
+  const [isFetchingFooterContent, setIsFetchingFooterContent] = useState(false);
+  const [isFetchingPosts, setIsFetchingPosts] = useState(false);
+  const [isFetchingUsers, setIsFetchingUsers] = useState(false);
+  const [isSavingPostError, setIsSavingPostError] = useState("");
+  const [isSavingServiceError, setIsSavingServiceError] = useState("");
+  const [isSavingWidgetError, setIsSavingWidgetError] = useState("");
+  const [isSavingServiceOfferError, setIsSavingServiceOfferError] = useState("");
+  const [isSavingFooterError, setIsSavingFooterError] = useState("");
+  const [isFetchingErrorReportStats, setIsFetchingErrorReportStats] = useState(false);
+  const [isSavingErrorReportError, setIsSavingErrorReportError] = useState("");
+  const [isSavingRoleRequestError, setIsSavingRoleRequestError] = useState("");
+  const [isSavingUserError, setIsSavingUserError] = useState("");
 
-  const { data: errorReports, refetch: refetchReports, isLoading: isLoadingReports } = useQuery({
-    queryKey: ["error-reports"],
-    queryFn: async () => {
+  useEffect(() => {
+    if (!user && !loading) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchUsers = async () => {
+      setIsFetchingUsers(true);
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setUsers(data);
+      } catch (error: any) {
+        console.error("Error fetching users:", error);
+        toast.error(`Failed to load users: ${error.message}`);
+        setIsSavingUserError(error.message);
+      } finally {
+        setLoading(false);
+        setIsFetchingUsers(false);
+      }
+    };
+
+    const fetchRoleRequests = async () => {
+      setIsFetchingRoleRequests(true);
+      try {
+        const { data, error } = await supabase
+          .from("role_requests")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setRoleRequests(data);
+      } catch (error: any) {
+        console.error("Error fetching role requests:", error);
+        toast.error(`Failed to load role requests: ${error.message}`);
+        setIsSavingRoleRequestError(error.message);
+      } finally {
+        setIsFetchingRoleRequests(false);
+      }
+    };
+
+    const fetchErrorReports = async () => {
+      setIsFetchingErrorReports(true);
       try {
         const { data, error } = await supabase
           .from("error_reports")
           .select("*")
           .order("created_at", { ascending: false });
-          
-        if (error) throw error;
-        return data as ErrorReport[];
-      } catch (err) {
-        console.error("Failed to fetch error reports:", err);
-        return [] as ErrorReport[];
-      }
-    },
-    enabled: !!isAdmin && activeTab === "reports"
-  });
 
-  const { data: posts, refetch: refetchPosts } = useQuery({
-    queryKey: ["posts"],
-    queryFn: async () => {
+        if (error) throw error;
+        setErrorReports(data);
+      } catch (error: any) {
+        console.error("Error fetching error reports:", error);
+        toast.error(`Failed to load error reports: ${error.message}`);
+        setIsSavingErrorReportError(error.message);
+      } finally {
+        setIsFetchingErrorReports(false);
+      }
+    };
+
+    const fetchServices = async () => {
+      setIsFetchingServices(true);
+      try {
+        const { data, error } = await supabase
+          .from("services")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setServices(data);
+      } catch (error: any) {
+        console.error("Error fetching services:", error);
+        toast.error(`Failed to load services: ${error.message}`);
+        setIsSavingServiceError(error.message);
+      } finally {
+        setIsFetchingServices(false);
+      }
+    };
+
+    const fetchWidgets = async () => {
+      setIsFetchingWidgets(true);
+      try {
+        const { data, error } = await supabase
+          .from("widgets")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setWidgets(data);
+      } catch (error: any) {
+        console.error("Error fetching widgets:", error);
+        toast.error(`Failed to load widgets: ${error.message}`);
+        setIsSavingWidgetError(error.message);
+      } finally {
+        setIsFetchingWidgets(false);
+      }
+    };
+
+    const fetchServiceOffers = async () => {
+      setIsFetchingServiceOffers(true);
+      try {
+        const { data, error } = await supabase
+          .from("service_offers")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setServiceOffers(data);
+      } catch (error: any) {
+        console.error("Error fetching service offers:", error);
+        toast.error(`Failed to load service offers: ${error.message}`);
+        setIsSavingServiceOfferError(error.message);
+      } finally {
+        setIsFetchingServiceOffers(false);
+      }
+    };
+
+    const fetchFooterContent = async () => {
+      setIsFetchingFooterContent(true);
+      try {
+        const { data, error } = await supabase
+          .from("footer_content")
+          .select("*")
+          .single();
+
+        if (error) throw error;
+        setFooterContent(data);
+      } catch (error: any) {
+        console.error("Error fetching footer content:", error);
+        toast.error(`Failed to load footer content: ${error.message}`);
+        setIsSavingFooterError(error.message);
+      } finally {
+        setIsFetchingFooterContent(false);
+      }
+    };
+
+    const fetchPosts = async () => {
+      setIsFetchingPosts(true);
       try {
         const { data, error } = await supabase
           .from("posts")
           .select("*")
           .order("created_at", { ascending: false });
-          
+
         if (error) throw error;
-        return data as any[];
-      } catch (err) {
-        console.error("Failed to fetch posts:", err);
-        return [] as any[];
+        setPosts(data);
+      } catch (error: any) {
+        console.error("Error fetching posts:", error);
+        toast.error(`Failed to load posts: ${error.message}`);
+        setIsSavingPostError(error.message);
+      } finally {
+        setIsFetchingPosts(false);
       }
-    },
-    enabled: !!isAdmin && activeTab === "posts"
-  });
+    };
 
-  const updateReportStatus = async (id: string, status: string) => {
-    if (!selectedReport) return;
-    
-    setUpdatingStatus(true);
-    try {
-      const updateData: any = { 
-        status,
-        resolved_at: status === 'resolved' ? new Date().toISOString() : null
-      };
-      
-      if (status === 'resolved' && resolutionNotes) {
-        updateData.resolution_notes = resolutionNotes;
+    const fetchErrorReportStats = async () => {
+      setIsFetchingErrorReportStats(true);
+      try {
+        const { data, error } = await supabase.rpc("get_error_report_stats");
+
+        if (error) throw error;
+        setErrorReportStats(data);
+      } catch (error: any) {
+        console.error("Error fetching error report stats:", error);
+        toast.error(`Failed to load error report stats: ${error.message}`);
+        setIsSavingErrorReportError(error.message);
+      } finally {
+        setIsFetchingErrorReportStats(false);
       }
+    };
 
-      const { error } = await supabase
-        .from("error_reports")
-        .update(updateData)
-        .eq("id", id);
-      
-      if (error) throw error;
-      
-      toast.success(`Report status updated to ${status}`);
-      setDetailsOpen(false);
-      setSelectedReport(null);
-      refetchReports();
-      refetchStats();
-    } catch (err: any) {
-      toast.error(`Failed to update report status: ${err.message}`);
-    } finally {
-      setUpdatingStatus(false);
+    if (isAdmin) {
+      fetchUsers();
+      fetchRoleRequests();
+      fetchErrorReports();
+      fetchServices();
+      fetchWidgets();
+      fetchServiceOffers();
+      fetchFooterContent();
+      fetchPosts();
+      fetchErrorReportStats();
     }
-  };
-
-  const deleteReport = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from("error_reports")
-        .delete()
-        .eq("id", id);
-        
-      if (error) throw error;
-      
-      toast.success("Report deleted successfully");
-      if (detailsOpen) {
-        setDetailsOpen(false);
-        setSelectedReport(null);
-      }
-      refetchReports();
-      refetchStats();
-    } catch (err: any) {
-      toast.error(`Failed to delete report: ${err.message}`);
-    }
-  };
-
-  const handleDeletePost = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      toast.success('Post deleted successfully');
-      refetchPosts();
-    } catch (error: any) {
-      console.error('Error deleting post:', error);
-      toast.error(`Failed to delete post: ${error.message}`);
-    }
-  };
-
-  const handleViewDetails = (report: ErrorReport) => {
-    setSelectedReport(report);
-    setResolutionNotes("");
-    setDetailsOpen(true);
-  };
-
-  const handleSubmitChange = async (formData) => {
-    try {
-      const result = await updateSomething(formData);
-      if (result && result.success) {
-        toast.success("Update successful");
-      } else {
-        toast.error("Update failed");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("An error occurred");
-    }
-  };
+  }, [isAdmin]);
 
   useEffect(() => {
-    if (!isAdmin && !isAdminLoading) {
-      toast.error("You are not authorized to view this page.");
-      navigate("/");
-    }
-  }, [isAdmin, isAdminLoading, navigate]);
+    if (!isAdmin) return;
 
-  if (isAdminLoading) {
-    return <LoadingSpinner />;
+    supabase
+      .channel("admin-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        (payload) => {
+          if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
+            setUsers((prevUsers) => {
+              const updatedUser = payload.new;
+              const existingUserIndex = prevUsers.findIndex(
+                (user) => user.id === updatedUser.id
+              );
+
+              if (existingUserIndex > -1) {
+                const newUsers = [...prevUsers];
+                newUsers[existingUserIndex] = updatedUser;
+                return newUsers;
+              } else {
+                return [...prevUsers, updatedUser];
+              }
+            });
+          } else if (payload.eventType === "DELETE") {
+            setUsers((prevUsers) =>
+              prevUsers.filter((user) => user.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    supabase
+      .channel("admin-role-requests")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "role_requests" },
+        (payload) => {
+          if (
+            payload.eventType === "UPDATE" ||
+            payload.eventType === "INSERT" ||
+            payload.eventType === "DELETE"
+          ) {
+            fetchRoleRequests();
+          }
+        }
+      )
+      .subscribe();
+
+    supabase
+      .channel("admin-error-reports")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "error_reports" },
+        (payload) => {
+          if (
+            payload.eventType === "UPDATE" ||
+            payload.eventType === "INSERT" ||
+            payload.eventType === "DELETE"
+          ) {
+            fetchErrorReports();
+            fetchErrorReportStats();
+          }
+        }
+      )
+      .subscribe();
+
+    supabase
+      .channel("admin-services")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "services" },
+        (payload) => {
+          if (
+            payload.eventType === "UPDATE" ||
+            payload.eventType === "INSERT" ||
+            payload.eventType === "DELETE"
+          ) {
+            fetchServices();
+          }
+        }
+      )
+      .subscribe();
+
+    supabase
+      .channel("admin-widgets")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "widgets" },
+        (payload) => {
+          if (
+            payload.eventType === "UPDATE" ||
+            payload.eventType === "INSERT" ||
+            payload.eventType === "DELETE"
+          ) {
+            fetchWidgets();
+          }
+        }
+      )
+      .subscribe();
+
+    supabase
+      .channel("admin-service-offers")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "service_offers" },
+        (payload) => {
+          if (
+            payload.eventType === "UPDATE" ||
+            payload.eventType === "INSERT" ||
+            payload.eventType === "DELETE"
+          ) {
+            fetchServiceOffers();
+          }
+        }
+      )
+      .subscribe();
+
+    supabase
+      .channel("admin-footer-content")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "footer_content" },
+        (payload) => {
+          if (
+            payload.eventType === "UPDATE" ||
+            payload.eventType === "INSERT" ||
+            payload.eventType === "DELETE"
+          ) {
+            fetchFooterContent();
+          }
+        }
+      )
+      .subscribe();
+
+    supabase
+      .channel("admin-posts")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        (payload) => {
+          if (
+            payload.eventType === "UPDATE" ||
+            payload.eventType === "INSERT" ||
+            payload.eventType === "DELETE"
+          ) {
+            fetchPosts();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel("admin-changes");
+      supabase.removeChannel("admin-role-requests");
+      supabase.removeChannel("admin-error-reports");
+      supabase.removeChannel("admin-services");
+      supabase.removeChannel("admin-widgets");
+      supabase.removeChannel("admin-service-offers");
+      supabase.removeChannel("admin-footer-content");
+      supabase.removeChannel("admin-posts");
+    };
+  }, [isAdmin]);
+
+  const handleRoleChange = async () => {
+    if (!selectedUser || !newRole) return;
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role: newRole })
+        .eq("id", selectedUser.id);
+
+      if (error) throw error;
+
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === selectedUser.id ? { ...user, role: newRole } : user
+        )
+      );
+      toast.success("User role updated successfully!");
+    } catch (error: any) {
+      console.error("Error updating user role:", error);
+      toast.error(`Failed to update user role: ${error.message}`);
+      setIsSavingUserError(error.message);
+    } finally {
+      setSelectedUser(null);
+      setNewRole("");
+    }
+  };
+
+  const handleApiKeyRegen = async () => {
+    if (!selectedUser) return;
+
+    setIsApiKeyLoading(true);
+    try {
+      // Simulate API key generation
+      const newApiKey = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+      setApiKey(newApiKey);
+      setIsApiKeyModalOpen(true);
+    } catch (error: any) {
+      console.error("Error generating API key:", error);
+      toast.error(`Failed to generate API key: ${error.message}`);
+      setIsSavingUserError(error.message);
+    } finally {
+      setIsApiKeyLoading(false);
+    }
+  };
+
+  const handleApproveRoleRequest = async () => {
+    if (!selectedRoleRequest) return;
+
+    setIsApproving(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role: selectedRoleRequest.requested_role })
+        .eq("id", selectedRoleRequest.target_user_id);
+
+      if (error) throw error;
+
+      const { error: requestError } = await supabase
+        .from("role_requests")
+        .update({ status: "approved", approver_id: user.id })
+        .eq("id", selectedRoleRequest.id);
+
+      if (requestError) throw requestError;
+
+      setRoleRequests((prevRequests) =>
+        prevRequests.map((request) =>
+          request.id === selectedRoleRequest.id
+            ? { ...request, status: "approved", approver_id: user.id }
+            : request
+        )
+      );
+      toast.success("Role request approved successfully!");
+    } catch (error: any) {
+      console.error("Error approving role request:", error);
+      toast.error(`Failed to approve role request: ${error.message}`);
+      setIsSavingRoleRequestError(error.message);
+    } finally {
+      setIsApproving(false);
+      setSelectedRoleRequest(null);
+    }
+  };
+
+  const handleRejectRoleRequest = async () => {
+    if (!selectedRoleRequest) return;
+
+    setIsRejecting(true);
+    try {
+      const { error } = await supabase
+        .from("role_requests")
+        .update({ status: "rejected", approver_id: user.id })
+        .eq("id", selectedRoleRequest.id);
+
+      if (error) throw error;
+
+      setRoleRequests((prevRequests) =>
+        prevRequests.map((request) =>
+          request.id === selectedRoleRequest.id
+            ? { ...request, status: "rejected", approver_id: user.id }
+            : request
+        )
+      );
+      toast.success("Role request rejected successfully!");
+    } catch (error: any) {
+      console.error("Error rejecting role request:", error);
+      toast.error(`Failed to reject role request: ${error.message}`);
+      setIsSavingRoleRequestError(error.message);
+    } finally {
+      setIsRejecting(false);
+      setSelectedRoleRequest(null);
+    }
+  };
+
+  const handleResolveErrorReport = async () => {
+    if (!selectedErrorReport) return;
+
+    setIsResolving(true);
+    try {
+      const { error } = await supabase
+        .from("error_reports")
+        .update({
+          status: "resolved",
+          resolution_notes: resolutionNotes,
+          resolved_by: user.id,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq("id", selectedErrorReport.id);
+
+      if (error) throw error;
+
+      setErrorReports((prevReports) =>
+        prevReports.map((report) =>
+          report.id === selectedErrorReport.id
+            ? {
+                ...report,
+                status: "resolved",
+                resolution_notes: resolutionNotes,
+                resolved_by: user.id,
+                resolved_at: new Date().toISOString(),
+              }
+            : report
+        )
+      );
+      toast.success("Error report resolved successfully!");
+    } catch (error: any) {
+      console.error("Error resolving error report:", error);
+      toast.error(`Failed to resolve error report: ${error.message}`);
+      setIsSavingErrorReportError(error.message);
+    } finally {
+      setIsResolving(false);
+      setSelectedErrorReport(null);
+      setResolutionNotes("");
+    }
+  };
+
+  const handleCreateService = async () => {
+    setIsSavingService(true);
+    try {
+      const { error } = await supabase
+        .from("services")
+        .insert({
+          ...newService,
+          created_by: user.id,
+        });
+
+      if (error) throw error;
+
+      setServices((prevServices) => [...prevServices, newService]);
+      toast.success("Service created successfully!");
+    } catch (error: any) {
+      console.error("Error creating service:", error);
+      toast.error(`Failed to create service: ${error.message}`);
+      setIsSavingServiceError(error.message);
+    } finally {
+      setIsSavingService(false);
+      setIsServiceModalOpen(false);
+      setNewService({
+        name: "",
+        description: "",
+        price_in_points: 0,
+        category: "",
+        image_url: "",
+        details: {},
+        requirements: [],
+      });
+    }
+  };
+
+  const handleCreateWidget = async () => {
+    setIsSavingWidget(true);
+    try {
+      const { error } = await supabase
+        .from("widgets")
+        .insert({
+          title: isWidgetTitle,
+          description: isWidgetDescription,
+          type: isWidgetType,
+          code: isWidgetCode,
+          settings: isWidgetSettings,
+          created_by: user.id,
+          location: isWidgetLocation,
+          active: isWidgetActive,
+          priority: isWidgetPriority,
+        });
+
+      if (error) throw error;
+
+      setWidgets((prevWidgets) => [
+        ...prevWidgets,
+        {
+          title: isWidgetTitle,
+          description: isWidgetDescription,
+          type: isWidgetType,
+          code: isWidgetCode,
+          settings: isWidgetSettings,
+          created_by: user.id,
+          location: isWidgetLocation,
+          active: isWidgetActive,
+          priority: isWidgetPriority,
+        },
+      ]);
+      toast.success("Widget created successfully!");
+    } catch (error: any) {
+      console.error("Error creating widget:", error);
+      toast.error(`Failed to create widget: ${error.message}`);
+      setIsSavingWidgetError(error.message);
+    } finally {
+      setIsSavingWidget(false);
+      setIsWidgetModalOpen(false);
+      setNewWidget({
+        title: "",
+        description: "",
+        type: "",
+        code: "",
+        settings: {},
+        location: "",
+        priority: 0,
+      });
+      setIsWidgetTitle("");
+      setIsWidgetDescription("");
+      setIsWidgetType("");
+      setIsWidgetCode("");
+      setIsWidgetSettings({});
+      setIsWidgetLocation("");
+      setIsWidgetActive(false);
+      setIsWidgetPriority(0);
+    }
+  };
+
+  const handleCreateServiceOffer = async () => {
+    setIsSavingServiceOffer(true);
+    try {
+      const { error } = await supabase
+        .from("service_offers")
+        .insert(newServiceOffer);
+
+      if (error) throw error;
+
+      setServiceOffers((prevServiceOffers) => [
+        ...prevServiceOffers,
+        newServiceOffer,
+      ]);
+      toast.success("Service offer created successfully!");
+    } catch (error: any) {
+      console.error("Error creating service offer:", error);
+      toast.error(`Failed to create service offer: ${error.message}`);
+      setIsSavingServiceOfferError(error.message);
+    } finally {
+      setIsSavingServiceOffer(false);
+      setIsServiceOfferModalOpen(false);
+      setNewServiceOffer({
+        name: "",
+        description: "",
+        point_cost: 0,
+        discount_percentage: 0,
+        start_date: "",
+        end_date: "",
+        is_active: false,
+        per_page_pricing: false,
+      });
+    }
+  };
+
+  const handleCreateFooterContent = async () => {
+    setIsSavingFooter(true);
+    try {
+      const { error } = await supabase
+        .from("footer_content")
+        .insert(newFooterContent);
+
+      if (error) throw error;
+
+      setFooterContent(newFooterContent);
+      toast.success("Footer content created successfully!");
+    } catch (error: any) {
+      console.error("Error creating footer content:", error);
+      toast.error(`Failed to create footer content: ${error.message}`);
+      setIsSavingFooterError(error.message);
+    } finally {
+      setIsSavingFooter(false);
+      setIsFooterModalOpen(false);
+      setNewFooterContent({
+        about_text: "",
+        terms_text: "",
+        privacy_text: "",
+        contact_email: "",
+        social_links: {},
+      });
+    }
+  };
+
+  const handleCreatePost = async () => {
+    setIsSavingPost(true);
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .insert({
+          ...newPost,
+          user_id: user.id,
+          published: isPostPublished,
+          featured: isPostFeatured,
+        });
+
+      if (error) throw error;
+
+      setPosts((prevPosts) => [
+        ...prevPosts,
+        {
+          ...newPost,
+          user_id: user.id,
+          published: isPostPublished,
+          featured: isPostFeatured,
+        },
+      ]);
+      toast.success("Post created successfully!");
+    } catch (error: any) {
+      console.error("Error creating post:", error);
+      toast.error(`Failed to create post: ${error.message}`);
+      setIsSavingPostError(error.message);
+    } finally {
+      setIsSavingPost(false);
+      setIsPostModalOpen(false);
+      setNewPost({
+        title: "",
+        content: "",
+        user_id: "",
+        published: false,
+        featured: false,
+        excerpt: "",
+        thumbnail_url: "",
+        category: "",
+      });
+      setIsPostPublished(false);
+      setIsPostFeatured(false);
+    }
+  };
+
+  const fetchRoleRequests = async () => {
+    setIsFetchingRoleRequests(true);
+    try {
+      const { data, error } = await supabase
+        .from("role_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setRoleRequests(data);
+    } catch (error: any) {
+      console.error("Error fetching role requests:", error);
+      toast.error(`Failed to load role requests: ${error.message}`);
+      setIsSavingRoleRequestError(error.message);
+    } finally {
+      setIsFetchingRoleRequests(false);
+    }
+  };
+
+  const fetchErrorReports = async () => {
+    setIsFetchingErrorReports(true);
+    try {
+      const { data, error } = await supabase
+        .from("error_reports")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setErrorReports(data);
+    } catch (error: any) {
+      console.error("Error fetching error reports:", error);
+      toast.error(`Failed to load error reports: ${error.message}`);
+      setIsSavingErrorReportError(error.message);
+    } finally {
+      setIsFetchingErrorReports(false);
+    }
+  };
+
+  const fetchServices = async () => {
+    setIsFetchingServices(true);
+    try {
+      const { data, error } = await supabase
+        .from("services")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setServices(data);
+    } catch (error: any) {
+      console.error("Error fetching services:", error);
+      toast.error(`Failed to load services: ${error.message}`);
+      setIsSavingServiceError(error.message);
+    } finally {
+      setIsFetchingServices(false);
+    }
+  };
+
+  const fetchWidgets = async () => {
+    setIsFetchingWidgets(true);
+    try {
+      const { data, error } = await supabase
+        .from("widgets")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setWidgets(data);
+    } catch (error: any) {
+      console.error("Error fetching widgets:", error);
+      toast.error(`Failed to load widgets: ${error.message}`);
+      setIsSavingWidgetError(error.message);
+    } finally {
+      setIsFetchingWidgets(false);
+    }
+  };
+
+  const fetchServiceOffers = async () => {
+    setIsFetchingServiceOffers(true);
+    try {
+      const { data, error } = await supabase
+        .from("service_offers")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setServiceOffers(data);
+    } catch (error: any) {
+      console.error("Error fetching service offers:", error);
+      toast.error(`Failed to load service offers: ${error.message}`);
+      setIsSavingServiceOfferError(error.message);
+    } finally {
+      setIsFetchingServiceOffers(false);
+    }
+  };
+
+  const fetchFooterContent = async () => {
+    setIsFetchingFooterContent(true);
+    try {
+      const { data, error } = await supabase
+        .from("footer_content")
+        .select("*")
+        .single();
+
+      if (error) throw error;
+      setFooterContent(data);
+    } catch (error: any) {
+      console.error("Error fetching footer content:", error);
+      toast.error(`Failed to load footer content: ${error.message}`);
+      setIsSavingFooterError(error.message);
+    } finally {
+      setIsFetchingFooterContent(false);
+    }
+  };
+
+  const fetchPosts = async () => {
+    setIsFetchingPosts(true);
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setPosts(data);
+    } catch (error: any) {
+      console.error("Error fetching posts:", error);
+      toast.error(`Failed to load posts: ${error.message}`);
+      setIsSavingPostError(error.message);
+    } finally {
+      setIsFetchingPosts(false);
+    }
+  };
+
+  const fetchErrorReportStats = async () => {
+    setIsFetchingErrorReportStats(true);
+    try {
+      const { data, error } = await supabase.rpc("get_error_report_stats");
+
+      if (error) throw error;
+      setErrorReportStats(data);
+    } catch (error: any) {
+      console.error("Error fetching error report stats:", error);
+      toast.error(`Failed to load error report stats: ${error.message}`);
+      setIsSavingErrorReportError(error.message);
+    } finally {
+      setIsFetchingErrorReportStats(false);
+    }
+  };
+
+  if (loading || isAdminLoading) {
+    return <LoadingPage />;
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-gray-100">Pending</Badge>;
-      case 'in_progress':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">In Progress</Badge>;
-      case 'resolved':
-        return <Badge variant="outline" className="bg-green-100 text-green-800">Resolved</Badge>;
-      case 'rejected':
-        return <Badge variant="outline" className="bg-red-100 text-red-800">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
+  const copyApiKeyToClipboard = () => {
+    navigator.clipboard.writeText(apiKey);
+    setIsApiKeyCopied(true);
+    toast.success("API Key copied to clipboard!");
+    setTimeout(() => {
+      setIsApiKeyCopied(false);
+    }, 3000);
   };
 
   return (
-    <PageLayout
-      title="Admin Panel"
-      description="Manage users, services, payments, and system settings"
-      requireAuth={true}
-    >
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-9">
-          <TabsTrigger value="users">
-            <Users className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Users</span>
-          </TabsTrigger>
-          <TabsTrigger value="services">
-            <Database className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Services</span>
-          </TabsTrigger>
-          <TabsTrigger value="payments">
-            <CreditCard className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Payments</span>
-          </TabsTrigger>
-          <TabsTrigger value="roles">
-            <UserCog className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Roles</span>
-          </TabsTrigger>
-          <TabsTrigger value="reports">
-            <FileText className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Reports</span>
-          </TabsTrigger>
-          <TabsTrigger value="posts">
-            <FileEdit className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Posts</span>
-          </TabsTrigger>
-          <TabsTrigger value="widgets">
-            <Layers className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Widgets</span>
-          </TabsTrigger>
-          <TabsTrigger value="analytics">
-            <BarChart3 className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Analytics</span>
-          </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Settings</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users">
-          <AdminControls />
-        </TabsContent>
-
-        <TabsContent value="services">
-          <ServiceManagement />
-        </TabsContent>
-
-        <TabsContent value="payments">
-          <PaymentVerification />
-        </TabsContent>
-
-        <TabsContent value="roles">
-          <RoleRequests />
-        </TabsContent>
-
-        <TabsContent value="reports">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-card border-green-200 dark:border-green-900/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  Resolved
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{errorReportStats?.resolved || 0}</div>
-                <p className="text-xs text-muted-foreground">Issues fixed</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-yellow-200 dark:border-yellow-900/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Clock className="h-4 w-4 text-yellow-500" />
-                  In Progress
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{errorReportStats?.in_progress || 0}</div>
-                <p className="text-xs text-muted-foreground">Being investigated</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-red-200 dark:border-red-900/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  Rejected
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{errorReportStats?.rejected || 0}</div>
-                <p className="text-xs text-muted-foreground">Cannot reproduce</p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-gray-200 dark:border-gray-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <CircleDashed className="h-4 w-4 text-gray-500" />
-                  Pending
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{errorReportStats?.pending || 0}</div>
-                <p className="text-xs text-muted-foreground">Awaiting review</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Error Reports</CardTitle>
-              <CardDescription>Manage and respond to user-submitted error reports</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingReports ? (
-                <div className="flex justify-center p-8">
-                  <LoadingSpinner />
-                </div>
-              ) : (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="min-w-[200px]">Title</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {errorReports && errorReports.length > 0 ? (
-                        errorReports.map((report) => (
-                          <TableRow key={report.id}>
-                            <TableCell>{report.error_type}</TableCell>
-                            <TableCell>
-                              {report.title || report.description.substring(0, 30) + "..."}
-                            </TableCell>
-                            <TableCell>{getStatusBadge(report.status)}</TableCell>
-                            <TableCell>{new Date(report.created_at).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    <List className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleViewDetails(report)}>
-                                    <MessageSquare className="mr-2 h-4 w-4" /> View Details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    onClick={() => updateReportStatus(report.id, "in_progress")}
-                                    className="text-yellow-600"
-                                  >
-                                    <Clock className="mr-2 h-4 w-4" /> Mark In Progress
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => setSelectedReport(report) || setDetailsOpen(true)}
-                                    className="text-green-600"
-                                  >
-                                    <CheckCircle className="mr-2 h-4 w-4" /> Mark Resolved
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => updateReportStatus(report.id, "rejected")}
-                                    className="text-red-600"
-                                  >
-                                    <AlertCircle className="mr-2 h-4 w-4" /> Reject Report
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    onClick={() => deleteReport(report.id)}
-                                    className="text-red-600"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" /> Delete Report
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="h-24 text-center">
-                            No error reports found.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="posts">
-          <PostsManagement />
-        </TabsContent>
-
-        <TabsContent value="widgets">
-          <WidgetsManagement />
-        </TabsContent>
-
-        <TabsContent value="analytics">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Engagement</CardTitle>
-                <CardDescription>Track user activity over time.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <LineChart data={[
-                  { name: 'Jan', value: 4000 },
-                  { name: 'Feb', value: 3000 },
-                  { name: 'Mar', value: 2000 },
-                  { name: 'Apr', value: 2780 },
-                  { name: 'May', value: 1890 },
-                  { name: 'Jun', value: 2390 },
-                  { name: 'Jul', value: 3490 },
-                ]} />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Role Distribution</CardTitle>
-                <CardDescription>See the distribution of user roles.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PieChart data={[
-                  { name: 'Admin', value: 30 },
-                  { name: 'User', value: 400 },
-                  { name: 'Moderator', value: 50 },
-                ]} />
-              </CardContent>
-            </Card>
-
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle>Error Report Trends</CardTitle>
-                <CardDescription>Analyze error report submissions over time.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <BarChart data={[
-                  { name: 'Jan', value: 20 },
-                  { name: 'Feb', value: 30 },
-                  { name: 'Mar', value: 40 },
-                  { name: 'Apr', value: 20 },
-                  { name: 'May', value: 35 },
-                  { name: 'Jun', value: 40 },
-                  { name: 'Jul', value: 50 },
-                ]} />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="settings">
-          <AdminSetup />
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Error Report Details</DialogTitle>
-            <DialogDescription>
-              Report submitted on {selectedReport && new Date(selectedReport.created_at).toLocaleString()}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedReport && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium">Type</h3>
-                  <p className="text-sm">{selectedReport.error_type}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium">Status</h3>
-                  <p className="text-sm">{getStatusBadge(selectedReport.status)}</p>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium">Title</h3>
-                <p className="text-sm">{selectedReport.title || "No title provided"}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium">Description</h3>
-                <p className="text-sm whitespace-pre-wrap">{selectedReport.description}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium">Contact Email</h3>
-                <p className="text-sm">{selectedReport.contact_email || "No email provided"}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium">Resolution Notes</h3>
-                <Textarea
-                  placeholder="Add notes about how this issue was resolved..."
-                  value={resolutionNotes}
-                  onChange={(e) => setResolutionNotes(e.target.value)}
-                  className="mt-1"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setDetailsOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  variant="destructive"
-                  onClick={() => deleteReport(selectedReport.id)}
-                >
-                  Delete
-                </Button>
-                <Button 
-                  variant="default"
-                  onClick={() => updateReportStatus(selectedReport.id, "resolved")}
-                  disabled={updatingStatus}
-                >
-                  {updatingStatus ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Mark Resolved
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </PageLayout>
-  );
-};
-
-export default AdminPanel;
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">

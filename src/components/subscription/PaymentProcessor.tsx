@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
+import { SubscriptionPlan } from "@/components/subscription/SubscriptionData";
 import {
   Select,
   SelectContent,
@@ -27,16 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { PaymentVerificationModal } from "@/components/payment/PaymentVerificationModal";
 
-interface PaymentDetails {
-  accountNumber: string;
-  ifscCode: string;
-  bankName: string;
-  accountHolder: string;
-  qrCode: string;
-  upiId: string;
-}
-
-interface PaymentProcessorProps {
+export interface PaymentProcessorProps {
   amount: number;
   calculatedPoints: number;
   onSuccess: () => void;
@@ -56,7 +48,7 @@ export function PaymentProcessor({ amount, calculatedPoints, onSuccess }: Paymen
   const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   
   // UPI details
-  const [upiDetails, setUpiDetails] = useState<PaymentDetails>({
+  const [upiDetails, setUpiDetails] = useState({
     accountNumber: "",
     ifscCode: "",
     bankName: "",
@@ -99,7 +91,8 @@ export function PaymentProcessor({ amount, calculatedPoints, onSuccess }: Paymen
             user_id: user.id,
             payment_type: paymentMethod,
             upi_id: upiDetails.upiId,
-            is_default: isSaveMethod
+            is_default: isSaveMethod,
+            payment_details: {}
           })
       }
       

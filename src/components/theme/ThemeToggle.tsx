@@ -14,8 +14,12 @@ export function ThemeToggle() {
 
   // Initialize theme from profile preference
   useEffect(() => {
-    if (profile?.theme_preference && profile.theme_preference !== 'system') {
-      setTheme(profile.theme_preference);
+    if (profile?.theme_preference) {
+      if (profile.theme_preference === 'system') {
+        setTheme('system');
+      } else {
+        setTheme(profile.theme_preference as "light" | "dark");
+      }
     }
   }, [profile, setTheme]);
 
