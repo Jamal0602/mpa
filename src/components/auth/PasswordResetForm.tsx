@@ -20,7 +20,7 @@ export function PasswordResetForm() {
     
     try {
       // Get the current URL to use as a redirect
-      const origin = window.location.origin;
+      const origin = "https://mpa.cubiz.space";
       const redirectUrl = `${origin}/auth/reset-callback`;
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {

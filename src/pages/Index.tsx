@@ -4,14 +4,18 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, FileText, Gift, Layout, Shield, Upload, Users, ArrowRight, ExternalLink, CheckCircle, Star, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { CloudAnimation } from "@/components/home/CloudAnimation";
 import { toast } from "sonner";
 import { FloatingTab } from "@/components/ui/floating-tab";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/components/theme/theme-provider";
 import { FeaturedPosts } from "@/components/home/FeaturedPosts";
 import { WidgetRenderer } from "@/components/widgets/WidgetRenderer";
+import { 
+  Layout, Upload, FileText, Users, Gift, Shield, 
+  ArrowRight, ExternalLink, CheckCircle, Star, Share2 
+} from "lucide-react";
 
 const featureItems = [
   {
@@ -92,7 +96,6 @@ const Index = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    setTheme("dark");
   }, []);
 
   const handleShare = () => {
@@ -130,9 +133,11 @@ const Index = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <section className="py-20 md:py-28">
-        <div className="container px-4 md:px-6">
+    <div className="flex flex-col min-h-screen relative">
+      <CloudAnimation className="pointer-events-none" />
+      
+      <section className="py-20 md:py-28 relative">
+        <div className="container px-4 md:px-6 relative z-10">
           <div className="flex flex-col items-center text-center space-y-10">
             <motion.div
               className="space-y-4 max-w-3xl"

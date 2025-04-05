@@ -1,5 +1,5 @@
-
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from 'react';
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -20,7 +20,6 @@ import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 
 export interface UploadFormProps {
@@ -115,7 +114,6 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
     setSelectedFile(file);
     setErrorMsg("");
     
-    // Preview the image if it's an image file
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -123,7 +121,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
       };
       reader.readAsDataURL(file);
     } else {
-      setFilePreview("file"); // Set a generic file preview
+      setFilePreview("file");
     }
   };
   
@@ -131,17 +129,15 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
     setSelectedFile(null);
     setFilePreview("");
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset the file input
+      fileInputRef.current.value = "";
     }
   };
   
-  // Modified project submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrorMsg("");
     
-    // Validate form fields
     if (!selectedFile) {
       setErrorMsg("Please select a file to upload");
       setIsSubmitting(false);
@@ -167,11 +163,9 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
     }
 
     try {
-      // File upload to Supabase Storage
       const fileExt = selectedFile.name.split('.').pop();
       const filePath = `${userId}/${Math.random().toString(36).slice(2)}.${fileExt}`;
       
-      // Upload the file
       const { error: uploadError } = await supabase.storage
         .from("projects")
         .upload(filePath, selectedFile);
@@ -180,7 +174,6 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
         throw new Error(uploadError.message);
       }
       
-      // Get the public URL
       const { data: publicURL } = supabase.storage
         .from("projects")
         .getPublicUrl(filePath);
@@ -189,7 +182,6 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
         throw new Error("Failed to get public URL for the uploaded file");
       }
       
-      // Create a project record
       const { error: projectError } = await supabase
         .from("projects")
         .insert({
@@ -209,9 +201,7 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
         throw new Error(projectError.message);
       }
       
-      // If not in service mode, deduct points
       if (!serviceMode) {
-        // Deduct key points
         const { error: pointsError } = await supabase.rpc('decrement_points', {
           user_id: userId,
           amount_to_deduct: COST_PER_UPLOAD
@@ -219,7 +209,6 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
         
         if (pointsError) throw new Error(pointsError.message);
         
-        // Record the transaction
         const { error: transactionError } = await supabase
           .from("key_points_transactions")
           .insert({
@@ -232,11 +221,10 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
         if (transactionError) throw new Error(transactionError.message);
       }
       
-      toast.success("Project submitted successfully", {
-        description: "Your project has been submitted for review"
+      toast("Upload successful", {
+        description: "Your file has been uploaded successfully.",
       });
       
-      // Reset form and close dialog
       setProjectTitle("");
       setDescription("");
       setSelectedCategory("");
@@ -246,21 +234,20 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
       setUploadDialogOpen(false);
       setTerms(false);
       
-      // Call the onSuccess callback to refresh parent component
       if (onSuccess) onSuccess();
       
-    } catch (error: any) {
+    } catch (error) {
       console.error("Upload error:", error);
       setErrorMsg(`Error: ${error.message}`);
-      toast.error("Upload failed", {
-        description: error.message
+      toast("Upload failed", {
+        description: error.message || "There was an error uploading your file.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  // Render the form differently based on mode
   if (serviceMode) {
     return (
       <div className="space-y-4">
@@ -716,3 +703,5 @@ export const UploadForm = ({ userId, userPoints, onSuccess, serviceMode = false,
     </div>
   );
 };
+
+export default UploadForm;

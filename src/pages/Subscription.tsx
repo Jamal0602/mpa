@@ -1,4 +1,4 @@
-
+import React from 'react';
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +13,14 @@ import { CustomAmountForm } from "@/components/subscription/CustomAmountForm";
 import { subscriptionPlans } from "@/components/subscription/SubscriptionData";
 import { SubscriptionPlan } from "@/components/subscription/SubscriptionData";
 import { PaymentProcessor } from "@/components/subscription/PaymentProcessor";
+
+interface PaymentProcessorProps {
+  selectedPlan: SubscriptionPlan;
+  customAmount: number | '';
+  currentPoints: any;
+  onPaymentComplete: () => void;
+  userId: string;
+}
 
 const Subscription = () => {
   const { user } = useAuth();
@@ -85,12 +93,12 @@ const Subscription = () => {
       </Card>
       
       {user && (
-        <PaymentProcessor 
-          userId={user.id}
+        <PaymentProcessor
           selectedPlan={selectedPlan}
           customAmount={customAmount}
           currentPoints={profile?.key_points || 0}
           onPaymentComplete={handlePaymentComplete}
+          userId={user?.id || ''}
         />
       )}
       

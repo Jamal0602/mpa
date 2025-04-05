@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +41,8 @@ const AuthForm = () => {
             data: {
               username: username,
               display_name: username,
-            }
+            },
+            emailRedirectTo: "https://mpa.cubiz.space/auth/callback"
           }
         });
         

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -212,6 +212,20 @@ const AdminPanel = () => {
     setSelectedReport(report);
     setResolutionNotes("");
     setDetailsOpen(true);
+  };
+
+  const handleSubmitChange = async (formData) => {
+    try {
+      const result = await updateSomething(formData);
+      if (result && result.success) {
+        toast.success("Update successful");
+      } else {
+        toast.error("Update failed");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("An error occurred");
+    }
   };
 
   useEffect(() => {

@@ -1,645 +1,529 @@
-import React, { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
-import { useQuery } from "@tanstack/react-query";
-import { 
-  Code, Pencil, Trash2, Eye, Plus, Layout, Edit3, 
-  ToggleLeft, ArrowUp, ArrowDown, Monitor, Container
-} from "lucide-react";
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { LoadingSpinner } from "@/components/ui/loading";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Select, SelectContent, SelectGroup, SelectItem, 
-  SelectLabel, SelectTrigger, SelectValue 
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { WidgetRenderer } from "@/components/widgets/WidgetRenderer";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { Loader2, Plus, Trash, Save, Code, Eye } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface Widget {
   id: string;
-  title: string;
+  name: string;
   description: string;
+  location: string;
   type: string;
-  code: string;
-  settings: any;
-  created_by: string;
+  content: string;
+  metadata: {
+    url?: string;
+    height?: number;
+    // other metadata
+    [key: string]: any;
+  };
   created_at: string;
   updated_at: string;
-  location: string;
   active: boolean;
-  priority: number;
 }
 
-interface WidgetSettings {
-  url?: string;
-  height?: number;
-  [key: string]: any;
-}
-
-export function AdvancedWidgetsManagement() {
-  const { user } = useAuth();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
-  const [selectedWidget, setSelectedWidget] = useState<Widget | null>(null);
+const AdvancedWidgetsManagement = () => {
+  const [widgets, setWidgets] = useState<Widget[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
-  const [formData, setFormData] = useState({
-    title: "",
+  const [newWidget, setNewWidget] = useState<Partial<Widget>>({
+    name: "",
     description: "",
-    type: "html",
-    code: "",
-    settings: {},
     location: "homepage",
+    type: "html",
+    content: "",
     active: true,
-    priority: 0
+    metadata: {}
   });
+  const [editingWidget, setEditingWidget] = useState<Widget | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
 
-  const locationOptions = [
-    { value: "homepage", label: "Home Page" },
-    { value: "dashboard", label: "Dashboard" },
-    { value: "sidebar", label: "Sidebar" },
-    { value: "footer", label: "Footer" },
-    { value: "header", label: "Header" }
-  ];
+  useEffect(() => {
+    fetchWidgets();
+  }, []);
 
-  const typeOptions = [
-    { value: "html", label: "HTML Content" },
-    { value: "iframe", label: "External Iframe" },
-    { value: "custom", label: "Custom Component" }
-  ];
-
-  const { data: widgets, isLoading, refetch } = useQuery({
-    queryKey: ["admin-widgets"],
-    queryFn: async () => {
+  const fetchWidgets = async () => {
+    setIsLoading(true);
+    try {
       const { data, error } = await supabase
-        .from("widgets")
-        .select("*")
-        .order("priority", { ascending: true });
-        
+        .from('widgets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      return data as Widget[];
-    },
-  });
-
-  const handleCreateWidget = () => {
-    setFormData({
-      title: "",
-      description: "",
-      type: "html",
-      code: "",
-      settings: {},
-      location: "homepage",
-      active: true,
-      priority: widgets ? widgets.length + 1 : 1
-    });
-    setSelectedWidget(null);
-    setIsDialogOpen(true);
-  };
-
-  const handleEditWidget = (widget: Widget) => {
-    setSelectedWidget(widget);
-    setFormData({
-      title: widget.title,
-      description: widget.description,
-      type: widget.type,
-      code: widget.code,
-      settings: widget.settings || {},
-      location: widget.location || "homepage",
-      active: widget.active !== undefined ? widget.active : true,
-      priority: widget.priority || 0
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleDeleteConfirmation = (widget: Widget) => {
-    setSelectedWidget(widget);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const handlePreviewWidget = (widget: Widget) => {
-    setSelectedWidget(widget);
-    setIsPreviewDialogOpen(true);
-  };
-
-  const handleToggleActive = async (widget: Widget) => {
-    try {
-      const { error } = await supabase
-        .from("widgets")
-        .update({
-          active: !widget.active,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", widget.id);
-        
-      if (error) throw error;
-      toast.success(`Widget ${widget.active ? 'deactivated' : 'activated'} successfully!`);
-      refetch();
-    } catch (error: any) {
-      toast.error(`Operation failed: ${error.message}`);
-    }
-  };
-
-  const handleMovePriority = async (widget: Widget, direction: 'up' | 'down') => {
-    if (!widgets) return;
-    
-    const locationWidgets = widgets.filter(w => w.location === widget.location);
-    const currentIndex = locationWidgets.findIndex(w => w.id === widget.id);
-    
-    if (direction === 'up' && currentIndex <= 0) return;
-    if (direction === 'down' && currentIndex >= locationWidgets.length - 1) return;
-    
-    try {
-      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-      const targetWidget = locationWidgets[targetIndex];
       
-      const batch = [];
-      
-      batch.push(
-        supabase
-          .from("widgets")
-          .update({ priority: targetWidget.priority })
-          .eq("id", widget.id)
-      );
-      
-      batch.push(
-        supabase
-          .from("widgets")
-          .update({ priority: widget.priority })
-          .eq("id", targetWidget.id)
-      );
-      
-      await Promise.all(batch);
-      
-      toast.success("Widget order updated");
-      refetch();
-    } catch (error: any) {
-      toast.error(`Failed to update order: ${error.message}`);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormData((prev) => ({ ...prev, [name]: checked }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    if (name === 'type' && value === 'iframe' && formData.settings) {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        settings: { ...prev.settings, url: '', height: '400px' }
+      // Ensure metadata is properly parsed and contains url and height properties
+      const processedWidgets = data.map(widget => ({
+        ...widget,
+        metadata: widget.metadata || {}
       }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      
+      setWidgets(processedWidgets);
+    } catch (error) {
+      console.error('Error fetching widgets:', error);
+      toast.error("Failed to load widgets");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSettingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      settings: {
-        ...prev.settings,
-        [name]: value
+  const handleWidgetChange = (field: string, value: any) => {
+    if (editingWidget) {
+      // If editing an existing widget
+      if (field.startsWith('metadata.')) {
+        const metadataField = field.split('.')[1];
+        setEditingWidget({
+          ...editingWidget,
+          metadata: {
+            ...editingWidget.metadata,
+            [metadataField]: value
+          }
+        });
+      } else {
+        setEditingWidget({
+          ...editingWidget,
+          [field]: value
+        });
       }
-    }));
+    } else {
+      // If creating a new widget
+      if (field.startsWith('metadata.')) {
+        const metadataField = field.split('.')[1];
+        setNewWidget({
+          ...newWidget,
+          metadata: {
+            ...newWidget.metadata,
+            [metadataField]: value
+          }
+        });
+      } else {
+        setNewWidget({
+          ...newWidget,
+          [field]: value
+        });
+      }
+    }
   };
 
-  const handleSubmit = async () => {
+  const handleSaveWidget = async () => {
     try {
-      if (!user) return;
-
-      // Validation
-      if (!formData.title.trim()) {
-        toast.error("Title is required");
-        return;
-      }
-
-      if (formData.type === 'html' && !formData.code.trim()) {
-        toast.error("Widget code is required");
-        return;
-      }
-
-      if (formData.type === 'iframe' && !formData.settings.url) {
-        toast.error("URL is required for iframes");
-        return;
-      }
-
-      const widgetData = {
-        title: formData.title,
-        description: formData.description,
-        type: formData.type,
-        code: formData.code,
-        settings: formData.settings,
-        location: formData.location,
-        active: formData.active,
-        priority: formData.priority,
-        updated_at: new Date().toISOString()
-      };
-
-      if (selectedWidget) {
+      if (editingWidget) {
         // Update existing widget
         const { error } = await supabase
-          .from("widgets")
-          .update(widgetData)
-          .eq("id", selectedWidget.id);
-          
+          .from('widgets')
+          .update({
+            name: editingWidget.name,
+            description: editingWidget.description,
+            location: editingWidget.location,
+            type: editingWidget.type,
+            content: editingWidget.content,
+            metadata: editingWidget.metadata || {},
+            active: editingWidget.active,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingWidget.id);
+
         if (error) throw error;
-        toast.success("Widget updated successfully!");
+        
+        toast.success("Widget updated successfully");
+        setEditingWidget(null);
       } else {
         // Create new widget
         const { error } = await supabase
-          .from("widgets")
+          .from('widgets')
           .insert({
-            ...widgetData,
-            created_by: user.id
+            name: newWidget.name,
+            description: newWidget.description,
+            location: newWidget.location,
+            type: newWidget.type,
+            content: newWidget.content,
+            metadata: newWidget.metadata || {},
+            active: newWidget.active
           });
-          
+
         if (error) throw error;
-        toast.success("Widget created successfully!");
-      }
-      
-      setIsDialogOpen(false);
-      refetch();
-    } catch (error: any) {
-      toast.error(`Operation failed: ${error.message}`);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      if (!selectedWidget) return;
-      
-      const { error } = await supabase
-        .from("widgets")
-        .delete()
-        .eq("id", selectedWidget.id);
         
-      if (error) throw error;
-      toast.success("Widget deleted successfully!");
-      setIsDeleteDialogOpen(false);
-      refetch();
-    } catch (error: any) {
-      toast.error(`Delete failed: ${error.message}`);
+        toast.success("Widget created successfully");
+        setNewWidget({
+          name: "",
+          description: "",
+          location: "homepage",
+          type: "html",
+          content: "",
+          active: true,
+          metadata: {}
+        });
+      }
+      fetchWidgets();
+    } catch (error) {
+      console.error('Error saving widget:', error);
+      toast.error("Failed to save widget");
     }
   };
 
-  const getFilteredWidgets = () => {
-    if (!widgets) return [];
+  const handleDeleteWidget = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this widget?")) return;
     
-    switch (activeTab) {
-      case "active":
-        return widgets.filter((widget) => widget.active);
-      case "inactive":
-        return widgets.filter((widget) => !widget.active);
-      case locationOptions[0].value:
-      case locationOptions[1].value:
-      case locationOptions[2].value:
-      case locationOptions[3].value:
-      case locationOptions[4].value:
-        return widgets.filter((widget) => widget.location === activeTab);
-      default:
-        return widgets;
+    try {
+      const { error } = await supabase
+        .from('widgets')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      toast.success("Widget deleted successfully");
+      fetchWidgets();
+      if (editingWidget?.id === id) {
+        setEditingWidget(null);
+      }
+    } catch (error) {
+      console.error('Error deleting widget:', error);
+      toast.error("Failed to delete widget");
     }
   };
 
-  const filteredWidgets = getFilteredWidgets();
+  const handleEditWidget = (widget: Widget) => {
+    // Ensure metadata has url and height properties to avoid the TS errors
+    const updatedWidget = {
+      ...widget,
+      metadata: {
+        url: '',
+        height: 300,
+        ...widget.metadata
+      }
+    };
+    setEditingWidget(updatedWidget);
+    setPreviewMode(false);
+  };
+
+  // Filter widgets based on active tab
+  const filteredWidgets = widgets.filter(widget => {
+    if (activeTab === "all") return true;
+    if (activeTab === "active") return widget.active;
+    if (activeTab === "inactive") return !widget.active;
+    if (activeTab === "homepage") return widget.location === "homepage";
+    if (activeTab === "dashboard") return widget.location === "dashboard";
+    return true;
+  });
+
+  // Render preview of widget content based on type
+  const renderPreview = (widget: Widget) => {
+    const widgetToPreview = editingWidget || widget;
+    
+    if (widgetToPreview.type === "html") {
+      return (
+        <div 
+          className="border p-4 rounded bg-card"
+          dangerouslySetInnerHTML={{ __html: widgetToPreview.content || '' }}
+        />
+      );
+    } else if (widgetToPreview.type === "iframe") {
+      return (
+        <iframe
+          src={widgetToPreview.metadata?.url || ''}
+          height={widgetToPreview.metadata?.height || 300}
+          className="w-full border rounded"
+          title={widgetToPreview.name}
+        />
+      );
+    } else {
+      return (
+        <div className="border p-4 rounded bg-card">
+          <p className="text-muted-foreground">Preview not available for this widget type.</p>
+        </div>
+      );
+    }
+  };
 
   if (isLoading) {
-    return <div className="flex justify-center p-8"><LoadingSpinner /></div>;
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <h2 className="text-2xl font-bold">Widgets Management</h2>
-        <Button onClick={handleCreateWidget} className="gap-2">
-          <Plus className="h-4 w-4" /> New Widget
-        </Button>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-3 mb-4">
-          <TabsTrigger value="all">All Widgets</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="inactive">Inactive</TabsTrigger>
-        </TabsList>
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          {locationOptions.map((location) => (
-            <Badge 
-              key={location.value}
-              variant={activeTab === location.value ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => setActiveTab(location.value)}
-            >
-              {location.label}
-            </Badge>
-          ))}
-        </div>
-
-        <TabsContent value={activeTab}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredWidgets.length > 0 ? (
-              filteredWidgets.map((widget) => (
-                <Card key={widget.id} className={`overflow-hidden ${!widget.active ? 'opacity-60' : ''}`}>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          {widget.title}
-                          {widget.type === 'html' && <Code className="h-4 w-4 text-blue-500" />}
-                          {widget.type === 'iframe' && <Monitor className="h-4 w-4 text-green-500" />}
-                          {widget.type === 'custom' && <Container className="h-4 w-4 text-purple-500" />}
-                        </CardTitle>
-                        <CardDescription>
-                          {widget.location && locationOptions.find(l => l.value === widget.location)?.label}
-                          {widget.priority !== undefined && ` • Priority: ${widget.priority}`}
-                        </CardDescription>
-                      </div>
-                      <Badge variant={widget.active ? "default" : "secondary"}>
-                        {widget.active ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <p className="text-muted-foreground line-clamp-2">
-                      {widget.description || "No description provided"}
-                    </p>
-                    
-                    {widget.type === 'iframe' && widget.settings?.url && (
-                      <p className="text-xs text-muted-foreground mt-2 truncate">
-                        URL: {widget.settings.url}
-                      </p>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex flex-wrap justify-between pt-0 gap-2">
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handlePreviewWidget(widget)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleMovePriority(widget, 'up')}>
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleMovePriority(widget, 'down')}>
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant={widget.active ? "ghost" : "outline"} 
-                        size="sm" 
-                        onClick={() => handleToggleActive(widget)}
-                      >
-                        <ToggleLeft className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleEditWidget(widget)}>
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteConfirmation(widget)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-8">
-                <p>No widgets found. {activeTab === "all" ? "Create your first widget!" : `No ${activeTab} widgets available.`}</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Create/Edit Widget Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{selectedWidget ? "Edit Widget" : "Create New Widget"}</DialogTitle>
-            <DialogDescription>
-              {selectedWidget ? "Make changes to your widget here." : "Create a new widget for your site."}
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh]">
-            <div className="grid gap-4 py-4 px-1">
-              <div className="grid gap-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  placeholder="Widget title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  placeholder="Short description for this widget..."
-                  rows={2}
-                  value={formData.description}
-                  onChange={handleInputChange}
-                />
-              </div>
-              
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="type">Widget Type</Label>
-                  <Select 
-                    value={formData.type} 
-                    onValueChange={(value) => handleSelectChange("type", value)}
-                  >
-                    <SelectTrigger id="type">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {typeOptions.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Advanced Widget Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="all" onValueChange={setActiveTab}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="all">All Widgets</TabsTrigger>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="inactive">Inactive</TabsTrigger>
+              <TabsTrigger value="homepage">Homepage</TabsTrigger>
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value={activeTab}>
+              <div className="space-y-4">
+                {filteredWidgets.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">No widgets found.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredWidgets.map(widget => (
+                      <Card key={widget.id} className={`overflow-hidden transition-colors ${!widget.active ? 'border-dashed opacity-70' : ''}`}>
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-lg">{widget.name}</CardTitle>
+                              <p className="text-sm text-muted-foreground mt-1">{widget.description}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleEditWidget(widget)}
+                              >
+                                Edit
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleDeleteWidget(widget.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <span className={`px-2 py-1 rounded-full text-xs ${widget.active ? 'bg-green-500/10 text-green-500' : 'bg-slate-500/10 text-slate-500'}`}>
+                              {widget.active ? 'Active' : 'Inactive'}
+                            </span>
+                            <span className="px-2 py-1 rounded-full text-xs bg-blue-500/10 text-blue-500">
+                              {widget.location}
+                            </span>
+                            <span className="px-2 py-1 rounded-full text-xs bg-purple-500/10 text-purple-500">
+                              {widget.type}
+                            </span>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                )}
                 
-                <div className="grid gap-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Select 
-                    value={formData.location} 
-                    onValueChange={(value) => handleSelectChange("location", value)}
+                <div className="flex justify-center mt-6">
+                  <Button
+                    onClick={() => {
+                      setEditingWidget(null);
+                      setNewWidget({
+                        name: "",
+                        description: "",
+                        location: "homepage",
+                        type: "html",
+                        content: "",
+                        active: true,
+                        metadata: {
+                          url: '',
+                          height: 300
+                        }
+                      });
+                    }}
                   >
-                    <SelectTrigger id="location">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create New Widget
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+      
+      {/* Widget Editor */}
+      {(editingWidget || newWidget.name !== "") && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingWidget ? 'Edit Widget' : 'Create Widget'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={editingWidget ? editingWidget.name : newWidget.name}
+                    onChange={(e) => handleWidgetChange('name', e.target.value)}
+                    placeholder="Widget name"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Select
+                    value={editingWidget ? editingWidget.location : newWidget.location}
+                    onValueChange={(value) => handleWidgetChange('location', value)}
+                  >
+                    <SelectTrigger className="mt-1">
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel>Page Locations</SelectLabel>
-                        {locationOptions.map((location) => (
-                          <SelectItem key={location.value} value={location.value}>
-                            {location.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
+                      <SelectItem value="homepage">Homepage</SelectItem>
+                      <SelectItem value="dashboard">Dashboard</SelectItem>
+                      <SelectItem value="sidebar">Sidebar</SelectItem>
+                      <SelectItem value="footer">Footer</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               
-              <div className="grid gap-2">
-                <Label>Priority</Label>
-                <Input
-                  id="priority"
-                  name="priority"
-                  type="number"
-                  min="0"
-                  placeholder="Display order priority"
-                  value={formData.priority}
-                  onChange={handleInputChange}
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={editingWidget ? editingWidget.description : newWidget.description}
+                  onChange={(e) => handleWidgetChange('description', e.target.value)}
+                  placeholder="Widget description"
+                  className="mt-1"
                 />
-                <p className="text-xs text-muted-foreground">Lower numbers appear first</p>
               </div>
               
-              {formData.type === 'iframe' && (
-                <div className="space-y-4 border rounded-md p-4">
-                  <h4 className="font-medium">Iframe Settings</h4>
-                  
-                  <div className="grid gap-2">
-                    <Label htmlFor="url">URL</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="type">Widget Type</Label>
+                  <Select
+                    value={editingWidget ? editingWidget.type : newWidget.type}
+                    onValueChange={(value) => handleWidgetChange('type', value)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="html">HTML</SelectItem>
+                      <SelectItem value="iframe">iFrame</SelectItem>
+                      <SelectItem value="component">React Component</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="active">Status</Label>
+                  <Select
+                    value={(editingWidget ? editingWidget.active : newWidget.active) ? "active" : "inactive"}
+                    onValueChange={(value) => handleWidgetChange('active', value === "active")}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Conditional fields based on widget type */}
+              {(editingWidget?.type === "iframe" || (!editingWidget && newWidget.type === "iframe")) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="iframe-url">iFrame URL</Label>
                     <Input
-                      id="url"
-                      name="url"
+                      id="iframe-url"
+                      value={editingWidget ? editingWidget.metadata?.url || '' : newWidget.metadata?.url || ''}
+                      onChange={(e) => handleWidgetChange('metadata.url', e.target.value)}
                       placeholder="https://example.com/embed"
-                      value={formData.settings.url || ''}
-                      onChange={handleSettingsChange}
+                      className="mt-1"
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="iframe-height">iFrame Height (px)</Label>
+                    <Input
+                      id="iframe-height"
+                      type="number"
+                      value={editingWidget ? editingWidget.metadata?.height || 300 : newWidget.metadata?.height || 300}
+                      onChange={(e) => handleWidgetChange('metadata.height', parseInt(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {/* Content field for HTML or component types */}
+              {((editingWidget?.type === "html" || editingWidget?.type === "component") || 
+                (!editingWidget && (newWidget.type === "html" || newWidget.type === "component"))) && (
+                <div>
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="content">Content</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreviewMode(!previewMode)}
+                      >
+                        {previewMode ? (
+                          <>
+                            <Code className="mr-1 h-4 w-4" />
+                            Edit
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="mr-1 h-4 w-4" />
+                            Preview
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   
-                  <div className="grid gap-2">
-                    <Label htmlFor="height">Height</Label>
-                    <Input
-                      id="height"
-                      name="height"
-                      placeholder="400px"
-                      value={formData.settings.height || 300}
-                      onChange={handleSettingsChange}
+                  {previewMode ? (
+                    <div className="mt-2 border rounded-md overflow-hidden">
+                      {renderPreview(editingWidget || { ...newWidget, id: '', created_at: '', updated_at: '' } as Widget)}
+                    </div>
+                  ) : (
+                    <Textarea
+                      id="content"
+                      value={editingWidget ? editingWidget.content : newWidget.content}
+                      onChange={(e) => handleWidgetChange('content', e.target.value)}
+                      placeholder={`Enter ${(editingWidget?.type || newWidget.type) === "html" ? "HTML" : "component code"}`}
+                      className="mt-1 font-mono"
+                      rows={10}
                     />
-                  </div>
+                  )}
                 </div>
               )}
               
-              {formData.type === 'html' && (
-                <div className="grid gap-2">
-                  <Label htmlFor="code">HTML Content</Label>
-                  <Textarea
-                    id="code"
-                    name="code"
-                    placeholder="<div>Your HTML content here</div>"
-                    className="font-mono min-h-[200px] text-sm"
-                    value={formData.code}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              )}
-              
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="active"
-                  checked={formData.active}
-                  onCheckedChange={(checked) => handleSwitchChange("active", checked)}
-                />
-                <Label htmlFor="active">Active</Label>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditingWidget(null);
+                    setNewWidget({
+                      name: "",
+                      description: "",
+                      location: "homepage",
+                      type: "html",
+                      content: "",
+                      active: true,
+                      metadata: {}
+                    });
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveWidget}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {editingWidget ? 'Update Widget' : 'Create Widget'}
+                </Button>
               </div>
             </div>
-          </ScrollArea>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit}>
-              {selectedWidget ? "Save Changes" : "Create Widget"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this widget? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Preview Dialog */}
-      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Widget Preview: {selectedWidget?.title}</DialogTitle>
-          </DialogHeader>
-          
-          <div className="border rounded-lg p-4 bg-background">
-            {selectedWidget && (
-              <div className="widget-preview">
-                {selectedWidget.type === 'html' && (
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: selectedWidget.code }} 
-                    className="widget-html-container"
-                  />
-                )}
-                
-                {selectedWidget.type === 'iframe' && selectedWidget.settings?.url && (
-                  <iframe 
-                    src={selectedWidget.settings.url} 
-                    className="w-full border-0"
-                    style={{ height: selectedWidget.settings?.height || '400px' }}
-                    title={selectedWidget.title}
-                  />
-                )}
-                
-                {selectedWidget.type === 'custom' && (
-                  <div className="p-4 text-center text-muted-foreground">
-                    Custom widget preview not available
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button onClick={() => setIsPreviewDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
-}
+};
+
+export default AdvancedWidgetsManagement;
