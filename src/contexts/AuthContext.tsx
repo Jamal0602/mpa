@@ -31,6 +31,10 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
+  signIn: (credentials: { email: string; password: string }) => Promise<{ error: Error | null }>;
+  signUp: (credentials: { email: string; password: string; options?: any }) => Promise<{ error: Error | null }>;
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({ 
@@ -38,7 +42,11 @@ const AuthContext = createContext<AuthContextType>({
   session: null, 
   profile: null, 
   loading: true,
-  refreshProfile: async () => {} 
+  refreshProfile: async () => {},
+  signIn: async () => ({ error: null }),
+  signUp: async () => ({ error: null }),
+  signInWithGoogle: async () => ({ error: null }),
+  signOut: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -88,6 +96,65 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (error) {
       console.error("Error refreshing profile:", error);
+    }
+  };
+
+  // Sign in with email and password
+  const signIn = async ({ email, password }: { email: string; password: string }) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      console.error("Sign in error:", error);
+      return { error: error as Error };
+    }
+  };
+
+  // Sign up with email and password
+  const signUp = async ({ email, password, options }: { email: string; password: string; options?: any }) => {
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options,
+      });
+      return { error };
+    } catch (error) {
+      console.error("Sign up error:", error);
+      return { error: error as Error };
+    }
+  };
+
+  // Sign in with Google
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/auth/callback',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      return { error };
+    } catch (error) {
+      console.error("Google sign in error:", error);
+      return { error: error as Error };
+    }
+  };
+
+  // Sign out
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast.error("Failed to sign out");
     }
   };
 
@@ -148,7 +215,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, refreshProfile }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      profile, 
+      loading, 
+      refreshProfile,
+      signIn,
+      signUp,
+      signInWithGoogle,
+      signOut
+    }}>
       {children}
     </AuthContext.Provider>
   );

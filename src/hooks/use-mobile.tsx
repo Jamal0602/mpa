@@ -30,12 +30,21 @@ export function useIsMobile() {
       window.addEventListener("resize", checkMobile)
     }
     
+    // Watch for changes to force-desktop-mode in localStorage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'force-desktop-mode') {
+        checkMobile()
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    
     return () => {
       if (mql.removeEventListener) {
         mql.removeEventListener("change", checkMobile)
       } else {
         window.removeEventListener("resize", checkMobile)
       }
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
 
@@ -56,6 +65,13 @@ export function useForceDesktopMode() {
       document.documentElement.classList.remove('force-desktop-mode')
       localStorage.setItem('force-desktop-mode', 'false')
     }
+    
+    // Dispatch a storage event so other components can react to the change
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'force-desktop-mode',
+      newValue: forceDesktop ? 'true' : 'false',
+      storageArea: localStorage
+    }))
   }, [forceDesktop])
   
   return {

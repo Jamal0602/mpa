@@ -20,9 +20,22 @@ const detectAdBlock = async () => {
   }
 };
 
+// Add Google AdSense
+const injectAdSenseScript = () => {
+  const script = document.createElement('script');
+  script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7483780622360467';
+  script.async = true;
+  script.crossOrigin = 'anonymous';
+  document.head.appendChild(script);
+};
+
 // Initialize app
 const init = async () => {
   const adBlockDetected = await detectAdBlock();
+  
+  if (!adBlockDetected) {
+    injectAdSenseScript();
+  }
   
   createRoot(document.getElementById("root")!).render(
     <BrowserRouter>

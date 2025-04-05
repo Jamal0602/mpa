@@ -316,34 +316,46 @@ export type Database = {
       }
       posts: {
         Row: {
+          category: string | null
           comments: number | null
           content: string
           created_at: string
+          excerpt: string | null
+          featured: string | null
           id: string
           likes: number | null
           published: boolean | null
+          thumbnail_url: string | null
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          category?: string | null
           comments?: number | null
           content: string
           created_at?: string
+          excerpt?: string | null
+          featured?: string | null
           id?: string
           likes?: number | null
           published?: boolean | null
+          thumbnail_url?: string | null
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          category?: string | null
           comments?: number | null
           content?: string
           created_at?: string
+          excerpt?: string | null
+          featured?: string | null
           id?: string
           likes?: number | null
           published?: boolean | null
+          thumbnail_url?: string | null
           title?: string
           updated_at?: string
           user_id?: string
