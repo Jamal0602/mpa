@@ -1,303 +1,288 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { positions } from "./PositionsList";
-import { useNavigate } from "react-router-dom";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormSubmitButton
+} from "@/components/ui/form";
+
+interface JobApplicationFormProps {
+  userId: string;
+  position: string;
+  onSubmitSuccess?: () => void;
+}
 
 const formSchema = z.object({
-  fullName: z.string().min(2, {
-    message: "Full name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  age: z.string().refine((val) => !Number.isNaN(parseInt(val, 10)) && parseInt(val, 10) >= 18, {
-    message: "You must be at least 18 years old.",
-  }),
-  location: z.string().min(2, {
-    message: "Location must be at least 2 characters.",
-  }),
-  position: z.string({
-    required_error: "Please select a position.",
-  }),
-  experience: z.string().min(10, {
-    message: "Experience details must be at least 10 characters.",
-  }),
-  portfolio: z.string().url({
-    message: "Please enter a valid URL for your portfolio.",
-  }).optional().or(z.literal('')),
-  message: z.string().min(20, {
-    message: "Your message must be at least 20 characters.",
-  }),
+  position: z.string().min(1, "Position is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().optional(),
+  coverLetter: z.string().min(10, "Cover letter must be at least 10 characters"),
+  experience: z.string().optional(),
+  skills: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+export const JobApplicationForm = ({ userId, position, onSubmitSuccess }: JobApplicationFormProps) => {
+  const { toast } = useToast();
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-export const JobApplicationForm = ({ userId }: { userId: string }) => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-
-  const form = useForm<FormValues>({
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      fullName: "",
+      position: position,
       email: "",
-      age: "",
-      location: "",
-      position: "",
+      phone: "",
+      coverLetter: "",
       experience: "",
-      portfolio: "",
-      message: "",
+      skills: "",
     },
   });
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!userId) return;
-      
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    setResumeFile(file);
+  };
 
-      if (!error && data) {
-        setUserProfile(data);
-        
-        let location = "";
-        if (data.place) location += data.place;
-        if (data.district) {
-          if (location) location += ", ";
-          location += data.district;
-        }
-        if (data.state) {
-          if (location) location += ", ";
-          location += data.state;
-        }
-        if (data.country) {
-          if (location) location += ", ";
-          location += data.country;
-        }
-        
-        form.setValue("location", location);
-        form.setValue("fullName", data.full_name || "");
-      }
-      
-      const { data: session } = await supabase.auth.getSession();
-      if (session.session) {
-        form.setValue("email", session.session.user.email || "");
-      }
-    };
-
-    fetchUserProfile();
-  }, [userId, form]);
-
-  const onSubmit = async (values: FormValues) => {
-    setLoading(true);
+  const uploadResume = async (file: File): Promise<string | null> => {
     try {
-      if (!userId) {
-        toast.error("You must be logged in to apply");
-        return;
-      }
+      // Check if the bucket exists, if not create it
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const resumesBucket = buckets?.find(bucket => bucket.name === 'resumes');
       
-      const { error } = await supabase.from("job_applications").insert({
-        user_id: userId,
-        full_name: values.fullName,
-        email: values.email,
-        age: parseInt(values.age),
-        location: values.location,
-        position: values.position,
-        experience: values.experience,
-        portfolio: values.portfolio,
-        message: values.message,
-        status: "pending",
-      });
-      
-      if (error) throw error;
-      
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: userId,
-          title: "Application Received",
-          message: `Thank you for applying to work with us as a ${positions.find(p => p.value === values.position)?.label}. We'll review your application and get back to you soon.`,
-          type: "success",
+      if (!resumesBucket) {
+        // Create the bucket if it doesn't exist
+        const { error: bucketError } = await supabase.storage.createBucket('resumes', {
+          public: false, // Private by default
+          allowedMimeTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+          fileSizeLimit: 5242880 // 5MB
         });
-      
-      toast.success("Application submitted successfully!");
-      form.reset();
-      navigate("/");
+        
+        if (bucketError) {
+          console.error("Error creating bucket:", bucketError);
+          throw new Error("Error creating storage bucket: " + bucketError.message);
+        }
+      }
+
+      // Upload the file
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}_${Date.now()}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('resumes')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      // Get the URL of the uploaded file
+      const { data: urlData } = supabase.storage
+        .from('resumes')
+        .getPublicUrl(data.path);
+
+      return urlData.publicUrl;
     } catch (error) {
-      console.error("Error submitting application:", error);
-      toast.error("Failed to submit application. Please try again.");
+      console.error('Error uploading resume:', error);
+      throw error;
+    }
+  };
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!resumeFile) {
+      toast({
+        title: "Resume Required",
+        description: "Please upload your resume",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const resumeUrl = await uploadResume(resumeFile);
+
+      if (!resumeUrl) {
+        throw new Error("Failed to upload resume");
+      }
+
+      // Submit the job application to the database
+      const { error } = await supabase.from('job_applications').insert({
+        user_id: userId,
+        position: values.position,
+        email: values.email,
+        phone: values.phone,
+        resume_url: resumeUrl,
+        cover_letter: values.coverLetter,
+        experience: values.experience,
+        skills: values.skills ? values.skills.split(',').map(s => s.trim()) : [],
+        status: 'pending',
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Application Submitted",
+        description: "Your job application has been submitted successfully!",
+      });
+
+      // Reset the form
+      form.reset();
+      setResumeFile(null);
+      
+      if (onSubmitSuccess) {
+        onSubmitSuccess();
+      }
+    } catch (error: any) {
+      console.error('Error submitting application:', error);
+      toast({
+        title: "Submission Failed",
+        description: `There was an error submitting your application: ${error.message}`,
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      setIsUploading(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Apply Now</CardTitle>
-        <CardDescription>
-          Fill out the form below to apply for a position
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Your full name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="Your email address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="age"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Age</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="18" placeholder="Your age" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your location" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <FormField
-              control={form.control}
-              name="position"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Position</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a position" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {positions.map((position) => (
-                        <SelectItem key={position.value} value={position.value}>
-                          {position.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="experience"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Experience</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Describe your relevant experience" 
-                      className="min-h-[100px]" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="portfolio"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Portfolio URL (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Link to your portfolio" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Share a link to your portfolio or previous work
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="message"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Additional Information</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Any additional information you'd like to share" 
-                      className="min-h-[100px]" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Submitting..." : "Submit Application"}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="position"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Position</FormLabel>
+              <FormControl>
+                <Input {...field} readOnly />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input {...field} type="email" placeholder="your@email.com" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone (Optional)</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Your phone number" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div>
+          <FormLabel htmlFor="resume">Resume/CV</FormLabel>
+          <Input 
+            id="resume" 
+            type="file" 
+            accept=".pdf,.doc,.docx" 
+            onChange={handleFileChange} 
+            required
+          />
+          <FormDescription>
+            Upload your resume (PDF, DOC, or DOCX format, max 5MB)
+          </FormDescription>
+          {resumeFile && (
+            <p className="text-sm mt-2">Selected file: {resumeFile.name} ({Math.round(resumeFile.size / 1024)} KB)</p>
+          )}
+        </div>
+
+        <FormField
+          control={form.control}
+          name="coverLetter"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Cover Letter</FormLabel>
+              <FormControl>
+                <Textarea 
+                  {...field} 
+                  placeholder="Tell us why you're interested in this position and what makes you a good fit..."
+                  rows={5}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="experience"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Years of Experience (Optional)</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="e.g., 3 years" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="skills"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Skills (Optional)</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="e.g., JavaScript, React, Node.js" />
+              </FormControl>
+              <FormDescription>
+                Comma-separated list of your key skills
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormSubmitButton
+          loading={isUploading}
+          loadingText="Submitting Application..."
+          className="w-full"
+        >
+          Submit Application
+        </FormSubmitButton>
+      </form>
+    </Form>
   );
 };

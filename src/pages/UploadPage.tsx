@@ -22,6 +22,7 @@ import {
 import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ServiceOffer {
   id: string;
@@ -407,12 +408,13 @@ const UploadPage = () => {
                       )}
                       
                       <div className="mb-4">
-                        <UploadForm 
-                          userId={user.id} 
-                          onUploadSuccess={refetchProfile}
-                          userPoints={profile?.key_points || 0}
-                          serviceMode={true}
-                        />
+                        <ScrollArea className="h-[400px]">
+                          <UploadForm 
+                            userId={user.id} 
+                            onUploadSuccess={refetchProfile}
+                            serviceMode={true}
+                          />
+                        </ScrollArea>
                       </div>
                     </CardContent>
                   </Card>

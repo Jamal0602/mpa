@@ -1,67 +1,139 @@
 
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Briefcase, MapPin, Clock, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
-export const positions = [
-  { value: "document_processor", label: "Document Processor" },
-  { value: "graphic_designer", label: "Graphic Designer" },
-  { value: "video_editor", label: "Video Editor" },
-  { value: "3d_modeler", label: "3D Modeler" },
-  { value: "autocad_designer", label: "AutoCAD Designer" },
-  { value: "web_designer", label: "Web Designer (HTML & CSS)" },
-  { value: "javascript_developer", label: "JavaScript Developer" },
-  { value: "backend_developer", label: "Backend Developer" },
-  { value: "bot_developer", label: "Bot Developer" },
-];
+interface Position {
+  id: string;
+  title: string;
+  department: string;
+  location: string;
+  type: string;
+  description: string;
+  requirements: string[];
+  is_active: boolean;
+  created_at: string;
+}
 
-export const PositionsList = () => {
+interface PositionsListProps {
+  onApplyClick?: (position: string) => void;
+}
+
+export const PositionsList = ({ onApplyClick }: PositionsListProps) => {
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPositions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("job_positions")
+          .select("*")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        setPositions(data || []);
+      } catch (error: any) {
+        console.error("Error fetching positions:", error);
+        toast.error("Failed to load positions");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPositions();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel("job-positions-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "job_positions" },
+        (payload) => {
+          fetchPositions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  if (loading) {
+    return <div className="py-10 text-center">Loading available positions...</div>;
+  }
+
+  if (positions.length === 0) {
+    return (
+      <div className="py-10 text-center">
+        <p>No positions are currently available. Please check back later.</p>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <h2 className="text-2xl font-semibold mb-4">Available Positions</h2>
-      
-      <div className="space-y-6">
-        <div>
-          <h3 className="text-xl font-medium">Content & Media Specialists</h3>
-          <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-            <li>Document Processor – Handles Word, Excel, and PowerPoint tasks</li>
-            <li>Graphic Designer – Edits photos and creates design elements</li>
-            <li>Video Editor – Edits short and long-form videos</li>
-          </ul>
-        </div>
-        
-        <div>
-          <h3 className="text-xl font-medium">3D & CAD Designers</h3>
-          <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-            <li>3D Modeler – Creates 3D objects and circuits</li>
-            <li>AutoCAD Designer – Works on 2D and 3D AutoCAD projects</li>
-          </ul>
-        </div>
-        
-        <div>
-          <h3 className="text-xl font-medium">Web Development Team</h3>
-          <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-            <li>Web Designer (HTML & CSS) – Designs websites with front-end technologies</li>
-            <li>JavaScript Developer – Develops website interactivity and widgets</li>
-            <li>Backend Developer – Manages website hosting, databases, and automation</li>
-          </ul>
-        </div>
-        
-        <div>
-          <h3 className="text-xl font-medium">Automation & Bot Developers</h3>
-          <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-            <li>Bot Developer – Builds WhatsApp, Instagram, and Discord bots</li>
-          </ul>
-        </div>
-      </div>
-      
-      <div className="mt-6 p-4 bg-muted rounded-md">
-        <h3 className="text-lg font-medium">Payment Terms</h3>
-        <ul className="list-disc list-inside mt-2 ml-4 text-muted-foreground">
-          <li>Payment released after completion of 3 projects</li>
-          <li>For larger projects, payment after 1 project</li>
-          <li>Payment tied to project completion, not monthly</li>
-          <li>UPI ID for payments: ja.jamalasraf@fam</li>
-        </ul>
-      </div>
+    <div className="grid gap-6">
+      {positions.map((position) => (
+        <Card key={position.id}>
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <CardTitle>{position.title}</CardTitle>
+              <Badge variant={position.type === "Full-time" ? "default" : "secondary"}>
+                {position.type}
+              </Badge>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-muted-foreground mt-2">
+              <div className="flex items-center">
+                <Briefcase className="mr-2 h-4 w-4" />
+                {position.department}
+              </div>
+              <div className="flex items-center">
+                <MapPin className="mr-2 h-4 w-4" />
+                {position.location}
+              </div>
+              <div className="flex items-center">
+                <Clock className="mr-2 h-4 w-4" />
+                {new Date(position.created_at).toLocaleDateString()}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-medium mb-2">Job Description</h4>
+              <p className="text-sm">{position.description}</p>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h4 className="font-medium mb-2">Requirements</h4>
+              <ul className="list-disc list-inside text-sm space-y-1">
+                {position.requirements.map((req, index) => (
+                  <li key={index}>{req}</li>
+                ))}
+              </ul>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full sm:w-auto ml-auto"
+              onClick={() => onApplyClick && onApplyClick(position.title)}
+            >
+              Apply Now <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardFooter>
+        </Card>
+      ))}
     </div>
   );
 };

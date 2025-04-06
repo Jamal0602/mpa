@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, ErrorReportStats } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,7 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -33,21 +33,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
 import { Copy, Check, Users, AlertTriangle, FileText, Settings, BarChart3 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -102,7 +102,13 @@ const AdminPanel = () => {
   const [selectedErrorReport, setSelectedErrorReport] = useState(null);
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [isResolving, setIsResolving] = useState(false);
-  const [errorReportStats, setErrorReportStats] = useState({});
+  const [errorReportStats, setErrorReportStats] = useState<ErrorReportStats>({
+    total: 0,
+    pending: 0,
+    in_progress: 0,
+    resolved: 0,
+    rejected: 0
+  });
   const [isServiceOfferModalOpen, setIsServiceOfferModalOpen] = useState(false);
   const [serviceOffers, setServiceOffers] = useState([]);
   const [newServiceOffer, setNewServiceOffer] = useState({
@@ -330,7 +336,7 @@ const AdminPanel = () => {
         const { data, error } = await supabase.rpc("get_error_report_stats");
 
         if (error) throw error;
-        setErrorReportStats(data);
+        setErrorReportStats(data as ErrorReportStats);
       } catch (error: any) {
         console.error("Error fetching error report stats:", error);
         toast.error(`Failed to load error report stats: ${error.message}`);
@@ -1013,7 +1019,7 @@ const AdminPanel = () => {
       const { data, error } = await supabase.rpc("get_error_report_stats");
 
       if (error) throw error;
-      setErrorReportStats(data);
+      setErrorReportStats(data as ErrorReportStats);
     } catch (error: any) {
       console.error("Error fetching error report stats:", error);
       toast.error(`Failed to load error report stats: ${error.message}`);
@@ -1146,10 +1152,10 @@ const AdminPanel = () => {
                   <div>
                     <h3 className="font-medium">Error Reports</h3>
                     <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                      <div>Pending: {errorReportStats?.pending || 0}</div>
-                      <div>Resolved: {errorReportStats?.resolved || 0}</div>
-                      <div>In Progress: {errorReportStats?.in_progress || 0}</div>
-                      <div>Total: {errorReportStats?.total || 0}</div>
+                      <div>Pending: {errorReportStats.pending || 0}</div>
+                      <div>Resolved: {errorReportStats.resolved || 0}</div>
+                      <div>In Progress: {errorReportStats.in_progress || 0}</div>
+                      <div>Total: {errorReportStats.total || 0}</div>
                     </div>
                   </div>
                 )}

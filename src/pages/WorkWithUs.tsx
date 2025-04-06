@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Separator } from "@/components/ui/separator";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -7,9 +8,18 @@ import { JobApplicationForm } from "@/components/work-with-us/JobApplicationForm
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Briefcase, Users, MapPin, Building } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const WorkWithUs = () => {
   const { user } = useAuth();
+  const [isApplicationDialogOpen, setIsApplicationDialogOpen] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
+
+  const handleApplyClick = (position: string) => {
+    setSelectedPosition(position);
+    setIsApplicationDialogOpen(true);
+  };
 
   return (
     <PageLayout
@@ -63,42 +73,48 @@ const WorkWithUs = () => {
       
       <Separator className="my-6" />
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <ScrollArea className="h-[calc(100vh-400px)]">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                Available Positions
-              </CardTitle>
-              <CardDescription>
-                Browse our current job openings and find the perfect role for your skills
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PositionsList />
-            </CardContent>
-          </Card>
-        </ScrollArea>
-        
-        <ScrollArea className="h-[calc(100vh-400px)]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Submit Your Application</CardTitle>
-              <CardDescription>
-                Tell us about yourself and why you're interested in working with us
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {user ? <JobApplicationForm userId={user.id} /> : (
-                <div className="py-4 text-center text-muted-foreground">
-                  Please log in to submit your application
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </ScrollArea>
+      <div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" />
+              Available Positions
+            </CardTitle>
+            <CardDescription>
+              Browse our current job openings and find the perfect role for your skills
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[calc(100vh-400px)]">
+              <PositionsList onApplyClick={handleApplyClick} />
+            </ScrollArea>
+          </CardContent>
+        </Card>
       </div>
+      
+      <Dialog open={isApplicationDialogOpen} onOpenChange={setIsApplicationDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Apply for {selectedPosition || "Position"}</DialogTitle>
+            <DialogDescription>
+              Complete the application form below to apply for this position
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] pr-4">
+            {user ? (
+              <JobApplicationForm 
+                userId={user.id} 
+                position={selectedPosition || ""} 
+                onSubmitSuccess={() => setIsApplicationDialogOpen(false)}
+              />
+            ) : (
+              <div className="py-4 text-center text-muted-foreground">
+                Please log in to submit your application
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 };

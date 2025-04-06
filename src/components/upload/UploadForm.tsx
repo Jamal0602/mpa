@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { UploadCloud } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface UploadFormProps {
   userId: string;
@@ -48,6 +49,25 @@ export const UploadForm = ({ userId, onUploadSuccess, userPoints, onSuccess, ser
     const filePath = `projects/${userId}/${Date.now()}.${fileExt}`;
 
     try {
+      // First check if the bucket exists, if not create it
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const projectsBucket = buckets?.find(bucket => bucket.name === 'projects');
+      
+      if (!projectsBucket) {
+        // Create the bucket if it doesn't exist
+        const { error: bucketError } = await supabase.storage.createBucket('projects', {
+          public: true,
+          allowedMimeTypes: ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'],
+          fileSizeLimit: 10485760 // 10MB
+        });
+        
+        if (bucketError) {
+          console.error("Error creating bucket:", bucketError);
+          setUploadError("Error creating storage bucket. Please try again.");
+          return null;
+        }
+      }
+
       const { data, error } = await supabase.storage
         .from("projects")
         .upload(filePath, file, {
@@ -60,7 +80,7 @@ export const UploadForm = ({ userId, onUploadSuccess, userPoints, onSuccess, ser
         setUploadError(error.message);
         toast({
           title: "Upload Failed",
-          description: "There was an error uploading your file.",
+          description: "There was an error uploading your file. " + error.message,
           variant: "destructive",
         });
         return null;
@@ -117,7 +137,7 @@ export const UploadForm = ({ userId, onUploadSuccess, userPoints, onSuccess, ser
         return;
       }
 
-      // Construct file URL correctly using path
+      // Construct file URL correctly
       const { data: urlData } = supabase.storage.from("projects").getPublicUrl(uploadResult.path);
       const fileUrl = urlData.publicUrl;
       const fileType = file.type;
@@ -140,7 +160,7 @@ export const UploadForm = ({ userId, onUploadSuccess, userPoints, onSuccess, ser
         setUploadError(error.message);
         toast({
           title: "Submission Failed",
-          description: "There was an error submitting your project.",
+          description: "There was an error submitting your project: " + error.message,
           variant: "destructive",
         });
         return;
@@ -181,74 +201,76 @@ export const UploadForm = ({ userId, onUploadSuccess, userPoints, onSuccess, ser
           Share your creative projects with our community.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="title">Project Title</Label>
-            <Input
-              type="text"
-              id="title"
-              placeholder="Enter project title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="description">Project Description</Label>
-            <Textarea
-              id="description"
-              placeholder="Describe your project"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="category">Category</Label>
-            <Input
-              type="text"
-              id="category"
-              placeholder="Enter project category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="file">Upload File</Label>
-            <Input
-              type="file"
-              id="file"
-              onChange={handleFileChange}
-              required
-            />
-            {file && (
-              <div className="mt-2">
-                Selected file: {file.name} ({file.size} bytes)
+      <CardContent>
+        <ScrollArea className="h-[400px] pr-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="title">Project Title</Label>
+              <Input
+                type="text"
+                id="title"
+                placeholder="Enter project title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Project Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Describe your project"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Input
+                type="text"
+                id="category"
+                placeholder="Enter project category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="file">Upload File</Label>
+              <Input
+                type="file"
+                id="file"
+                onChange={handleFileChange}
+                required
+              />
+              {file && (
+                <div className="mt-2">
+                  Selected file: {file.name} ({Math.round(file.size / 1024)} KB)
+                </div>
+              )}
+            </div>
+            {uploadProgress !== null && (
+              <div className="mt-4">
+                Upload Progress: {uploadProgress.toFixed(2)}%
               </div>
             )}
-          </div>
-          {uploadProgress !== null && (
-            <div className="mt-4">
-              Upload Progress: {uploadProgress.toFixed(2)}%
-            </div>
-          )}
-          {uploadError && <div className="text-red-500 mt-4">Error: {uploadError}</div>}
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? (
-              <>
-                <span className="animate-spin mr-2">⏳</span>
-                Submitting...
-              </>
-            ) : (
-              <>
-                <UploadCloud className="mr-2 h-4 w-4" />
-                Submit Project
-              </>
-            )}
-          </Button>
-        </form>
+            {uploadError && <div className="text-red-500 mt-4">Error: {uploadError}</div>}
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="mr-2 h-4 w-4" />
+                  Submit Project
+                </>
+              )}
+            </Button>
+          </form>
+        </ScrollArea>
       </CardContent>
       <CardFooter>
         <p className="text-muted-foreground text-sm">
