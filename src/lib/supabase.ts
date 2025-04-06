@@ -16,8 +16,4 @@ export interface ErrorReportStats {
   rejected: number;
 }
 
-export type { 
-  ErrorReportStats 
-};
-
 export default supabase;

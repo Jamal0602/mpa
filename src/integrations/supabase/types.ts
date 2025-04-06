@@ -133,9 +133,11 @@ export type Database = {
           cover_letter: string | null
           created_at: string
           email: string
+          experience: string | null
           id: string
           position: string
           resume_url: string | null
+          skills: string[] | null
           status: string | null
           updated_at: string
           user_id: string
@@ -144,9 +146,11 @@ export type Database = {
           cover_letter?: string | null
           created_at?: string
           email: string
+          experience?: string | null
           id?: string
           position: string
           resume_url?: string | null
+          skills?: string[] | null
           status?: string | null
           updated_at?: string
           user_id: string
@@ -155,12 +159,53 @@ export type Database = {
           cover_letter?: string | null
           created_at?: string
           email?: string
+          experience?: string | null
           id?: string
           position?: string
           resume_url?: string | null
+          skills?: string[] | null
           status?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      job_positions: {
+        Row: {
+          created_at: string
+          department: string
+          description: string
+          id: string
+          is_active: boolean
+          location: string
+          requirements: string[]
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          description: string
+          id?: string
+          is_active?: boolean
+          location: string
+          requirements?: string[]
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          location?: string
+          requirements?: string[]
+          title?: string
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -622,12 +667,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      decrement_points: {
-        Args: {
-          user_id: string
-          amount_to_deduct: number
-        }
-        Returns: number
+      decrement_points:
+        | {
+            Args: {
+              user_id: string
+              amount_to_deduct: number
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              user_id: string
+              amount_to_deduct: number
+            }
+            Returns: number
+          }
+      delete_all_users: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_error_report_stats: {
         Args: Record<PropertyKey, never>
