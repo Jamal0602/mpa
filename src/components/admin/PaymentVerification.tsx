@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -48,7 +47,8 @@ import {
   Clock,
   ArrowUpRight,
   ExternalLink,
-  Eye
+  Eye,
+  Copy,
 } from "lucide-react";
 
 interface PaymentTransaction {
@@ -86,7 +86,6 @@ export function PaymentVerification() {
   const [page, setPage] = useState(1);
   const [paymentsPerPage] = useState(10);
 
-  // Query to fetch payment transactions
   const { data: paymentsData, isLoading: isLoadingPayments } = useQuery({
     queryKey: ["payment-transactions"],
     queryFn: async () => {
@@ -107,7 +106,6 @@ export function PaymentVerification() {
     },
   });
 
-  // Mutation to verify/reject payment
   const verifyPaymentMutation = useMutation({
     mutationFn: async ({ 
       paymentId, 
@@ -138,7 +136,6 @@ export function PaymentVerification() {
       
       if (error) throw error;
       
-      // If rejected, create a notification for user
       if (action === "reject" && selectedPayment) {
         await supabase
           .from("notifications")
@@ -167,7 +164,6 @@ export function PaymentVerification() {
     }
   });
 
-  // Filter payments based on search and status
   const filteredPayments = (paymentsData || []).filter(payment => {
     const matchesSearch = 
       payment.payment_reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -182,7 +178,6 @@ export function PaymentVerification() {
     return matchesSearch && matchesStatus;
   });
   
-  // Pagination
   const indexOfLastPayment = page * paymentsPerPage;
   const indexOfFirstPayment = indexOfLastPayment - paymentsPerPage;
   const currentPayments = filteredPayments.slice(indexOfFirstPayment, indexOfLastPayment);
@@ -210,6 +205,11 @@ export function PaymentVerification() {
 
   const openExternalLink = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard!");
   };
 
   if (isLoadingPayments) {
@@ -377,7 +377,6 @@ export function PaymentVerification() {
             </div>
           </ScrollArea>
           
-          {/* Pagination */}
           {filteredPayments.length > paymentsPerPage && (
             <div className="flex justify-between items-center mt-4">
               <p className="text-sm text-muted-foreground">
@@ -404,7 +403,6 @@ export function PaymentVerification() {
         </CardContent>
       </Card>
       
-      {/* Verification Dialog */}
       <Dialog open={isVerifyDialogOpen} onOpenChange={setIsVerifyDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -468,7 +466,6 @@ export function PaymentVerification() {
         </DialogContent>
       </Dialog>
       
-      {/* View Payment Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -566,9 +563,4 @@ export function PaymentVerification() {
       </Dialog>
     </div>
   );
-}
-
-function copyToClipboard(text: string) {
-  navigator.clipboard.writeText(text);
-  toast.success("Copied to clipboard");
 }

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -18,9 +19,12 @@ import { UploadCloud } from "lucide-react";
 interface UploadFormProps {
   userId: string;
   onUploadSuccess: () => void;
+  userPoints?: number;
+  onSuccess?: () => void;
+  serviceMode?: boolean;
 }
 
-export const UploadForm = ({ userId, onUploadSuccess }: UploadFormProps) => {
+export const UploadForm = ({ userId, onUploadSuccess, userPoints, onSuccess, serviceMode = false }: UploadFormProps) => {
   const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -44,7 +48,7 @@ export const UploadForm = ({ userId, onUploadSuccess }: UploadFormProps) => {
     const filePath = `projects/${userId}/${Date.now()}.${fileExt}`;
 
     try {
-      const { data, error, progress } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from("projects")
         .upload(filePath, file, {
           cacheControl: "3600",
@@ -62,16 +66,11 @@ export const UploadForm = ({ userId, onUploadSuccess }: UploadFormProps) => {
         return null;
       }
 
-      // Monitor upload progress
-      return new Promise((resolve) => {
-        const intervalId = setInterval(() => {
-          if (progress.percentage === 100) {
-            clearInterval(intervalId);
-            resolve(data);
-          }
-          setUploadProgress(progress.percentage);
-        }, 100);
-      });
+      // Since progress is not available directly, simulate progress
+      setUploadProgress(100);
+      
+      // Return the data
+      return data;
     } catch (error: any) {
       console.error("Unexpected error during upload:", error);
       setUploadError(error.message);
@@ -83,7 +82,6 @@ export const UploadForm = ({ userId, onUploadSuccess }: UploadFormProps) => {
       return null;
     } finally {
       setIsSubmitting(false);
-      setUploadProgress(null);
     }
   };
 
@@ -119,9 +117,11 @@ export const UploadForm = ({ userId, onUploadSuccess }: UploadFormProps) => {
         return;
       }
 
-      const fileUrl = `${supabase.supabaseUrl}/storage/v1/object/public/${uploadResult.Key}`;
+      // Construct file URL correctly using path
+      const { data: urlData } = supabase.storage.from("projects").getPublicUrl(uploadResult.path);
+      const fileUrl = urlData.publicUrl;
       const fileType = file.type;
-      const filePath = uploadResult.Key;
+      const filePath = uploadResult.path;
 
       const { error } = await supabase.from("projects").insert({
         title,
@@ -155,6 +155,9 @@ export const UploadForm = ({ userId, onUploadSuccess }: UploadFormProps) => {
       setDescription("");
       setCategory("");
       setFile(null);
+      if (onSuccess) {
+        onSuccess();
+      }
       onUploadSuccess();
     } catch (error: any) {
       console.error("Unexpected error during submission:", error);

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -331,7 +330,6 @@ const UploadPage = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Service purchase dialog with multi-step process */}
       <Dialog open={purchaseDialogOpen} onOpenChange={(open) => {
         setPurchaseDialogOpen(open);
         if (!open) {
@@ -411,8 +409,8 @@ const UploadPage = () => {
                       <div className="mb-4">
                         <UploadForm 
                           userId={user.id} 
+                          onUploadSuccess={refetchProfile}
                           userPoints={profile?.key_points || 0}
-                          onSuccess={refetchProfile}
                           serviceMode={true}
                         />
                       </div>

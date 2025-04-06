@@ -1146,10 +1146,10 @@ const AdminPanel = () => {
                   <div>
                     <h3 className="font-medium">Error Reports</h3>
                     <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                      <div>Pending: {errorReportStats.pending || 0}</div>
-                      <div>Resolved: {errorReportStats.resolved || 0}</div>
-                      <div>In Progress: {errorReportStats.in_progress || 0}</div>
-                      <div>Total: {errorReportStats.total || 0}</div>
+                      <div>Pending: {errorReportStats?.pending || 0}</div>
+                      <div>Resolved: {errorReportStats?.resolved || 0}</div>
+                      <div>In Progress: {errorReportStats?.in_progress || 0}</div>
+                      <div>Total: {errorReportStats?.total || 0}</div>
                     </div>
                   </div>
                 )}
