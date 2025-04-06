@@ -1,4 +1,6 @@
 
+import React from 'react';
+
 /**
  * Utility function to handle opening links in mobile apps via external browser
  */
