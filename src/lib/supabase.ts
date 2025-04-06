@@ -15,3 +15,9 @@ export interface ErrorReportStats {
   resolved: number;
   rejected: number;
 }
+
+export type { 
+  ErrorReportStats 
+};
+
+export default supabase;

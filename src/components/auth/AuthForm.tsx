@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { PasswordInput } from "@/components/ui/password-input";
+import { handleOAuthLink } from "@/utils/linkHandler";
 
 const AuthForm = () => {
   const [variant, setVariant] = useState<"login" | "register">("login");
@@ -31,6 +32,7 @@ const AuthForm = () => {
       if (variant === "register") {
         if (!username) {
           setErrorMsg("Username is required");
+          setIsLoading(false);
           return;
         }
         
@@ -92,7 +94,7 @@ const AuthForm = () => {
         throw error;
       }
       
-      navigate("/dashboard");
+      // The redirect is handled by Supabase's OAuth flow
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       setErrorMsg(error.message || "Failed to sign in with Google.");
@@ -101,7 +103,6 @@ const AuthForm = () => {
         description: error.message || "Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   }

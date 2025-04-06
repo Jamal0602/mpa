@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -9,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Pencil, Save, Github, Twitter, Instagram, Facebook, Mail, Loader2 } from 'lucide-react';
+import { SafeLink, openExternalLink } from '@/utils/linkHandler';
 
 interface FooterContent {
   id: string;
@@ -44,7 +44,6 @@ export const Footer = ({ showPoweredBy = true }: FooterProps) => {
     facebook: ''
   });
 
-  // Fetch footer content data
   const { data: footerContent, isLoading, refetch } = useQuery({
     queryKey: ['footer-content'],
     queryFn: async () => {
@@ -68,7 +67,6 @@ export const Footer = ({ showPoweredBy = true }: FooterProps) => {
     }
   });
 
-  // Mutation to save footer content
   const saveMutation = useMutation({
     mutationFn: async (data: Omit<FooterContent, 'id' | 'created_at'>) => {
       if (footerContent?.id) {
@@ -96,7 +94,6 @@ export const Footer = ({ showPoweredBy = true }: FooterProps) => {
     }
   });
 
-  // Use useEffect to set state when data is loaded
   useEffect(() => {
     if (footerContent) {
       setAboutText(footerContent.about_text || '');
@@ -110,7 +107,6 @@ export const Footer = ({ showPoweredBy = true }: FooterProps) => {
         facebook: ''
       });
     } else if (!isLoading) {
-      // Default values when no data is found
       setAboutText('Multi Project Association (MPA) is a platform for managing projects, collaborating with team members, and tracking progress.');
       setContactEmail('contact@mpa.example.com');
       setPrivacyText('Your privacy is important to us. We collect minimal data and use it only for service improvement.');
@@ -168,24 +164,24 @@ export const Footer = ({ showPoweredBy = true }: FooterProps) => {
             )}
             <div className="flex space-x-4 mt-4">
               {socialLinks.github && (
-                <a href={socialLinks.github} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
+                <SafeLink href={socialLinks.github} className="text-muted-foreground hover:text-primary">
                   <Github className="h-5 w-5" />
-                </a>
+                </SafeLink>
               )}
               {socialLinks.twitter && (
-                <a href={socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
+                <SafeLink href={socialLinks.twitter} className="text-muted-foreground hover:text-primary">
                   <Twitter className="h-5 w-5" />
-                </a>
+                </SafeLink>
               )}
               {socialLinks.instagram && (
-                <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
+                <SafeLink href={socialLinks.instagram} className="text-muted-foreground hover:text-primary">
                   <Instagram className="h-5 w-5" />
-                </a>
+                </SafeLink>
               )}
               {socialLinks.facebook && (
-                <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
+                <SafeLink href={socialLinks.facebook} className="text-muted-foreground hover:text-primary">
                   <Facebook className="h-5 w-5" />
-                </a>
+                </SafeLink>
               )}
             </div>
             {isEditing && (
@@ -276,9 +272,9 @@ export const Footer = ({ showPoweredBy = true }: FooterProps) => {
         <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} Multi Project Association. All rights reserved.</p>
           <p className="mt-1">
-            <a href="/terms" className="hover:text-primary">Terms</a> · 
-            <a href="/privacy" className="hover:text-primary ml-2">Privacy</a> · 
-            <a href="/cookies" className="hover:text-primary ml-2">Cookies</a>
+            <Link to="/terms" className="hover:text-primary">Terms</Link> · 
+            <Link to="/privacy" className="hover:text-primary ml-2">Privacy</Link> · 
+            <Link to="/cookies" className="hover:text-primary ml-2">Cookies</Link>
           </p>
           {showPoweredBy && (
             <div className="mt-4 text-xs font-semibold">

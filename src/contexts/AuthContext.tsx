@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
-import { ensureProfileHasReferralAndMpaId } from '@/components/auth/ProfileService';
+import { checkUserProfile, createUserProfile, ensureProfileHasReferralAndMpaId } from '@/components/auth/ProfileService';
 
 interface UserProfile {
   id: string;
@@ -58,28 +58,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-        
-      if (error) {
-        console.error("Error fetching profile:", error);
+      const profileData = await checkUserProfile(userId);
+      
+      if (!profileData && session) {
+        console.log("No profile found, attempting to create one...");
+        const result = await createUserProfile(session);
+        if (result.success && result.profile) {
+          return result.profile as UserProfile;
+        }
         return null;
       }
       
       // If user has a theme preference, apply it
-      if (data?.theme_preference && data.theme_preference !== 'system') {
-        setTheme(data.theme_preference);
+      if (profileData?.theme_preference && profileData.theme_preference !== 'system') {
+        setTheme(profileData.theme_preference);
       }
       
       // Ensure the profile has MPA ID and referral code
-      if (data && data.username) {
-        await ensureProfileHasReferralAndMpaId(userId, data.username);
+      if (profileData && profileData.username) {
+        await ensureProfileHasReferralAndMpaId(userId, profileData.username);
       }
       
-      return data as UserProfile;
+      return profileData as UserProfile;
     } catch (error) {
       console.error("Error in fetchProfile:", error);
       return null;
@@ -176,6 +176,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 const profileData = await fetchProfile(session.user.id);
                 if (profileData) {
                   setProfile(profileData);
+                } else {
+                  console.warn("Could not fetch or create user profile");
                 }
               }, 0);
             } else {
@@ -196,6 +198,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const profileData = await fetchProfile(session.user.id);
           if (profileData) {
             setProfile(profileData);
+          } else {
+            console.warn("Could not fetch or create user profile on initial load");
           }
         }
         

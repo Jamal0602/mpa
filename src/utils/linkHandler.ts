@@ -32,7 +32,7 @@ export const openExternalLink = (url: string, event?: React.MouseEvent) => {
 /**
  * Get MPA link opening strategy based on environment
  */
-export const getLinkTarget = (): string => {
+export const getLinkTarget = (): '_blank' | '_system' | '_self' => {
   // Check if in mobile app environment 
   if (window.navigator && (window.navigator as any).app) {
     return '_system'; // External browser for mobile apps
@@ -62,4 +62,42 @@ export const handleOAuthLink = (provider: string) => {
   // Let the normal auth flow handle it in regular browsers
   window.location.href = authUrl;
   return true;
+};
+
+/**
+ * Safe link element that handles external links in mobile apps
+ */
+export const SafeLink = ({ 
+  href, 
+  children, 
+  className = '',
+  onClick,
+  ...rest 
+}: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => {
+  const isExternal = href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:');
+  const target = isExternal ? getLinkTarget() : undefined;
+  
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (onClick) {
+      onClick(e);
+    }
+    
+    if (isExternal && isMobileApp()) {
+      e.preventDefault();
+      openExternalLink(href);
+    }
+  };
+  
+  return (
+    <a 
+      href={href} 
+      target={target} 
+      rel={isExternal ? "noopener noreferrer" : undefined} 
+      onClick={handleClick} 
+      className={className}
+      {...rest}
+    >
+      {children}
+    </a>
+  );
 };

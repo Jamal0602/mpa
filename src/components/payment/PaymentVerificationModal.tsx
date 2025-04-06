@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +32,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SafeLink, openExternalLink } from '@/utils/linkHandler';
 
 interface PaymentVerificationModalProps {
   open: boolean;
@@ -140,7 +140,6 @@ export function PaymentVerificationModal({
   const paymentDetails = PAYMENT_DETAILS[paymentMethod] || PAYMENT_DETAILS.upi;
   const isUpi = paymentMethod === 'upi';
   
-  // Calculate bonus points (5% of amount)
   const calculateBonus = () => {
     if (amount >= 100) {
       return Math.floor(amount * 0.05);
@@ -158,16 +157,13 @@ export function PaymentVerificationModal({
     setError(null);
     
     try {
-      // Calculate bonus points before submission
       const bonus = calculateBonus();
       setBonusPoints(bonus);
       
-      // First attempt auto-verification
       setAutoVerifyStatus('verifying');
       
-      // Simulate verification check with a delay
       setTimeout(() => {
-        const success = Math.random() > 0.3; // 70% chance of successful verification for demo
+        const success = Math.random() > 0.3;
         
         if (success) {
           setAutoVerifyStatus('verified');
@@ -175,7 +171,6 @@ export function PaymentVerificationModal({
           setPaymentSubmitted(true);
         } else {
           setAutoVerifyStatus('failed');
-          // Continue with manual verification since auto-verification failed
           setTimeout(() => {
             onConfirm(transactionId);
             setPaymentSubmitted(true);
@@ -224,13 +219,10 @@ export function PaymentVerificationModal({
     const paymentNote = `Payment for services - ${Date.now()}`;
     const deepLink = app.deepLink(paymentDetails.upiId, amount, paymentNote);
     
-    // Try opening the app
     window.location.href = deepLink;
     
-    // Set a note to help user remember which app they used
     setNotes(`Payment made using ${app.name}`);
     
-    // Fallback for desktop or if app doesn't open
     setTimeout(() => {
       const fallbackNote = `If ${app.name} didn't open automatically, please manually open the app and send payment to ${paymentDetails.upiId}`;
       toast(fallbackNote, {
@@ -243,8 +235,8 @@ export function PaymentVerificationModal({
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen) handleClose();
     }}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh]">
-        <ScrollArea className="max-h-[75vh]">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-hidden">
+        <ScrollArea className="max-h-[calc(85vh-2rem)] pr-2">
           {!paymentSubmitted ? (
             <>
               <DialogHeader>
@@ -261,7 +253,7 @@ export function PaymentVerificationModal({
                 </DialogDescription>
               </DialogHeader>
               
-              <Card>
+              <Card className="mt-4">
                 <CardHeader>
                   <CardTitle>
                     Payment Options
@@ -441,7 +433,7 @@ export function PaymentVerificationModal({
           )}
         </ScrollArea>
         
-        <DialogFooter>
+        <DialogFooter className="pt-4 mt-2">
           {!paymentSubmitted ? (
             <>
               <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
