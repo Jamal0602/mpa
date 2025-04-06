@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { CustomBadge } from "@/components/ui/custom-badge";
 import { LoadingSpinner } from "@/components/ui/loading";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -207,6 +208,10 @@ export function PaymentVerification() {
     });
   };
 
+  const openExternalLink = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   if (isLoadingPayments) {
     return <LoadingSpinner />;
   }
@@ -248,109 +253,129 @@ export function PaymentVerification() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Spark Points</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentPayments.length > 0 ? (
-                  currentPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>
-                        {payment.user?.full_name || "Unknown User"}
-                      </TableCell>
-                      <TableCell>
-                        {payment.amount} {payment.currency}
-                      </TableCell>
-                      <TableCell>{payment.spark_points}</TableCell>
-                      <TableCell className="capitalize">
-                        {payment.payment_method.replace('_', ' ')}
-                      </TableCell>
-                      <TableCell>
-                        {payment.payment_reference ? (
-                          <span className="text-xs bg-secondary px-2 py-1 rounded-full">
-                            {payment.payment_reference.substring(0, 8)}...
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">No reference</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {payment.verification_status === "unverified" && (
-                          <CustomBadge variant="warning" className="flex items-center">
-                            <Clock className="mr-1 h-3 w-3" /> Pending
-                          </CustomBadge>
-                        )}
-                        {payment.verification_status === "verified" && (
-                          <CustomBadge variant="success" className="flex items-center">
-                            <CheckCircle className="mr-1 h-3 w-3" /> Verified
-                          </CustomBadge>
-                        )}
-                        {payment.verification_status === "rejected" && (
-                          <CustomBadge variant="destructive" className="flex items-center">
-                            <XCircle className="mr-1 h-3 w-3" /> Rejected
-                          </CustomBadge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {new Date(payment.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => viewPaymentDetails(payment)}
-                          >
-                            <Eye className="h-4 w-4" />
-                            <span className="sr-only">View</span>
-                          </Button>
-                          {payment.verification_status === "unverified" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-green-600 border-green-600"
-                                onClick={() => handleVerifyPayment(payment, "verify")}
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                                <span className="sr-only">Verify</span>
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600 border-red-600"
-                                onClick={() => handleVerifyPayment(payment, "reject")}
-                              >
-                                <XCircle className="h-4 w-4" />
-                                <span className="sr-only">Reject</span>
-                              </Button>
-                            </>
+          <ScrollArea className="h-[calc(100vh-320px)]">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Spark Points</TableHead>
+                    <TableHead>Payment Method</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentPayments.length > 0 ? (
+                    currentPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell>
+                          {payment.user?.full_name || "Unknown User"}
+                        </TableCell>
+                        <TableCell>
+                          {payment.amount} {payment.currency}
+                        </TableCell>
+                        <TableCell>{payment.spark_points}</TableCell>
+                        <TableCell className="capitalize">
+                          {payment.payment_method.replace('_', ' ')}
+                        </TableCell>
+                        <TableCell>
+                          {payment.payment_reference ? (
+                            <div 
+                              onClick={() => copyToClipboard(payment.payment_reference || "")}
+                              className="text-xs bg-secondary px-2 py-1 rounded-full cursor-pointer hover:bg-secondary/80 transition-colors"
+                              title="Click to copy"
+                            >
+                              {payment.payment_reference.substring(0, 8)}...
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">No reference</span>
                           )}
-                        </div>
+                        </TableCell>
+                        <TableCell>
+                          {payment.verification_status === "unverified" && (
+                            <CustomBadge variant="warning" className="flex items-center">
+                              <Clock className="mr-1 h-3 w-3" /> Pending
+                            </CustomBadge>
+                          )}
+                          {payment.verification_status === "verified" && (
+                            <CustomBadge variant="success" className="flex items-center">
+                              <CheckCircle className="mr-1 h-3 w-3" /> Verified
+                            </CustomBadge>
+                          )}
+                          {payment.verification_status === "rejected" && (
+                            <CustomBadge variant="destructive" className="flex items-center">
+                              <XCircle className="mr-1 h-3 w-3" /> Rejected
+                            </CustomBadge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(payment.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => viewPaymentDetails(payment)}
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span className="sr-only">View</span>
+                            </Button>
+                            {payment.verification_status === "unverified" && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-green-600 border-green-600 hover:bg-green-50"
+                                  onClick={() => handleVerifyPayment(payment, "verify")}
+                                  title="Approve payment"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                  <span className="sr-only">Verify</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 border-red-600 hover:bg-red-50"
+                                  onClick={() => handleVerifyPayment(payment, "reject")}
+                                  title="Reject payment"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                  <span className="sr-only">Reject</span>
+                                </Button>
+                              </>
+                            )}
+                            {payment.payment_reference && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openExternalLink(`https://example.com/verify/${payment.payment_reference}`)}
+                                title="Check externally"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                                <span className="sr-only">External</span>
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        No payments found matching your filters.
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      No payments found matching your filters.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </ScrollArea>
           
           {/* Pagination */}
           {filteredPayments.length > paymentsPerPage && (
@@ -392,37 +417,43 @@ export function PaymentVerification() {
                 : "Reject this payment. The user will not receive Spark Points."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">User</div>
-              <div>{selectedPayment?.user?.full_name}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Amount</div>
-              <div>{selectedPayment?.amount} {selectedPayment?.currency}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Spark Points</div>
-              <div>{selectedPayment?.spark_points}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Reference</div>
-              <div>{selectedPayment?.payment_reference || "No reference"}</div>
-            </div>
-            
-            {verificationAction === "reject" && (
-              <div className="space-y-2">
-                <Label htmlFor="note">Rejection Reason</Label>
-                <Textarea
-                  id="note"
-                  value={verificationNote}
-                  onChange={(e) => setVerificationNote(e.target.value)}
-                  placeholder="Add a reason for rejecting this payment"
-                  rows={3}
-                />
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">User</div>
+                <div>{selectedPayment?.user?.full_name}</div>
               </div>
-            )}
-          </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Amount</div>
+                <div>{selectedPayment?.amount} {selectedPayment?.currency}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Spark Points</div>
+                <div>{selectedPayment?.spark_points}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Reference</div>
+                <div className="break-all">{selectedPayment?.payment_reference || "No reference"}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Date</div>
+                <div>{new Date(selectedPayment?.created_at || "").toLocaleString()}</div>
+              </div>
+              
+              {verificationAction === "reject" && (
+                <div className="space-y-2">
+                  <Label htmlFor="note">Rejection Reason</Label>
+                  <Textarea
+                    id="note"
+                    value={verificationNote}
+                    onChange={(e) => setVerificationNote(e.target.value)}
+                    placeholder="Add a reason for rejecting this payment"
+                    rows={3}
+                  />
+                </div>
+              )}
+            </div>
+          </ScrollArea>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsVerifyDialogOpen(false)}>
               Cancel
@@ -446,67 +477,98 @@ export function PaymentVerification() {
               Complete payment transaction information
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Transaction ID</div>
-              <div className="text-sm break-all">{selectedPayment?.id}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">User</div>
-              <div className="text-sm">{selectedPayment?.user?.full_name}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Email</div>
-              <div className="text-sm">{selectedPayment?.user?.email}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Amount</div>
-              <div className="text-sm">{selectedPayment?.amount} {selectedPayment?.currency}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Spark Points</div>
-              <div className="text-sm">{selectedPayment?.spark_points}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Payment Method</div>
-              <div className="text-sm capitalize">{selectedPayment?.payment_method.replace('_', ' ')}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Reference</div>
-              <div className="text-sm break-all">{selectedPayment?.payment_reference || "No reference"}</div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Status</div>
-              <div className="text-sm">
-                {selectedPayment?.verification_status === "unverified" && (
-                  <span className="text-amber-500 font-medium">Pending Verification</span>
-                )}
-                {selectedPayment?.verification_status === "verified" && (
-                  <span className="text-green-500 font-medium">Verified</span>
-                )}
-                {selectedPayment?.verification_status === "rejected" && (
-                  <span className="text-red-500 font-medium">Rejected</span>
-                )}
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Transaction ID</div>
+                <div className="text-sm break-all">{selectedPayment?.id}</div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-sm font-medium">Date Created</div>
-              <div className="text-sm">{new Date(selectedPayment?.created_at || "").toLocaleString()}</div>
-            </div>
-            {selectedPayment?.verified_at && (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="text-sm font-medium">Verified At</div>
-                  <div className="text-sm">{new Date(selectedPayment.verified_at).toLocaleString()}</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">User</div>
+                <div className="text-sm">{selectedPayment?.user?.full_name}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Email</div>
+                <div className="text-sm">{selectedPayment?.user?.email}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Amount</div>
+                <div className="text-sm">{selectedPayment?.amount} {selectedPayment?.currency}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Spark Points</div>
+                <div className="text-sm">{selectedPayment?.spark_points}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Payment Method</div>
+                <div className="text-sm capitalize">{selectedPayment?.payment_method.replace('_', ' ')}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Reference</div>
+                <div className="text-sm break-all">
+                  <div className="flex items-center gap-2">
+                    <span>{selectedPayment?.payment_reference || "No reference"}</span>
+                    {selectedPayment?.payment_reference && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0"
+                        onClick={() => copyToClipboard(selectedPayment.payment_reference || "")}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Status</div>
+                <div className="text-sm">
+                  {selectedPayment?.verification_status === "unverified" && (
+                    <span className="text-amber-500 font-medium">Pending Verification</span>
+                  )}
+                  {selectedPayment?.verification_status === "verified" && (
+                    <span className="text-green-500 font-medium">Verified</span>
+                  )}
+                  {selectedPayment?.verification_status === "rejected" && (
+                    <span className="text-red-500 font-medium">Rejected</span>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm font-medium">Date Created</div>
+                <div className="text-sm">{new Date(selectedPayment?.created_at || "").toLocaleString()}</div>
+              </div>
+              {selectedPayment?.verified_at && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-sm font-medium">Verified At</div>
+                    <div className="text-sm">{new Date(selectedPayment.verified_at).toLocaleString()}</div>
+                  </div>
+                </>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter className="flex gap-2">
+            {selectedPayment?.payment_reference && (
+              <Button 
+                variant="outline" 
+                onClick={() => openExternalLink(`https://example.com/verify/${selectedPayment.payment_reference}`)}
+                className="gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Verify Externally
+              </Button>
             )}
-          </div>
-          <DialogFooter>
             <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
+}
+
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text);
+  toast.success("Copied to clipboard");
 }

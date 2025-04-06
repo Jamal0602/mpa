@@ -29,6 +29,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -47,7 +48,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Users, AlertTriangle, FileText, Settings, BarChart3 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const AdminPanel = () => {
   const { user } = useAuth();
@@ -354,8 +356,8 @@ const AdminPanel = () => {
   useEffect(() => {
     if (!isAdmin) return;
 
-    supabase
-      .channel("admin-changes")
+    const profilesChannel = supabase
+      .channel("admin-changes-profiles")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "profiles" },
@@ -384,7 +386,7 @@ const AdminPanel = () => {
       )
       .subscribe();
 
-    supabase
+    const roleRequestsChannel = supabase
       .channel("admin-role-requests")
       .on(
         "postgres_changes",
@@ -401,7 +403,7 @@ const AdminPanel = () => {
       )
       .subscribe();
 
-    supabase
+    const errorReportsChannel = supabase
       .channel("admin-error-reports")
       .on(
         "postgres_changes",
@@ -419,7 +421,7 @@ const AdminPanel = () => {
       )
       .subscribe();
 
-    supabase
+    const servicesChannel = supabase
       .channel("admin-services")
       .on(
         "postgres_changes",
@@ -436,7 +438,7 @@ const AdminPanel = () => {
       )
       .subscribe();
 
-    supabase
+    const widgetsChannel = supabase
       .channel("admin-widgets")
       .on(
         "postgres_changes",
@@ -453,7 +455,7 @@ const AdminPanel = () => {
       )
       .subscribe();
 
-    supabase
+    const serviceOffersChannel = supabase
       .channel("admin-service-offers")
       .on(
         "postgres_changes",
@@ -470,7 +472,7 @@ const AdminPanel = () => {
       )
       .subscribe();
 
-    supabase
+    const footerContentChannel = supabase
       .channel("admin-footer-content")
       .on(
         "postgres_changes",
@@ -487,7 +489,7 @@ const AdminPanel = () => {
       )
       .subscribe();
 
-    supabase
+    const postsChannel = supabase
       .channel("admin-posts")
       .on(
         "postgres_changes",
@@ -505,14 +507,14 @@ const AdminPanel = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel("admin-changes");
-      supabase.removeChannel("admin-role-requests");
-      supabase.removeChannel("admin-error-reports");
-      supabase.removeChannel("admin-services");
-      supabase.removeChannel("admin-widgets");
-      supabase.removeChannel("admin-service-offers");
-      supabase.removeChannel("admin-footer-content");
-      supabase.removeChannel("admin-posts");
+      supabase.removeChannel(profilesChannel);
+      supabase.removeChannel(roleRequestsChannel);
+      supabase.removeChannel(errorReportsChannel);
+      supabase.removeChannel(servicesChannel);
+      supabase.removeChannel(widgetsChannel);
+      supabase.removeChannel(serviceOffersChannel);
+      supabase.removeChannel(footerContentChannel);
+      supabase.removeChannel(postsChannel);
     };
   }, [isAdmin]);
 
@@ -548,7 +550,6 @@ const AdminPanel = () => {
 
     setIsApiKeyLoading(true);
     try {
-      // Simulate API key generation
       const newApiKey = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
       setApiKey(newApiKey);
@@ -1036,30 +1037,153 @@ const AdminPanel = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 space-y-6">
       <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>Manage user roles and permissions</CardDescription>
+          <CardHeader className="bg-blue-50 dark:bg-blue-900/20">
+            <CardTitle className="flex items-center">
+              <Users className="mr-2 h-5 w-5" />
+              User Management
+            </CardTitle>
+            <CardDescription>Manage users and roles</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p>Total users: {users.length}</p>
+          <CardContent className="pt-4">
+            <ScrollArea className="h-[150px]">
+              <p className="font-medium">Total users: {users.length}</p>
+              <div className="mt-2">
+                <Button size="sm" className="w-full" onClick={() => setSelectedUser(users[0])}>
+                  Manage Users
+                </Button>
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader>
-            <CardTitle>Error Reports</CardTitle>
+          <CardHeader className="bg-amber-50 dark:bg-amber-900/20">
+            <CardTitle className="flex items-center">
+              <AlertTriangle className="mr-2 h-5 w-5" />
+              Error Reports
+            </CardTitle>
             <CardDescription>Manage reported errors</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p>Total reports: {errorReports.length}</p>
+          <CardContent className="pt-4">
+            <ScrollArea className="h-[150px]">
+              <p className="font-medium">Total reports: {errorReports.length}</p>
+              <div className="mt-2">
+                <Button size="sm" className="w-full" onClick={() => setIsErrorReportModalOpen(true)}>
+                  View Reports
+                </Button>
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="bg-green-50 dark:bg-green-900/20">
+            <CardTitle className="flex items-center">
+              <FileText className="mr-2 h-5 w-5" />
+              Posts & Content
+            </CardTitle>
+            <CardDescription>Manage content</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ScrollArea className="h-[150px]">
+              <p className="font-medium">Total posts: {posts.length}</p>
+              <div className="mt-2">
+                <Button size="sm" className="w-full" onClick={() => setIsPostModalOpen(true)}>
+                  Manage Content
+                </Button>
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader className="bg-purple-50 dark:bg-purple-900/20">
+            <CardTitle className="flex items-center">
+              <Settings className="mr-2 h-5 w-5" />
+              System Settings
+            </CardTitle>
+            <CardDescription>Configure system settings</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ScrollArea className="h-[200px]">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium">Services: {services.length}</h3>
+                  <Button size="sm" className="mt-1" onClick={() => setIsServiceModalOpen(true)}>
+                    Manage Services
+                  </Button>
+                </div>
+                <div>
+                  <h3 className="font-medium">Widgets: {widgets.length}</h3>
+                  <Button size="sm" className="mt-1" onClick={() => setIsWidgetModalOpen(true)}>
+                    Manage Widgets
+                  </Button>
+                </div>
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="bg-rose-50 dark:bg-rose-900/20">
+            <CardTitle className="flex items-center">
+              <BarChart3 className="mr-2 h-5 w-5" />
+              Analytics Overview
+            </CardTitle>
+            <CardDescription>System stats and metrics</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ScrollArea className="h-[200px]">
+              <div className="space-y-4">
+                {errorReportStats && (
+                  <div>
+                    <h3 className="font-medium">Error Reports</h3>
+                    <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                      <div>Pending: {errorReportStats.pending || 0}</div>
+                      <div>Resolved: {errorReportStats.resolved || 0}</div>
+                      <div>In Progress: {errorReportStats.in_progress || 0}</div>
+                      <div>Total: {errorReportStats.total || 0}</div>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-medium">Referrals</h3>
+                  <Button size="sm" className="mt-1" onClick={() => navigate("/referral")}>
+                    View Referrals
+                  </Button>
+                </div>
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={isApiKeyModalOpen} onOpenChange={setIsApiKeyModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>API Key</DialogTitle>
+            <DialogDescription>Copy this API key for your applications</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2">
+            <Input value={apiKey} readOnly />
+            <Button size="icon" onClick={copyApiKeyToClipboard}>
+              {isApiKeyCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsApiKeyModalOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Other dialogs could be added here as needed */}
     </div>
   );
 };

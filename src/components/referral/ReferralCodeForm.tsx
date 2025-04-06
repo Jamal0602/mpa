@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
+import { ExternalLink, Gift, ArrowRight } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ReferralCodeFormProps {
   userId: string;
@@ -18,14 +20,12 @@ export const ReferralCodeForm = ({ userId, onSuccess }: ReferralCodeFormProps) =
   const navigate = useNavigate();
   const [referredCode, setReferredCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   const submitReferralCode = async () => {
     if (!referredCode || referredCode.trim() === "") {
-      toast({
-        title: "Error",
-        description: "Please enter a valid referral code",
-        variant: "destructive",
-      });
+      setError("Please enter a valid referral code");
       return;
     }
 
@@ -40,6 +40,7 @@ export const ReferralCodeForm = ({ userId, onSuccess }: ReferralCodeFormProps) =
     }
 
     setIsSubmitting(true);
+    setError("");
 
     try {
       // Check if user already used a referral code
@@ -50,12 +51,7 @@ export const ReferralCodeForm = ({ userId, onSuccess }: ReferralCodeFormProps) =
         .single();
 
       if (profileData && profileData.referred_by) {
-        toast({
-          title: "Already referred",
-          description: "You've already used a referral code",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
+        setError("You've already used a referral code");
         return;
       }
 
@@ -67,22 +63,12 @@ export const ReferralCodeForm = ({ userId, onSuccess }: ReferralCodeFormProps) =
         .single();
 
       if (!referrerData) {
-        toast({
-          title: "Invalid code",
-          description: "This referral code doesn't exist",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
+        setError("This referral code doesn't exist");
         return;
       }
 
       if (referrerData.id === userId) {
-        toast({
-          title: "Invalid code",
-          description: "You cannot use your own referral code",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
+        setError("You cannot use your own referral code");
         return;
       }
 
@@ -99,17 +85,15 @@ export const ReferralCodeForm = ({ userId, onSuccess }: ReferralCodeFormProps) =
         description: "Referral code applied successfully. You've earned 10 Spark Points!",
       });
       
+      setSuccess(true);
+      
       // Refresh data
       onSuccess();
       setReferredCode("");
       
     } catch (error: any) {
       console.error("Error processing referral:", error);
-      toast({
-        title: "Error",
-        description: "Failed to process referral. Please try again later.",
-        variant: "destructive",
-      });
+      setError(error.message || "Failed to process referral. Please try again later.");
     } finally {
       setIsSubmitting(false);
     }
@@ -118,36 +102,91 @@ export const ReferralCodeForm = ({ userId, onSuccess }: ReferralCodeFormProps) =
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Enter a Referral Code</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Gift className="h-5 w-5 text-primary" />
+          Enter a Referral Code
+        </CardTitle>
         <CardDescription>
           Got a referral code from a friend? Enter it here to get 10 Spark Points!
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="referred-code">Referral Code</Label>
-          <Input 
-            id="referred-code" 
-            placeholder="Enter referral code" 
-            value={referredCode}
-            onChange={(e) => setReferredCode(e.target.value)}
-          />
-        </div>
+        {success ? (
+          <div className="py-8 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+              <Gift className="h-8 w-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-semibold">Referral Successful!</h3>
+            <p className="text-muted-foreground">
+              You've been awarded 10 Spark Points. Your friend will also receive 10 Spark Points as a thank you.
+            </p>
+            <Button 
+              onClick={() => navigate("/subscription")} 
+              className="mt-4 gap-2"
+            >
+              Check your points <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div>
+              <Label htmlFor="referred-code">Referral Code</Label>
+              <Input 
+                id="referred-code" 
+                placeholder="Enter referral code" 
+                value={referredCode}
+                onChange={(e) => {
+                  setReferredCode(e.target.value);
+                  setError("");
+                }}
+              />
+            </div>
+            
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="bg-muted p-3 rounded-md text-sm">
+              <p className="font-medium">How it works:</p>
+              <ul className="list-disc list-inside space-y-1 mt-2">
+                <li>Enter a friend's referral code</li>
+                <li>You receive 10 Spark Points</li>
+                <li>Your friend gets 10 Spark Points</li>
+                <li>Share your code to earn more</li>
+              </ul>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              <a 
+                href="/terms" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 hover:underline"
+              >
+                View Terms and Conditions <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </>
+        )}
       </CardContent>
-      <CardFooter>
-        <Button 
-          className="w-full" 
-          onClick={submitReferralCode}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <>
-              <span className="animate-spin mr-2">⏳</span>
-              Processing...
-            </>
-          ) : "Apply Code"}
-        </Button>
-      </CardFooter>
+      {!success && (
+        <CardFooter>
+          <Button 
+            className="w-full" 
+            onClick={submitReferralCode}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <span className="animate-spin mr-2">⏳</span>
+                Processing...
+              </>
+            ) : "Apply Code"}
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 };
