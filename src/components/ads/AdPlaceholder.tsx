@@ -1,45 +1,31 @@
 
-import React from "react";
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { Card } from '@/components/ui/card';
 
 interface AdPlaceholderProps {
-  type: "banner" | "sidebar" | "inline" | "leaderboard";
+  width?: string;
+  height?: string;
+  text?: string;
   className?: string;
 }
 
-export function AdPlaceholder({ type, className }: AdPlaceholderProps) {
-  // Size mapping based on ad type
-  const sizeMap = {
-    banner: "h-[90px] w-full",
-    sidebar: "h-[250px] w-[300px]",
-    inline: "h-[280px] w-full",
-    leaderboard: "h-[90px] w-[728px] max-w-full",
-  };
-
-  React.useEffect(() => {
-    // Initialize ads
-    try {
-      if ((window as any).adsbygoogle && document.querySelectorAll('.adsbygoogle').length) {
-        (window as any).adsbygoogle.push({});
-      }
-    } catch (e) {
-      console.error("AdSense error:", e);
-    }
-  }, []);
-
+const AdPlaceholder: React.FC<AdPlaceholderProps> = ({
+  width = '100%',
+  height = '250px',
+  text = 'Advertisement',
+  className = '',
+}) => {
   return (
-    <div className={cn("mx-auto my-4 overflow-hidden bg-background/50 rounded-md border flex items-center justify-center opacity-80 hover:opacity-100 transition-opacity", 
-      sizeMap[type], 
-      className
-    )}>
-      <ins 
-        className="adsbygoogle" 
-        style={{display: "block", width: "100%", height: "100%"}}
-        data-ad-client="ca-pub-7483780622360467"
-        data-ad-slot="auto"
-        data-ad-format="auto"
-        data-full-width-responsive="true"
-      />
-    </div>
+    <Card 
+      className={`flex items-center justify-center bg-gradient-to-r from-muted/50 to-muted ${className}`}
+      style={{ width, height }}
+    >
+      <div className="text-center">
+        <p className="text-muted-foreground text-sm">{text}</p>
+        <p className="text-xs text-muted-foreground/70 mt-1">cubiz.space</p>
+      </div>
+    </Card>
   );
-}
+};
+
+export default AdPlaceholder;
