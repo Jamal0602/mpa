@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { getCurrentProgress } from '@/utils/constructionProgress';
 
 interface ConstructionPopupProps {
   initialProgress?: number;
@@ -23,30 +23,19 @@ export const ConstructionPopup: React.FC<ConstructionPopupProps> = ({
   // Function to fetch the current construction progress
   const fetchProgress = async () => {
     try {
-      const { data, error } = await supabase
-        .from('app_settings')
-        .select('construction_progress')
-        .single();
+      const currentProgress = await getCurrentProgress();
+      setProgress(currentProgress);
       
-      if (error) {
-        console.error('Error fetching construction progress:', error);
-        return;
+      // Auto-hide when complete
+      if (autoDeleteWhenComplete && currentProgress >= 100) {
+        setTimeout(() => {
+          setIsVisible(false);
+        }, 3000); // Show completion for 3 seconds before hiding
       }
-
-      if (data && typeof data.construction_progress === 'number') {
-        setProgress(data.construction_progress);
-        
-        // Auto-hide when complete
-        if (autoDeleteWhenComplete && data.construction_progress >= 100) {
-          setTimeout(() => {
-            setIsVisible(false);
-          }, 3000); // Show completion for 3 seconds before hiding
-        }
-        
-        // Allow manual close when above 50% complete
-        if (data.construction_progress > 50) {
-          setShowCloseButton(true);
-        }
+      
+      // Allow manual close when above 50% complete
+      if (currentProgress > 50) {
+        setShowCloseButton(true);
       }
     } catch (error) {
       console.error('Failed to fetch construction progress:', error);

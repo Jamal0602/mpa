@@ -30,13 +30,34 @@ const supabaseOptions = {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, supabaseOptions);
 
-// Add types for RPC functions return values
+// Add types for RPC functions and other data structures
 export interface ErrorReportStats {
   total: number;
   pending: number;
   in_progress: number;
   resolved: number;
   rejected: number;
+}
+
+export interface AppSettings {
+  id: string;
+  key: string;
+  value: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConstructionPhaseDB {
+  id: string;
+  name: string;
+  description: string;
+  start_progress: number;
+  end_progress: number;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Logger function for consistent supabase logging

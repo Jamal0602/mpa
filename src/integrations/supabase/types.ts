@@ -9,6 +9,147 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      advertising_campaigns: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean
+          name: string
+          start_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          start_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          start_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      advertising_content: {
+        Row: {
+          campaign_id: string | null
+          content_html: string | null
+          content_type: string
+          content_url: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          slot_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          content_html?: string | null
+          content_type: string
+          content_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          slot_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          content_html?: string | null
+          content_type?: string
+          content_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          slot_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advertising_content_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "advertising_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advertising_content_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "advertising_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      advertising_slots: {
+        Row: {
+          created_at: string
+          dimensions: string
+          id: string
+          is_active: boolean
+          location: string
+          name: string
+          placement_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dimensions: string
+          id?: string
+          is_active?: boolean
+          location: string
+          name: string
+          placement_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dimensions?: string
+          id?: string
+          is_active?: boolean
+          location?: string
+          name?: string
+          placement_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      app_settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           content: string
@@ -43,6 +184,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      construction_phases: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          end_progress: number
+          id: string
+          name: string
+          start_progress: number
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          end_progress: number
+          id: string
+          name: string
+          start_progress: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          end_progress?: number
+          id?: string
+          name?: string
+          start_progress?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       error_reports: {
         Row: {
@@ -708,6 +888,18 @@ export type Database = {
           referrer_code: string
         }
         Returns: boolean
+      }
+      toggle_construction_mode: {
+        Args: {
+          enable: boolean
+        }
+        Returns: Json
+      }
+      update_construction_progress: {
+        Args: {
+          progress: number
+        }
+        Returns: Json
       }
       user_daily_error_reports: {
         Args: {

@@ -70,18 +70,19 @@ export const getCurrentProgress = async (): Promise<number> => {
   try {
     const { data, error } = await supabase
       .from('app_settings')
-      .select('construction_progress')
+      .select('value')
+      .eq('id', 'construction')
       .single();
     
     if (error) {
       console.error('Error fetching construction progress:', error);
-      return 0;
+      return 5; // Default value if we can't fetch
     }
     
-    return data?.construction_progress || 0;
+    return data?.value?.construction_progress || 5;
   } catch (error) {
     console.error('Failed to get construction progress:', error);
-    return 0;
+    return 5; // Default to 5% if there's an error
   }
 };
 
@@ -93,10 +94,10 @@ export const updateProgress = async (progress: number): Promise<boolean> => {
     // Ensure the progress is between 0 and 100
     const validProgress = Math.min(Math.max(progress, 0), 100);
     
-    const { error } = await supabase
-      .from('app_settings')
-      .update({ construction_progress: validProgress })
-      .eq('id', 'construction');
+    // Use the RPC function we created to update the progress
+    const { error } = await supabase.rpc('update_construction_progress', { 
+      progress: validProgress 
+    });
     
     if (error) {
       console.error('Error updating construction progress:', error);
@@ -106,6 +107,27 @@ export const updateProgress = async (progress: number): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('Failed to update construction progress:', error);
+    return false;
+  }
+};
+
+/**
+ * Toggle construction mode
+ */
+export const toggleConstructionMode = async (enabled: boolean): Promise<boolean> => {
+  try {
+    const { error } = await supabase.rpc('toggle_construction_mode', { 
+      enable: enabled 
+    });
+    
+    if (error) {
+      console.error('Error toggling construction mode:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to toggle construction mode:', error);
     return false;
   }
 };
@@ -142,5 +164,75 @@ export const completePhase = async (phaseId: string): Promise<boolean> => {
   } catch (error) {
     console.error(`Failed to complete phase ${phaseId}:`, error);
     return false;
+  }
+};
+
+/**
+ * Start a construction phase
+ */
+export const startPhase = async (phaseId: string): Promise<boolean> => {
+  try {
+    const phase = CONSTRUCTION_PHASES.find(p => p.id === phaseId);
+    if (!phase) {
+      console.error(`Phase not found: ${phaseId}`);
+      return false;
+    }
+    
+    // Update phase status in database
+    const { error: phaseError } = await supabase
+      .from('construction_phases')
+      .update({ 
+        status: 'in-progress',
+        started_at: new Date().toISOString()
+      })
+      .eq('id', phaseId);
+    
+    if (phaseError) {
+      console.error(`Error starting phase ${phaseId}:`, phaseError);
+      return false;
+    }
+    
+    // Update overall progress to start of phase
+    await updateProgress(phase.startProgress);
+    
+    return true;
+  } catch (error) {
+    console.error(`Failed to start phase ${phaseId}:`, error);
+    return false;
+  }
+};
+
+/**
+ * Get all construction phases with their current status
+ */
+export const getConstructionPhases = async (): Promise<ConstructionPhase[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('construction_phases')
+      .select('*')
+      .order('start_progress', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching construction phases:', error);
+      return CONSTRUCTION_PHASES;
+    }
+    
+    if (!data || data.length === 0) {
+      return CONSTRUCTION_PHASES;
+    }
+    
+    // Map the DB data to our ConstructionPhase interface
+    return data.map(phase => ({
+      id: phase.id,
+      name: phase.name,
+      description: phase.description,
+      startProgress: phase.start_progress,
+      endProgress: phase.end_progress,
+      status: phase.status as 'pending' | 'in-progress' | 'completed',
+      completedAt: phase.completed_at
+    }));
+  } catch (error) {
+    console.error('Failed to get construction phases:', error);
+    return CONSTRUCTION_PHASES;
   }
 };

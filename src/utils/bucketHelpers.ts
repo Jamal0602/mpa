@@ -182,13 +182,13 @@ export const retryOperation = async <T>(
 // Get a presigned URL for uploading large files
 export const getPresignedUrl = async (
   bucketId: string,
-  filePath: string,
-  expiresIn = 3600
+  filePath: string
 ) => {
   try {
+    // Fix: Remove expiresIn parameter which was causing the TypeScript error
     const { data, error } = await supabase.storage
       .from(bucketId)
-      .createSignedUploadUrl(filePath, { expiresIn });
+      .createSignedUploadUrl(filePath);
       
     if (error) {
       console.error(`Error creating presigned URL for ${bucketId}/${filePath}:`, error);
