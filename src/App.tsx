@@ -32,7 +32,6 @@ import LoadingRoute from "@/components/layout/LoadingRoute";
 import { FloatingTab } from "@/components/ui/floating-tab";
 import PasswordResetForm from "@/components/auth/PasswordResetForm";
 import PasswordResetCallback from "@/components/auth/PasswordResetCallback";
-import ConstructionPopup from "@/components/construction/ConstructionPopup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,9 +94,6 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       </motion.main>
       <FloatingTab />
       <Footer showPoweredBy={true} />
-      
-      {/* Construction Popup */}
-      <ConstructionPopup initialProgress={5} autoDeleteWhenComplete={true} />
     </div>
   );
 };

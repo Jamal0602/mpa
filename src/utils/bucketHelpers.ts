@@ -12,9 +12,7 @@ export const BUCKET_NAMES = {
   PROJECTS: 'projects',
   RESUMES: 'resumes',
   PROFILES: 'profiles',
-  DOCUMENTS: 'documents',
-  RESOURCES: 'resources', // New bucket for general resources
-  ADVERTISING: 'advertising', // New bucket for ad content
+  DOCUMENTS: 'documents'
 };
 
 export const ensureBucketExists = async (
@@ -69,9 +67,9 @@ export const uploadFileToBucket = async (
     
     // Ensure bucket exists first
     const bucketConfig: BucketConfig = {
-      public: [BUCKET_NAMES.PROJECTS, BUCKET_NAMES.ADVERTISING, BUCKET_NAMES.RESOURCES].includes(bucketId), 
+      public: bucketId === BUCKET_NAMES.PROJECTS, // Projects bucket is public, others are private by default
       allowedMimeTypes: ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-      fileSizeLimit: 20971520 // 20MB
+      fileSizeLimit: 10485760 // 10MB
     };
     
     const bucketExists = await ensureBucketExists(bucketId, bucketConfig);
@@ -117,24 +115,6 @@ export const getFileUrl = (bucketId: string, filePath: string): string => {
   return data.publicUrl;
 };
 
-export const listFiles = async (bucketId: string, folderPath?: string) => {
-  try {
-    const { data, error } = await supabase.storage
-      .from(bucketId)
-      .list(folderPath || '');
-      
-    if (error) {
-      console.error(`Error listing files in ${bucketId}/${folderPath || ''}:`, error);
-      return { error, data: null };
-    }
-    
-    return { data, error: null };
-  } catch (error) {
-    console.error(`Error listing files in ${bucketId}/${folderPath || ''}:`, error);
-    return { error, data: null };
-  }
-};
-
 export const deleteFileFromBucket = async (bucketId: string, filePath: string): Promise<boolean> => {
   try {
     const { error } = await supabase.storage
@@ -177,27 +157,4 @@ export const retryOperation = async <T>(
   }
   
   throw new Error("Max retries exceeded");
-};
-
-// Get a presigned URL for uploading large files
-export const getPresignedUrl = async (
-  bucketId: string,
-  filePath: string
-) => {
-  try {
-    // Fix: Remove expiresIn parameter which was causing the TypeScript error
-    const { data, error } = await supabase.storage
-      .from(bucketId)
-      .createSignedUploadUrl(filePath);
-      
-    if (error) {
-      console.error(`Error creating presigned URL for ${bucketId}/${filePath}:`, error);
-      return { error, data: null };
-    }
-    
-    return { data, error: null };
-  } catch (error) {
-    console.error(`Error creating presigned URL for ${bucketId}/${filePath}:`, error);
-    return { error, data: null };
-  }
 };
