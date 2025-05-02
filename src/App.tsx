@@ -34,6 +34,8 @@ import PasswordResetForm from "@/components/auth/PasswordResetForm";
 import PasswordResetCallback from "@/components/auth/PasswordResetCallback";
 import { ConstructionWrapper } from "@/components/layout/ConstructionWrapper";
 import ChatHelp from "@/pages/ChatHelp";
+import Services from "@/pages/Services";
+import ServiceDetailsPage from "@/pages/Services/[id]";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -206,6 +208,22 @@ function App() {
                     element={
                       <MainLayout>
                         <UploadPage />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/services" 
+                    element={
+                      <MainLayout>
+                        <Services />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/services/:id" 
+                    element={
+                      <MainLayout>
+                        <ServiceDetailsPage />
                       </MainLayout>
                     } 
                   />

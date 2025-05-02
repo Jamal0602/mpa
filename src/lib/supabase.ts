@@ -21,9 +21,41 @@ export interface ConstructionProgress {
   construction_progress: number;
 }
 
+// Types for services
+export interface Service {
+  id: string;
+  name: string;
+  description: string;
+  price_in_points: number;
+  category: string;
+  image_url?: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  active: boolean;
+  featured: boolean;
+  details: any;
+  requirements: string[];
+  estimated_delivery?: string;
+}
+
+// Types for service purchases
+export interface ServicePurchase {
+  id: string;
+  service_id: string;
+  user_id: string;
+  points_spent: number;
+  status: string; // pending, in_progress, completed, rejected
+  project_details: any;
+  created_at: string;
+  updated_at: string;
+}
+
 export type { 
   ErrorReportStats,
-  ConstructionProgress
+  ConstructionProgress,
+  Service, 
+  ServicePurchase
 };
 
 export default supabase;
