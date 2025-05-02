@@ -16,8 +16,14 @@ export interface ErrorReportStats {
   rejected: number;
 }
 
+export interface ConstructionProgress {
+  construction_mode: boolean;
+  construction_progress: number;
+}
+
 export type { 
-  ErrorReportStats 
+  ErrorReportStats,
+  ConstructionProgress
 };
 
 export default supabase;

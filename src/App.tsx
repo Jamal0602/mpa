@@ -32,6 +32,8 @@ import LoadingRoute from "@/components/layout/LoadingRoute";
 import { FloatingTab } from "@/components/ui/floating-tab";
 import PasswordResetForm from "@/components/auth/PasswordResetForm";
 import PasswordResetCallback from "@/components/auth/PasswordResetCallback";
+import { ConstructionWrapper } from "@/components/layout/ConstructionWrapper";
+import ChatHelp from "@/pages/ChatHelp";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,159 +108,166 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <NotificationProvider>
-            <AnimatePresence mode="wait">
-              <Routes location={location} key={location.pathname}>
-                <Route 
-                  path="/" 
-                  element={
-                    <MainLayout>
-                      <Index />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/features" 
-                  element={
-                    <MainLayout>
-                      <Features />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/blog" 
-                  element={
-                    <MainLayout>
-                      <Blog />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/post/:id" 
-                  element={
-                    <MainLayout>
-                      <PostDetail />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/auth" 
-                  element={
-                    <AuthForm />
-                  } 
-                />
-                <Route 
-                  path="/auth/callback" 
-                  element={
-                    <AuthCallback />
-                  } 
-                />
-                <Route 
-                  path="/auth/reset" 
-                  element={
-                    <PasswordResetForm />
-                  } 
-                />
-                <Route 
-                  path="/auth/reset-callback" 
-                  element={
-                    <PasswordResetCallback />
-                  } 
-                />
-
-                <Route 
-                  path="/dashboard" 
-                  element={
-                    <MainLayout>
-                      <Dashboard />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/admin" 
-                  element={
-                    <MainLayout>
-                      <PageLayout requireAuth={true} title="Admin Panel">
-                        <AdminPanel />
-                      </PageLayout>
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/account" 
-                  element={
-                    <MainLayout>
-                      <AccountSettings />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/upload" 
-                  element={
-                    <MainLayout>
-                      <UploadPage />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/subscription" 
-                  element={
-                    <MainLayout>
-                      <Subscription />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/help" 
-                  element={
-                    <MainLayout>
-                      <Help />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/work-with-us" 
-                  element={
-                    <MainLayout>
-                      <WorkWithUs />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/referral" 
-                  element={
-                    <MainLayout>
-                      <Referral />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/report-error" 
-                  element={
-                    <MainLayout>
-                      <ErrorReport />
-                    </MainLayout>
-                  } 
-                />
-                <Route 
-                  path="/analytics" 
-                  element={
-                    <MainLayout>
-                      <Analytics />
-                    </MainLayout>
-                  } 
-                />
-                
-                <Route 
-                  path="/loading" 
-                  element={
-                    <LoadingRoute message="Please wait..." showPoweredBy={true} />
-                  }
-                />
-                
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AnimatePresence>
-            <Toaster />
+            <ConstructionWrapper>
+              <AnimatePresence mode="wait">
+                <Routes location={location} key={location.pathname}>
+                  <Route 
+                    path="/" 
+                    element={
+                      <MainLayout>
+                        <Index />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/features" 
+                    element={
+                      <MainLayout>
+                        <Features />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/blog" 
+                    element={
+                      <MainLayout>
+                        <Blog />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/post/:id" 
+                    element={
+                      <MainLayout>
+                        <PostDetail />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/auth" 
+                    element={
+                      <AuthForm />
+                    } 
+                  />
+                  <Route 
+                    path="/auth/callback" 
+                    element={
+                      <AuthCallback />
+                    } 
+                  />
+                  <Route 
+                    path="/auth/reset" 
+                    element={
+                      <PasswordResetForm />
+                    } 
+                  />
+                  <Route 
+                    path="/auth/reset-callback" 
+                    element={
+                      <PasswordResetCallback />
+                    } 
+                  />
+                  <Route 
+                    path="/chat" 
+                    element={
+                      <MainLayout>
+                        <ChatHelp />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/dashboard" 
+                    element={
+                      <MainLayout>
+                        <Dashboard />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/admin" 
+                    element={
+                      <MainLayout>
+                        <PageLayout requireAuth={true} title="Admin Panel">
+                          <AdminPanel />
+                        </PageLayout>
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/account" 
+                    element={
+                      <MainLayout>
+                        <AccountSettings />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/upload" 
+                    element={
+                      <MainLayout>
+                        <UploadPage />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/subscription" 
+                    element={
+                      <MainLayout>
+                        <Subscription />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/help" 
+                    element={
+                      <MainLayout>
+                        <Help />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/work-with-us" 
+                    element={
+                      <MainLayout>
+                        <WorkWithUs />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/referral" 
+                    element={
+                      <MainLayout>
+                        <Referral />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/report-error" 
+                    element={
+                      <MainLayout>
+                        <ErrorReport />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/analytics" 
+                    element={
+                      <MainLayout>
+                        <Analytics />
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/loading" 
+                    element={
+                      <LoadingRoute message="Please wait..." showPoweredBy={true} />
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AnimatePresence>
+              <Toaster />
+            </ConstructionWrapper>
           </NotificationProvider>
         </AuthProvider>
       </QueryClientProvider>
