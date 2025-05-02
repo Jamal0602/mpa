@@ -1,4 +1,6 @@
 
+import React from 'react';
+
 /**
  * Utility function to handle opening links in mobile apps via external browser
  */
@@ -67,13 +69,13 @@ export const handleOAuthLink = (provider: string) => {
 /**
  * Safe link element that handles external links in mobile apps
  */
-export const SafeLink = ({ 
+export const SafeLink: React.FC<React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }> = ({ 
   href, 
   children, 
   className = '',
   onClick,
   ...rest 
-}: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => {
+}) => {
   const isExternal = href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:');
   const target = isExternal ? getLinkTarget() : undefined;
   
