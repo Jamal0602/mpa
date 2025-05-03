@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -23,12 +24,13 @@ interface MobileNavItemProps {
   href: string;
   children: React.ReactNode;
   variant?: "default" | "ghost";
+  onClick?: () => void;
 }
 
-const MobileNavItem: React.FC<MobileNavItemProps> = ({ href, children, variant = "default" }) => {
+const MobileNavItem: React.FC<MobileNavItemProps> = ({ href, children, variant = "default", onClick }) => {
   return (
     <Button asChild variant={variant} className="w-full justify-start">
-      <Link to={href}>{children}</Link>
+      <Link to={href} onClick={onClick}>{children}</Link>
     </Button>
   );
 };

@@ -7,7 +7,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Add types for RPC functions return values
+// Types for RPC functions return values
 export interface ErrorReportStats {
   total: number;
   pending: number;
@@ -50,12 +50,5 @@ export interface ServicePurchase {
   created_at: string;
   updated_at: string;
 }
-
-export type { 
-  ErrorReportStats,
-  ConstructionProgress,
-  Service, 
-  ServicePurchase
-};
 
 export default supabase;

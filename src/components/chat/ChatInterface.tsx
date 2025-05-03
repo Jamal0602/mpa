@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { PaperPlaneIcon, PlusCircleIcon, RefreshCw } from "lucide-react";
+import { Send, PlusCircle, RefreshCw } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import { nanoid } from "nanoid";
 
@@ -119,7 +119,7 @@ const ChatInterface: React.FC = () => {
       <div className="p-4 border-b flex items-center justify-between bg-muted/30">
         <h2 className="font-medium">MPA Chat Support</h2>
         <Button variant="outline" size="sm" onClick={startNewChat}>
-          <PlusCircleIcon className="h-4 w-4 mr-2" />
+          <PlusCircle className="h-4 w-4 mr-2" />
           New Chat
         </Button>
       </div>
@@ -156,7 +156,7 @@ const ChatInterface: React.FC = () => {
             maxLength={500}
           />
           <Button onClick={handleSendMessage} className="h-10 px-4">
-            <PaperPlaneIcon className="h-4 w-4" />
+            <Send className="h-4 w-4" />
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
