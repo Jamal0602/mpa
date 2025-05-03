@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -145,6 +146,13 @@ const Index = () => {
               animate="visible"
               variants={fadeIn}
             >
+              <div className="flex justify-center mb-6">
+                <img 
+                  src="/lovable-uploads/38615abc-9a48-472a-95d3-46f15ee74088.png" 
+                  alt="MPA Logo" 
+                  className="h-24 md:h-32" 
+                />
+              </div>
               <h1 className="text-4xl md:text-6xl font-bold tracking-tighter">
                 Multi Project Association
               </h1>

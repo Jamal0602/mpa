@@ -26,6 +26,7 @@ export const ConstructionPopup: React.FC<ConstructionPopupProps> = ({
   const [phases, setPhases] = useState<ConstructionPhase[]>([]);
   const [isVisible, setIsVisible] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [tapCount, setTapCount] = useState<number>(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,11 +51,22 @@ export const ConstructionPopup: React.FC<ConstructionPopupProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    // Close popup after 10 taps
+    if (tapCount >= 10) {
+      handleClose();
+    }
+  }, [tapCount]);
+
   const handleClose = () => {
     setIsVisible(false);
     if (onClose) {
       onClose();
     }
+  };
+  
+  const handleTap = () => {
+    setTapCount(prevCount => prevCount + 1);
   };
   
   const getPhaseStatusBadge = (status: string) => {
@@ -113,6 +125,7 @@ export const ConstructionPopup: React.FC<ConstructionPopupProps> = ({
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", duration: 0.5 }}
           className="w-full max-w-md p-4"
+          onClick={handleTap}
         >
           <Card className="border shadow-lg">
             <CardHeader className="relative">
@@ -130,7 +143,7 @@ export const ConstructionPopup: React.FC<ConstructionPopupProps> = ({
                 Site Under Construction
               </CardTitle>
               <CardDescription className="text-center">
-                We're building something awesome!
+                We're building something awesome! (Tap {10 - tapCount} more times to dismiss)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
