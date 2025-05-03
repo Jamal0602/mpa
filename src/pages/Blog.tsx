@@ -108,7 +108,7 @@ const Blog = () => {
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="all-categories">All Categories</SelectItem>
                 {categories?.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
@@ -235,7 +235,7 @@ const Blog = () => {
                   key={category} 
                   variant={categoryFilter === category ? "default" : "outline"}
                   className="justify-start"
-                  onClick={() => setCategoryFilter(category === categoryFilter ? '' : category)}
+                  onClick={() => setCategoryFilter(categoryFilter === category ? '' : category)}
                 >
                   {category}
                 </Button>
