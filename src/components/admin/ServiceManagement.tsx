@@ -45,6 +45,7 @@ interface ServiceOffer {
   is_active: boolean | null;
   start_date: string | null;
   end_date: string | null;
+  per_page_pricing: boolean | null;
   created_at: string;
 }
 
@@ -58,6 +59,7 @@ export function ServiceManagement() {
     point_cost: 0,
     discount_percentage: 0,
     is_active: true,
+    per_page_pricing: false,
   });
 
   // Query to fetch all services
@@ -65,7 +67,7 @@ export function ServiceManagement() {
     queryKey: ["services"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("service_offers")
+        .from("MPA_service_offers")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -78,7 +80,7 @@ export function ServiceManagement() {
   const createServiceMutation = useMutation({
     mutationFn: async (newService: Omit<ServiceOffer, "id" | "created_at" | "start_date" | "end_date">) => {
       const { data, error } = await supabase
-        .from("service_offers")
+        .from("MPA_service_offers")
         .insert([newService])
         .select();
 
@@ -106,7 +108,7 @@ export function ServiceManagement() {
       service: Partial<ServiceOffer>;
     }) => {
       const { data, error } = await supabase
-        .from("service_offers")
+        .from("MPA_service_offers")
         .update(service)
         .eq("id", id)
         .select();
@@ -129,7 +131,7 @@ export function ServiceManagement() {
   const deleteServiceMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("service_offers")
+        .from("MPA_service_offers")
         .delete()
         .eq("id", id);
 
@@ -155,10 +157,10 @@ export function ServiceManagement() {
     });
   };
 
-  const handleSwitchChange = (checked: boolean) => {
+  const handleSwitchChange = (name: string, checked: boolean) => {
     setServiceForm({
       ...serviceForm,
-      is_active: checked,
+      [name]: checked,
     });
   };
 
@@ -170,6 +172,7 @@ export function ServiceManagement() {
       point_cost: service.point_cost,
       discount_percentage: service.discount_percentage || 0,
       is_active: service.is_active || false,
+      per_page_pricing: service.per_page_pricing || false,
     });
     setIsDialogOpen(true);
   };
@@ -199,6 +202,7 @@ export function ServiceManagement() {
       point_cost: 0,
       discount_percentage: 0,
       is_active: true,
+      per_page_pricing: false,
     });
     setEditingService(null);
   };
@@ -279,9 +283,17 @@ export function ServiceManagement() {
                 <Switch
                   id="is_active"
                   checked={serviceForm.is_active}
-                  onCheckedChange={handleSwitchChange}
+                  onCheckedChange={(checked) => handleSwitchChange("is_active", checked)}
                 />
                 <Label htmlFor="is_active">Active</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="per_page_pricing"
+                  checked={serviceForm.per_page_pricing}
+                  onCheckedChange={(checked) => handleSwitchChange("per_page_pricing", checked)}
+                />
+                <Label htmlFor="per_page_pricing">Price per page</Label>
               </div>
               <DialogFooter>
                 <Button
@@ -338,7 +350,10 @@ export function ServiceManagement() {
                         <span className="text-muted-foreground">No description</span>
                       )}
                     </TableCell>
-                    <TableCell>{service.point_cost}</TableCell>
+                    <TableCell>
+                      {service.point_cost}
+                      {service.per_page_pricing && <span className="text-xs ml-1">/page</span>}
+                    </TableCell>
                     <TableCell>
                       {service.discount_percentage
                         ? `${service.discount_percentage}%`

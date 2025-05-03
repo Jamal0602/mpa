@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -12,14 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   CheckCircle, 
-  Download, 
-  ShoppingCart, 
-  PenBox,
   Clock,
   ArrowRightIcon,
   AlertCircle
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,23 +25,27 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface ServiceOffer {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   point_cost: number;
-  discount_percentage: number;
-  is_active: boolean;
-  start_date: string;
+  discount_percentage: number | null;
+  is_active: boolean | null;
+  start_date: string | null;
   end_date: string | null;
-  per_page_pricing: boolean;
+  per_page_pricing: boolean | null;
+  created_at: string;
 }
 
 const UploadPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const initialServiceId = searchParams.get("service");
+  const initialTab = searchParams.get("tab") || "services";
+  
   const [selectedService, setSelectedService] = useState<ServiceOffer | null>(null);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState<'select' | 'upload' | 'confirm'>('select');
   const [pageCount, setPageCount] = useState(1);
-  const UPLOAD_COST = 5;
   
   const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
     queryKey: ["profile-points", user?.id],
@@ -51,7 +53,7 @@ const UploadPage = () => {
       if (!user) throw new Error("No user");
       
       const { data, error } = await supabase
-        .from("profiles")
+        .from("MPA_profiles")
         .select("key_points")
         .eq("id", user.id)
         .single();
@@ -75,7 +77,7 @@ const UploadPage = () => {
     queryKey: ["service-offers"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("service_offers")
+        .from("MPA_service_offers")
         .select("*")
         .eq("is_active", true)
         .order("point_cost", { ascending: true });
@@ -92,6 +94,17 @@ const UploadPage = () => {
     },
     staleTime: 300000, // 5 minutes
   });
+
+  // Load the initial service if service ID is provided in URL params
+  useEffect(() => {
+    if (initialServiceId && services) {
+      const service = services.find(s => s.id === initialServiceId);
+      if (service) {
+        setSelectedService(service);
+        setPurchaseDialogOpen(true);
+      }
+    }
+  }, [initialServiceId, services]);
   
   const handlePurchaseClick = (service: ServiceOffer) => {
     setSelectedService(service);
@@ -135,7 +148,7 @@ const UploadPage = () => {
       
       // Record the transaction
       const { error: keyPointsError } = await supabase
-        .from("key_points_transactions")
+        .from("MPA_key_points_transactions")
         .insert({
           user_id: user.id,
           amount: -totalCost,
@@ -147,10 +160,10 @@ const UploadPage = () => {
       
       // Create a new project record for the purchased service
       const { error: projectError } = await supabase
-        .from("projects")
+        .from("MPA_projects")
         .insert({
           title: `Service: ${selectedService.name}`,
-          description: selectedService.description,
+          description: selectedService.description || `Service order for ${selectedService.name}`,
           user_id: user.id,
           category: "service",
           type: "purchased",
@@ -204,7 +217,7 @@ const UploadPage = () => {
       requireAuth={true}
       className="max-w-6xl"
     >
-      <Tabs defaultValue="services" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="grid grid-cols-2 w-full mb-6">
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="form">Request Custom Service</TabsTrigger>
@@ -245,7 +258,7 @@ const UploadPage = () => {
                         <CardTitle>{service.name}</CardTitle>
                         <CardDescription>{service.description}</CardDescription>
                       </div>
-                      {service.discount_percentage > 0 && (
+                      {service.discount_percentage && service.discount_percentage > 0 && (
                         <Badge variant="destructive" className="ml-2">
                           -{service.discount_percentage}%
                         </Badge>
@@ -290,7 +303,6 @@ const UploadPage = () => {
                       disabled={(profile?.key_points || 0) < service.point_cost}
                       onClick={() => handlePurchaseClick(service)}
                     >
-                      <ShoppingCart className="h-4 w-4" />
                       Purchase Now
                     </Button>
                   </CardFooter>
@@ -410,7 +422,7 @@ const UploadPage = () => {
                       <div className="mb-4">
                         <ScrollArea className="h-[400px]">
                           <UploadForm 
-                            userId={user.id} 
+                            userId={user?.id} 
                             onUploadSuccess={refetchProfile}
                             serviceMode={true}
                           />

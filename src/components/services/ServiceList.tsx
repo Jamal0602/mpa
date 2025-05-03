@@ -1,12 +1,15 @@
 
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { FileText, PenTool, Film, Image, FileSpreadsheet, Package, Code, Search } from "lucide-react";
+import { FileText, PenTool, Film, Image, FileSpreadsheet, Package, Code, Search, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SafeLink } from "@/utils/linkHandler";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { LoadingSpinner } from "@/components/ui/loading";
 
 // Service category types
 type ServiceCategory = 
@@ -19,15 +22,19 @@ type ServiceCategory =
   | "code" 
   | "other";
 
-// Service interface
-interface Service {
+// Service interface to match the database schema
+interface ServiceOffer {
   id: string;
   name: string;
-  description: string;
-  category: ServiceCategory;
-  price: number;
-  estimatedDelivery: string;
-  featured: boolean;
+  description: string | null;
+  point_cost: number;
+  discount_percentage: number | null;
+  is_active: boolean | null;
+  start_date: string | null;
+  end_date: string | null;
+  per_page_pricing: boolean | null;
+  created_at: string;
+  category?: ServiceCategory; // We'll add this for UI display
 }
 
 // Get icon based on service category
@@ -52,75 +59,90 @@ const getCategoryIcon = (category: ServiceCategory) => {
   }
 };
 
-// Sample service data - will be replaced with Supabase data
-const sampleServices: Service[] = [
-  {
-    id: "1",
-    name: "Professional Word Document",
-    description: "High-quality Word documents created to your specifications. Includes formatting, tables, and graphics.",
-    category: "document",
-    price: 50,
-    estimatedDelivery: "2-3 days",
-    featured: true
-  },
-  {
-    id: "2",
-    name: "Excel Data Analysis",
-    description: "Complex spreadsheets with formulas, pivot tables, and data visualization.",
-    category: "spreadsheet",
-    price: 100,
-    estimatedDelivery: "3-5 days",
-    featured: true
-  },
-  {
-    id: "3",
-    name: "PowerPoint Presentation",
-    description: "Engaging presentations with professional design, animations, and speaker notes.",
-    category: "presentation",
-    price: 150,
-    estimatedDelivery: "3-4 days",
-    featured: false
-  },
-  {
-    id: "4",
-    name: "Photo Editing",
-    description: "Professional photo editing, retouching, and enhancement.",
-    category: "photo",
-    price: 75,
-    estimatedDelivery: "1-2 days",
-    featured: false
-  },
-  {
-    id: "5",
-    name: "Video Editing",
-    description: "Professional video editing, color grading, and effects.",
-    category: "video",
-    price: 200,
-    estimatedDelivery: "4-7 days",
-    featured: true
-  },
-  {
-    id: "6",
-    name: "3D Design & Modeling",
-    description: "Custom 3D models for various purposes including printing and digital use.",
-    category: "design",
-    price: 250,
-    estimatedDelivery: "5-10 days",
-    featured: false
-  }
-];
+// Map service names to categories for display
+const mapServiceToCategory = (serviceName: string): ServiceCategory => {
+  const name = serviceName.toLowerCase();
+  if (name.includes('document') || name.includes('word') || name.includes('pdf')) return 'document';
+  if (name.includes('presentation') || name.includes('powerpoint') || name.includes('slide')) return 'presentation';
+  if (name.includes('spreadsheet') || name.includes('excel') || name.includes('data')) return 'spreadsheet';
+  if (name.includes('design') || name.includes('3d') || name.includes('model')) return 'design';
+  if (name.includes('photo') || name.includes('image') || name.includes('picture')) return 'photo';
+  if (name.includes('video') || name.includes('movie') || name.includes('editing')) return 'video';
+  if (name.includes('code') || name.includes('programming') || name.includes('development')) return 'code';
+  return 'other';
+};
 
 interface ServiceListProps {
   featured?: boolean;
+  category?: string;
+  searchTerm?: string;
+  sortOrder?: string;
 }
 
-export const ServiceList: React.FC<ServiceListProps> = ({ featured = false }) => {
+export const ServiceList: React.FC<ServiceListProps> = ({ 
+  featured = false, 
+  category = 'all',
+  searchTerm = '',
+  sortOrder = 'featured'
+}) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  const displayedServices = featured 
-    ? sampleServices.filter(service => service.featured) 
-    : sampleServices;
+  // Fetch services from the database
+  const { data: services, isLoading, error } = useQuery({
+    queryKey: ['services', featured, category, searchTerm, sortOrder],
+    queryFn: async () => {
+      let query = supabase
+        .from('MPA_service_offers')
+        .select('*')
+        .eq('is_active', true);
+      
+      // Apply sorting
+      if (sortOrder === 'price_low') {
+        query = query.order('point_cost', { ascending: true });
+      } else if (sortOrder === 'price_high') {
+        query = query.order('point_cost', { ascending: false });
+      } else if (sortOrder === 'delivery') {
+        query = query.order('name', { ascending: true }); // Replace with actual delivery time field if available
+      } else {
+        // Default to featured sorting
+        query = query.order('discount_percentage', { ascending: false }).order('point_cost', { ascending: true });
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      
+      // Map database results to service objects with categories
+      const servicesWithCategories = data.map(service => ({
+        ...service,
+        category: mapServiceToCategory(service.name)
+      }));
+      
+      // Filter by category if needed
+      let filteredServices = servicesWithCategories;
+      if (category !== 'all') {
+        filteredServices = servicesWithCategories.filter(service => service.category === category);
+      }
+      
+      // Filter by search term if provided
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filteredServices = filteredServices.filter(
+          service => 
+            service.name.toLowerCase().includes(term) || 
+            (service.description && service.description.toLowerCase().includes(term))
+        );
+      }
+      
+      // Filter by featured if requested
+      if (featured) {
+        filteredServices = filteredServices.filter(service => service.discount_percentage && service.discount_percentage > 0);
+      }
+
+      return filteredServices;
+    }
+  });
 
   const handleOrderService = (serviceId: string) => {
     if (!user) {
@@ -130,9 +152,35 @@ export const ServiceList: React.FC<ServiceListProps> = ({ featured = false }) =>
     }
   };
 
+  if (isLoading) {
+    return <div className="flex justify-center p-8"><LoadingSpinner /></div>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <AlertCircle className="mx-auto h-8 w-8 text-red-500 mb-2" />
+        <h3 className="text-lg font-medium">Failed to load services</h3>
+        <p className="text-muted-foreground mt-1">Please try again later</p>
+      </div>
+    );
+  }
+
+  if (!services || services.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <AlertCircle className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+        <h3 className="text-lg font-medium">No services found</h3>
+        <p className="text-muted-foreground mt-1">
+          {searchTerm ? 'Try a different search term' : 'Check back soon for new services'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {displayedServices.map((service) => (
+      {services.map((service) => (
         <Card key={service.id} className="transition-shadow hover:shadow-lg">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">
@@ -151,11 +199,20 @@ export const ServiceList: React.FC<ServiceListProps> = ({ featured = false }) =>
               <Badge variant="secondary" className="capitalize">
                 {service.category}
               </Badge>
-              <span className="text-lg font-semibold">{service.price} SP</span>
+              <span className="text-lg font-semibold">{service.point_cost} SP{service.per_page_pricing ? '/page' : ''}</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              Delivery: {service.estimatedDelivery}
+              {service.end_date ? (
+                <>Offer ends: {new Date(service.end_date).toLocaleDateString()}</>
+              ) : (
+                "Always available"
+              )}
             </div>
+            {service.discount_percentage && service.discount_percentage > 0 && (
+              <Badge variant="destructive" className="mt-2">
+                {service.discount_percentage}% OFF
+              </Badge>
+            )}
           </CardContent>
           
           <CardFooter>

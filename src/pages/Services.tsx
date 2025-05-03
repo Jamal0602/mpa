@@ -1,11 +1,13 @@
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { ServiceList } from "@/components/services/ServiceList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, PenTool, Film, Image, FileSpreadsheet, Package, Code, Search } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const ServiceCategoryIcons = {
   all: <Search className="h-4 w-4" />,
@@ -19,8 +21,48 @@ const ServiceCategoryIcons = {
 };
 
 const Services: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortOrder, setSortOrder] = useState("featured");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialCategory = searchParams.get("category") || "all";
+  const initialSearch = searchParams.get("search") || "";
+  const initialSort = searchParams.get("sort") || "featured";
+  
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [sortOrder, setSortOrder] = useState(initialSort);
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
+
+  // Update search params when filters change
+  const updateSearchParams = (key: string, value: string) => {
+    setSearchParams(params => {
+      if (!value || (key === "category" && value === "all")) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+      return params;
+    });
+  };
+  
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateSearchParams("search", searchTerm);
+  };
+  
+  const handleCategoryChange = (category: string) => {
+    setActiveCategory(category);
+    updateSearchParams("category", category);
+  };
+  
+  const handleSortChange = (sort: string) => {
+    setSortOrder(sort);
+    updateSearchParams("sort", sort);
+  };
+  
+  const clearFilters = () => {
+    setSearchTerm("");
+    setActiveCategory("all");
+    setSortOrder("featured");
+    setSearchParams({});
+  };
 
   return (
     <PageLayout
@@ -36,14 +78,20 @@ const Services: React.FC = () => {
       
       <div className="flex flex-col sm:flex-row gap-4 mb-8">
         <div className="flex-1">
-          <Input 
-            placeholder="Search services..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <form onSubmit={handleSearch}>
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Search services..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1"
+              />
+              <Button type="submit">Search</Button>
+            </div>
+          </form>
         </div>
         <div className="w-full sm:w-48">
-          <Select value={sortOrder} onValueChange={setSortOrder}>
+          <Select value={sortOrder} onValueChange={handleSortChange}>
             <SelectTrigger>
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -57,7 +105,7 @@ const Services: React.FC = () => {
         </div>
       </div>
       
-      <Tabs defaultValue="all" className="mb-8">
+      <Tabs defaultValue={activeCategory} value={activeCategory} onValueChange={handleCategoryChange} className="mb-8">
         <TabsList className="grid grid-cols-4 md:grid-cols-8 mb-8">
           <TabsTrigger value="all" className="flex items-center gap-2">
             {ServiceCategoryIcons.all}
@@ -93,29 +141,84 @@ const Services: React.FC = () => {
           </TabsTrigger>
         </TabsList>
         
+        {/* Active filters indicator */}
+        {(searchTerm || activeCategory !== "all" || sortOrder !== "featured") && (
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm text-muted-foreground">Active filters:</span>
+            {searchTerm && (
+              <Badge variant="secondary" className="flex gap-1 items-center">
+                Search: {searchTerm}
+              </Badge>
+            )}
+            {activeCategory !== "all" && (
+              <Badge variant="secondary" className="flex gap-1 items-center capitalize">
+                Category: {activeCategory}
+              </Badge>
+            )}
+            {sortOrder !== "featured" && (
+              <Badge variant="secondary" className="flex gap-1 items-center">
+                Sort: {sortOrder.replace('_', ' ')}
+              </Badge>
+            )}
+            <Button variant="ghost" size="sm" onClick={clearFilters}>Clear all</Button>
+          </div>
+        )}
+        
         <TabsContent value="all">
-          <ServiceList />
+          <ServiceList 
+            category="all" 
+            searchTerm={searchTerm} 
+            sortOrder={sortOrder} 
+          />
         </TabsContent>
         <TabsContent value="document">
-          <ServiceList />
+          <ServiceList 
+            category="document" 
+            searchTerm={searchTerm} 
+            sortOrder={sortOrder} 
+          />
         </TabsContent>
         <TabsContent value="presentation">
-          <ServiceList />
+          <ServiceList 
+            category="presentation" 
+            searchTerm={searchTerm} 
+            sortOrder={sortOrder} 
+          />
         </TabsContent>
         <TabsContent value="spreadsheet">
-          <ServiceList />
+          <ServiceList 
+            category="spreadsheet" 
+            searchTerm={searchTerm} 
+            sortOrder={sortOrder} 
+          />
         </TabsContent>
         <TabsContent value="design">
-          <ServiceList />
+          <ServiceList 
+            category="design" 
+            searchTerm={searchTerm} 
+            sortOrder={sortOrder} 
+          />
         </TabsContent>
         <TabsContent value="photo">
-          <ServiceList />
+          <ServiceList 
+            category="photo" 
+            searchTerm={searchTerm} 
+            sortOrder={sortOrder} 
+          />
         </TabsContent>
         <TabsContent value="video">
-          <ServiceList />
+          <ServiceList 
+            category="video" 
+            searchTerm={searchTerm} 
+            sortOrder={sortOrder} 
+          />
         </TabsContent>
         <TabsContent value="code">
-          <ServiceList />
+          <ServiceList 
+            category="code" 
+            searchTerm={searchTerm} 
+            sortOrder={sortOrder} 
+          />
         </TabsContent>
       </Tabs>
 
@@ -129,6 +232,9 @@ const Services: React.FC = () => {
           <li>Get a custom quote</li>
           <li>We'll deliver exactly what you require</li>
         </ul>
+        <Button variant="default" asChild>
+          <a href="/upload?tab=form">Request Custom Service</a>
+        </Button>
       </div>
     </PageLayout>
   );
