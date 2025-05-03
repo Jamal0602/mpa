@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/ui/mode-toggle";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +17,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import { useTheme } from "@/components/theme/theme-provider";
+import { cn } from "@/lib/utils";
 
 const isBeta = import.meta.env.VITE_APP_ENV === 'beta';
 
@@ -54,6 +65,8 @@ const Navbar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const handleSignOut = async () => {
     await signOut();
@@ -75,7 +88,9 @@ const Navbar = () => {
               <div className="flex justify-between items-center border-b pb-4">
                 <Link to="/" className="flex items-center gap-2">
                   <img 
-                    src="/lovable-uploads/f284a2e3-584a-4f26-9ff7-1f6d2c6682e5.png" 
+                    src={isDark 
+                      ? "/lovable-uploads/f284a2e3-584a-4f26-9ff7-1f6d2c6682e5.png" 
+                      : "/lovable-uploads/f284a2e3-584a-4f26-9ff7-1f6d2c6682e5.png"} 
                     alt="MPA Logo" 
                     className="h-8 w-auto" 
                   />
@@ -98,6 +113,9 @@ const Navbar = () => {
                   <>
                     <MobileNavItem href="/dashboard">Dashboard</MobileNavItem>
                     <MobileNavItem href="/account">Account</MobileNavItem>
+                    {user.email === 'admin@example.com' && (
+                      <MobileNavItem href="/admin">Admin Panel</MobileNavItem>
+                    )}
                     <MobileNavItem variant="ghost" href="#" onClick={handleSignOut}>
                       Sign Out
                     </MobileNavItem>
@@ -105,14 +123,16 @@ const Navbar = () => {
                 )}
               </nav>
               <div className="border-t pt-4">
-                <ModeToggle />
+                <ThemeToggle />
               </div>
             </SheetContent>
           </Sheet>
 
           <Link to="/" className="flex items-center gap-2">
             <img 
-              src="/lovable-uploads/f284a2e3-584a-4f26-9ff7-1f6d2c6682e5.png" 
+              src={isDark 
+                ? "/lovable-uploads/f284a2e3-584a-4f26-9ff7-1f6d2c6682e5.png" 
+                : "/lovable-uploads/f284a2e3-584a-4f26-9ff7-1f6d2c6682e5.png"} 
               alt="MPA Logo" 
               className="h-8 w-auto" 
             />
@@ -127,18 +147,64 @@ const Navbar = () => {
             )}
           </Link>
 
-          <nav className="mx-6 hidden md:block">
-            <ul className="flex items-center gap-6">
-              <DesktopNavItem href="/features">Features</DesktopNavItem>
-              <DesktopNavItem href="/services">Services</DesktopNavItem>
-              <DesktopNavItem href="/blog">Blog</DesktopNavItem>
-              <DesktopNavItem href="/help">Help</DesktopNavItem>
-            </ul>
-          </nav>
+          {/* Enhanced Navigation Menu */}
+          <NavigationMenu className="hidden md:flex mx-6">
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+                  <Link to="/features">Features</Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+                  <Link to="/services">Services</Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Resources</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                    <li className="row-span-3">
+                      <NavigationMenuLink asChild>
+                        <Link to="/blog" 
+                          className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
+                        >
+                          <div className="mb-2 mt-4 text-lg font-medium">Blog</div>
+                          <p className="text-sm leading-tight text-muted-foreground">
+                            Read our latest articles and stay updated with industry news
+                          </p>
+                        </Link>
+                      </NavigationMenuLink>
+                    </li>
+                    <li>
+                      <NavigationMenuLink asChild>
+                        <Link to="/help" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
+                          <div className="text-sm font-medium leading-none">Help Center</div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Get support and answers to your questions
+                          </p>
+                        </Link>
+                      </NavigationMenuLink>
+                    </li>
+                    <li>
+                      <NavigationMenuLink asChild>
+                        <Link to="/work-with-us" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
+                          <div className="text-sm font-medium leading-none">Work With Us</div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Join our team and contribute to amazing projects
+                          </p>
+                        </Link>
+                      </NavigationMenuLink>
+                    </li>
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
         </div>
 
         <div className="flex items-center gap-2">
-          <ModeToggle />
+          <ThemeToggle />
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

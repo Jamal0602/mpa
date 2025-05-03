@@ -1,4 +1,3 @@
-
 import { Routes, Route, useLocation } from "react-router-dom";
 import "./App.css";
 import Index from "@/pages/Index";
@@ -23,9 +22,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import { useEffect } from "react";
 import AdminPanel from "@/pages/AdminPanel";
+import AdminDashboard from "@/pages/AdminDashboard";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { AnimatePresence, motion } from "framer-motion";
 import LoadingRoute from "@/components/layout/LoadingRoute";
@@ -192,6 +192,14 @@ function App() {
                         <PageLayout requireAuth={true} title="Admin Panel">
                           <AdminPanel />
                         </PageLayout>
+                      </MainLayout>
+                    } 
+                  />
+                  <Route 
+                    path="/admin-dashboard" 
+                    element={
+                      <MainLayout>
+                        <AdminDashboard />
                       </MainLayout>
                     } 
                   />
