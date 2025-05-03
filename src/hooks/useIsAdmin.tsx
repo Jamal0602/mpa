@@ -23,7 +23,7 @@ export const useIsAdmin = () => {
         
         // Fallback to direct query
         const { data, error } = await supabase
-          .from("profiles")
+          .from("MPA_profiles")
           .select("role")
           .eq("id", user.id)
           .single();

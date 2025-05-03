@@ -9,230 +9,75 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      advertising_campaigns: {
+      mpa_app_settings: {
         Row: {
-          created_at: string
-          description: string | null
-          end_date: string | null
-          id: string
-          is_active: boolean
-          name: string
-          start_date: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          end_date?: string | null
-          id?: string
-          is_active?: boolean
-          name: string
-          start_date?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          end_date?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          start_date?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      advertising_content: {
-        Row: {
-          campaign_id: string | null
-          content_html: string | null
-          content_type: string
-          content_url: string | null
-          created_at: string
-          id: string
-          is_active: boolean
-          slot_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          campaign_id?: string | null
-          content_html?: string | null
-          content_type: string
-          content_url?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          slot_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          campaign_id?: string | null
-          content_html?: string | null
-          content_type?: string
-          content_url?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          slot_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "advertising_content_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "advertising_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "advertising_content_slot_id_fkey"
-            columns: ["slot_id"]
-            isOneToOne: false
-            referencedRelation: "advertising_slots"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      advertising_slots: {
-        Row: {
-          created_at: string
-          dimensions: string
-          id: string
-          is_active: boolean
-          location: string
-          name: string
-          placement_code: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          dimensions: string
-          id?: string
-          is_active?: boolean
-          location: string
-          name: string
-          placement_code?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          dimensions?: string
-          id?: string
-          is_active?: boolean
-          location?: string
-          name?: string
-          placement_code?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      app_settings: {
-        Row: {
-          created_at: string
+          created_at: string | null
           id: string
           key: string
-          updated_at: string
+          updated_at: string | null
           value: Json
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id: string
           key: string
-          updated_at?: string
+          updated_at?: string | null
           value?: Json
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           key?: string
-          updated_at?: string
+          updated_at?: string | null
           value?: Json
         }
         Relationships: []
       }
-      comments: {
+      mpa_comments: {
         Row: {
           content: string
-          created_at: string
+          created_at: string | null
           id: string
           project_id: string | null
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           content: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           project_id?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           content?: string
-          created_at?: string
+          created_at?: string | null
           id?: string
           project_id?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "comments_project_id_fkey"
+            foreignKeyName: "mpa_comments_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "projects"
+            referencedRelation: "mpa_projects"
             referencedColumns: ["id"]
           },
         ]
       }
-      construction_phases: {
-        Row: {
-          completed_at: string | null
-          created_at: string
-          description: string | null
-          end_progress: number
-          id: string
-          name: string
-          start_progress: number
-          started_at: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string
-          description?: string | null
-          end_progress: number
-          id: string
-          name: string
-          start_progress: number
-          started_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string
-          description?: string | null
-          end_progress?: number
-          id?: string
-          name?: string
-          start_progress?: number
-          started_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      error_reports: {
+      mpa_error_reports: {
         Row: {
           browser_info: string | null
           category: string | null
-          contact_email: string | null
+          contact_email: string
           created_at: string | null
-          description: string | null
+          description: string
           error_details: Json | null
           error_message: string | null
+          error_type: string
           id: string
           page_url: string | null
           priority: string | null
@@ -244,11 +89,12 @@ export type Database = {
         Insert: {
           browser_info?: string | null
           category?: string | null
-          contact_email?: string | null
+          contact_email: string
           created_at?: string | null
-          description?: string | null
+          description: string
           error_details?: Json | null
           error_message?: string | null
+          error_type: string
           id?: string
           page_url?: string | null
           priority?: string | null
@@ -260,11 +106,12 @@ export type Database = {
         Update: {
           browser_info?: string | null
           category?: string | null
-          contact_email?: string | null
+          contact_email?: string
           created_at?: string | null
-          description?: string | null
+          description?: string
           error_details?: Json | null
           error_message?: string | null
+          error_type?: string
           id?: string
           page_url?: string | null
           priority?: string | null
@@ -275,43 +122,10 @@ export type Database = {
         }
         Relationships: []
       }
-      footer_content: {
-        Row: {
-          about_text: string
-          contact_email: string
-          created_at: string
-          id: string
-          privacy_text: string
-          social_links: Json
-          terms_text: string
-          updated_at: string
-        }
-        Insert: {
-          about_text: string
-          contact_email: string
-          created_at?: string
-          id?: string
-          privacy_text: string
-          social_links?: Json
-          terms_text: string
-          updated_at?: string
-        }
-        Update: {
-          about_text?: string
-          contact_email?: string
-          created_at?: string
-          id?: string
-          privacy_text?: string
-          social_links?: Json
-          terms_text?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      job_applications: {
+      mpa_job_applications: {
         Row: {
           cover_letter: string | null
-          created_at: string
+          created_at: string | null
           email: string
           experience: string | null
           id: string
@@ -319,12 +133,12 @@ export type Database = {
           resume_url: string | null
           skills: string[] | null
           status: string | null
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           cover_letter?: string | null
-          created_at?: string
+          created_at?: string | null
           email: string
           experience?: string | null
           id?: string
@@ -332,12 +146,12 @@ export type Database = {
           resume_url?: string | null
           skills?: string[] | null
           status?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           cover_letter?: string | null
-          created_at?: string
+          created_at?: string | null
           email?: string
           experience?: string | null
           id?: string
@@ -345,12 +159,12 @@ export type Database = {
           resume_url?: string | null
           skills?: string[] | null
           status?: string | null
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
       }
-      job_positions: {
+      mpa_job_positions: {
         Row: {
           created_at: string
           department: string
@@ -389,10 +203,10 @@ export type Database = {
         }
         Relationships: []
       }
-      key_points_transactions: {
+      mpa_key_points_transactions: {
         Row: {
           amount: number
-          created_at: string
+          created_at: string | null
           description: string
           id: string
           transaction_type: string
@@ -400,7 +214,7 @@ export type Database = {
         }
         Insert: {
           amount: number
-          created_at?: string
+          created_at?: string | null
           description: string
           id?: string
           transaction_type: string
@@ -408,7 +222,7 @@ export type Database = {
         }
         Update: {
           amount?: number
-          created_at?: string
+          created_at?: string | null
           description?: string
           id?: string
           transaction_type?: string
@@ -416,9 +230,9 @@ export type Database = {
         }
         Relationships: []
       }
-      notifications: {
+      mpa_notifications: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           message: string
           read: boolean
@@ -427,7 +241,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           message: string
           read?: boolean
@@ -436,7 +250,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           message?: string
           read?: boolean
@@ -446,105 +260,12 @@ export type Database = {
         }
         Relationships: []
       }
-      payment_methods: {
-        Row: {
-          account_holder: string | null
-          account_number: string | null
-          bank_name: string | null
-          created_at: string
-          id: string
-          ifsc_code: string | null
-          is_default: boolean | null
-          payment_details: Json
-          payment_type: string
-          updated_at: string
-          upi_id: string | null
-          user_id: string
-        }
-        Insert: {
-          account_holder?: string | null
-          account_number?: string | null
-          bank_name?: string | null
-          created_at?: string
-          id?: string
-          ifsc_code?: string | null
-          is_default?: boolean | null
-          payment_details: Json
-          payment_type: string
-          updated_at?: string
-          upi_id?: string | null
-          user_id: string
-        }
-        Update: {
-          account_holder?: string | null
-          account_number?: string | null
-          bank_name?: string | null
-          created_at?: string
-          id?: string
-          ifsc_code?: string | null
-          is_default?: boolean | null
-          payment_details?: Json
-          payment_type?: string
-          updated_at?: string
-          upi_id?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      payment_transactions: {
-        Row: {
-          amount: number
-          created_at: string
-          currency: string
-          id: string
-          payment_method: string
-          payment_reference: string | null
-          spark_points: number
-          status: string
-          updated_at: string
-          user_id: string
-          verification_status: string
-          verified_at: string | null
-          verified_by: string | null
-        }
-        Insert: {
-          amount: number
-          created_at?: string
-          currency?: string
-          id?: string
-          payment_method: string
-          payment_reference?: string | null
-          spark_points: number
-          status?: string
-          updated_at?: string
-          user_id: string
-          verification_status?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Update: {
-          amount?: number
-          created_at?: string
-          currency?: string
-          id?: string
-          payment_method?: string
-          payment_reference?: string | null
-          spark_points?: number
-          status?: string
-          updated_at?: string
-          user_id?: string
-          verification_status?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Relationships: []
-      }
-      posts: {
+      mpa_posts: {
         Row: {
           category: string | null
           comments: number | null
           content: string
-          created_at: string
+          created_at: string | null
           excerpt: string | null
           featured: string | null
           id: string
@@ -552,14 +273,14 @@ export type Database = {
           published: boolean | null
           thumbnail_url: string | null
           title: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           category?: string | null
           comments?: number | null
           content: string
-          created_at?: string
+          created_at?: string | null
           excerpt?: string | null
           featured?: string | null
           id?: string
@@ -567,14 +288,14 @@ export type Database = {
           published?: boolean | null
           thumbnail_url?: string | null
           title: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           category?: string | null
           comments?: number | null
           content?: string
-          created_at?: string
+          created_at?: string | null
           excerpt?: string | null
           featured?: string | null
           id?: string
@@ -582,12 +303,12 @@ export type Database = {
           published?: boolean | null
           thumbnail_url?: string | null
           title?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
       }
-      profiles: {
+      mpa_profiles: {
         Row: {
           avatar_url: string | null
           country: string | null
@@ -650,10 +371,10 @@ export type Database = {
         }
         Relationships: []
       }
-      projects: {
+      mpa_projects: {
         Row: {
           category: string
-          created_at: string
+          created_at: string | null
           description: string
           file_format: string | null
           file_path: string | null
@@ -664,12 +385,12 @@ export type Database = {
           status: string | null
           title: string
           type: string
-          updated_at: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           category: string
-          created_at?: string
+          created_at?: string | null
           description: string
           file_format?: string | null
           file_path?: string | null
@@ -680,12 +401,12 @@ export type Database = {
           status?: string | null
           title: string
           type: string
-          updated_at?: string
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           category?: string
-          created_at?: string
+          created_at?: string | null
           description?: string
           file_format?: string | null
           file_path?: string | null
@@ -696,80 +417,44 @@ export type Database = {
           status?: string | null
           title?: string
           type?: string
-          updated_at?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
       }
-      referrals: {
+      mpa_referrals: {
         Row: {
           bonus_earned: number | null
           completed_at: string | null
-          created_at: string
+          created_at: string | null
           id: string
           referred_id: string
           referrer_id: string
-          status: string
+          status: string | null
         }
         Insert: {
           bonus_earned?: number | null
           completed_at?: string | null
-          created_at?: string
+          created_at?: string | null
           id?: string
           referred_id: string
           referrer_id: string
-          status?: string
+          status?: string | null
         }
         Update: {
           bonus_earned?: number | null
           completed_at?: string | null
-          created_at?: string
+          created_at?: string | null
           id?: string
           referred_id?: string
           referrer_id?: string
-          status?: string
+          status?: string | null
         }
         Relationships: []
       }
-      role_requests: {
+      mpa_service_offers: {
         Row: {
-          approved_at: string | null
-          approver_id: string | null
-          created_at: string
-          id: string
-          reason: string | null
-          requested_role: string
-          requester_id: string
-          status: string
-          target_user_id: string
-        }
-        Insert: {
-          approved_at?: string | null
-          approver_id?: string | null
-          created_at?: string
-          id?: string
-          reason?: string | null
-          requested_role: string
-          requester_id: string
-          status?: string
-          target_user_id: string
-        }
-        Update: {
-          approved_at?: string | null
-          approver_id?: string | null
-          created_at?: string
-          id?: string
-          reason?: string | null
-          requested_role?: string
-          requester_id?: string
-          status?: string
-          target_user_id?: string
-        }
-        Relationships: []
-      }
-      service_offers: {
-        Row: {
-          created_at: string
+          created_at: string | null
           description: string | null
           discount_percentage: number | null
           end_date: string | null
@@ -781,7 +466,7 @@ export type Database = {
           start_date: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           description?: string | null
           discount_percentage?: number | null
           end_date?: string | null
@@ -793,7 +478,7 @@ export type Database = {
           start_date?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           description?: string | null
           discount_percentage?: number | null
           end_date?: string | null
@@ -806,39 +491,48 @@ export type Database = {
         }
         Relationships: []
       }
-      widgets: {
+      mpa_widgets: {
         Row: {
+          active: boolean | null
           code: string | null
-          created_at: string
+          created_at: string | null
           created_by: string
           description: string
           id: string
+          location: string | null
+          priority: number | null
           settings: Json | null
           title: string
           type: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
+          active?: boolean | null
           code?: string | null
-          created_at?: string
+          created_at?: string | null
           created_by: string
           description: string
           id?: string
+          location?: string | null
+          priority?: number | null
           settings?: Json | null
           title: string
           type: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
+          active?: boolean | null
           code?: string | null
-          created_at?: string
+          created_at?: string | null
           created_by?: string
           description?: string
           id?: string
+          location?: string | null
+          priority?: number | null
           settings?: Json | null
           title?: string
           type?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

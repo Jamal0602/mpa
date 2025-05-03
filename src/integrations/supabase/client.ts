@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 export interface Database {
   public: {
     Tables: {
-      profiles: {
+      MPA_profiles: {
         Row: {
           id: string;
           username: string;
@@ -27,7 +27,7 @@ export interface Database {
           referred_by: string;
         }
       };
-      posts: {
+      MPA_posts: {
         Row: {
           id: string;
           title: string;
@@ -44,7 +44,7 @@ export interface Database {
           category?: string;
         }
       };
-      widgets: {
+      MPA_widgets: {
         Row: {
           id: string;
           title: string;
@@ -60,7 +60,7 @@ export interface Database {
           priority?: number;
         }
       };
-      job_applications: {
+      MPA_job_applications: {
         Row: {
           id: string;
           user_id: string;
@@ -76,7 +76,7 @@ export interface Database {
           skills?: string[];
         }
       };
-      projects: {
+      MPA_projects: {
         Row: {
           id: string;
           title: string;
@@ -92,7 +92,7 @@ export interface Database {
           updated_at: string;
         }
       };
-      comments: {
+      MPA_comments: {
         Row: {
           id: string;
           content: string;
@@ -102,7 +102,7 @@ export interface Database {
           updated_at: string;
         }
       };
-      notifications: {
+      MPA_notifications: {
         Row: {
           id: string;
           user_id: string;
@@ -113,7 +113,7 @@ export interface Database {
           created_at: string;
         }
       };
-      error_reports: {
+      MPA_error_reports: {
         Row: {
           id: string;
           error_type: string;
@@ -135,36 +135,21 @@ export interface Database {
           resolved_at?: string;
         }
       };
-      services: {
+      MPA_service_offers: {
         Row: {
           id: string;
           name: string;
           description: string;
-          price_in_points: number;
-          category: string;
-          image_url: string;
+          point_cost: number;
+          discount_percentage: number;
+          start_date: string;
+          end_date: string;
+          is_active: boolean;
+          per_page_pricing: boolean;
           created_at: string;
-          updated_at: string;
-          created_by: string;
-          active: boolean;
-          featured: boolean;
-          details: any;
-          requirements: string[];
         }
       };
-      service_purchases: {
-        Row: {
-          id: string;
-          service_id: string;
-          user_id: string;
-          points_spent: number;
-          status: string;
-          project_details: any;
-          created_at: string;
-          updated_at: string;
-        }
-      };
-      key_points_transactions: {
+      MPA_key_points_transactions: {
         Row: {
           id: string;
           user_id: string;
@@ -174,7 +159,7 @@ export interface Database {
           created_at: string;
         }
       };
-      payment_details: {
+      MPA_payment_details: {
         Row: {
           id: string;
           user_id: string;

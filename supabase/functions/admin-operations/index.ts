@@ -50,7 +50,7 @@ serve(async (req) => {
 
         // 2. Update the profile to make the user an admin
         const { error: profileError } = await supabase
-          .from('profiles')
+          .from('MPA_profiles')
           .update({ role: 'admin', key_points: 1000 })
           .eq('id', authData.user.id);
 

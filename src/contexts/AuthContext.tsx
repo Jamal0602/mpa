@@ -58,13 +58,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const profileData = await checkUserProfile(userId);
+      // Updated to use MPA_profiles table
+      const { data: profileData, error } = await supabase
+        .from('MPA_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
       
-      if (!profileData && session) {
-        console.log("No profile found, attempting to create one...");
-        const result = await createUserProfile(session);
-        if (result.success && result.profile) {
-          return result.profile as UserProfile;
+      if (error || !profileData) {
+        if (session) {
+          console.log("No profile found, attempting to create one...");
+          
+          // Create a basic profile with default values
+          const { data: newProfile, error: insertError } = await supabase
+            .from('MPA_profiles')
+            .insert([{ 
+              id: userId,
+              username: session.user.email,
+              full_name: session.user.user_metadata?.full_name || session.user.email,
+              avatar_url: session.user.user_metadata?.avatar_url || null
+            }])
+            .select()
+            .single();
+            
+          if (insertError || !newProfile) {
+            console.error("Failed to create profile:", insertError);
+            return null;
+          }
+          
+          return newProfile as UserProfile;
         }
         return null;
       }
@@ -76,7 +98,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Ensure the profile has MPA ID and referral code
       if (profileData && profileData.username) {
-        await ensureProfileHasReferralAndMpaId(userId, profileData.username);
+        // Make sure referral code and MPA ID exist
+        if (!profileData.referral_code || !profileData.mpa_id) {
+          const referralCode = profileData.referral_code || 
+            `MPA${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+          const mpaId = profileData.mpa_id || 
+            `MPA-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+            
+          await supabase
+            .from('MPA_profiles')
+            .update({ 
+              referral_code: referralCode,
+              mpa_id: mpaId 
+            })
+            .eq('id', userId);
+            
+          profileData.referral_code = referralCode;
+          profileData.mpa_id = mpaId;
+        }
       }
       
       return profileData as UserProfile;

@@ -19,7 +19,7 @@ export function ThemeToggle() {
     if (user) {
       try {
         await supabase
-          .from('profiles')
+          .from('MPA_profiles')
           .update({ theme_preference: newTheme })
           .eq('id', user.id);
           
